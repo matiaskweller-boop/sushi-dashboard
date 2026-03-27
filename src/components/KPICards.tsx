@@ -61,8 +61,8 @@ export default function KPICards({ kpis, loading }: Props) {
 
   if (loading) {
     return (
-      <div className="grid grid-cols-1 sm:grid-cols-3 gap-4">
-        {[1, 2, 3].map((i) => (
+      <div className="grid grid-cols-2 sm:grid-cols-4 gap-4">
+        {[1, 2, 3, 4].map((i) => (
           <div key={i} className="kpi-card">
             <div className="skeleton h-4 w-24 mb-2" />
             <div className="skeleton h-8 w-32 mb-1" />
@@ -74,7 +74,7 @@ export default function KPICards({ kpis, loading }: Props) {
   }
 
   return (
-    <div className="grid grid-cols-1 sm:grid-cols-3 gap-4">
+    <div className="grid grid-cols-2 sm:grid-cols-4 gap-4">
       <div className="kpi-card">
         <span className="kpi-label">Ventas totales</span>
         <span className="kpi-value">{formatMoney(kpis.totalSales, currency, rate)}</span>
@@ -85,11 +85,20 @@ export default function KPICards({ kpis, loading }: Props) {
       </div>
 
       <div className="kpi-card">
-        <span className="kpi-label">Cantidad de ordenes</span>
+        <span className="kpi-label">Ordenes</span>
         <span className="kpi-value">{formatNumber(kpis.totalOrders)}</span>
         <ChangeIndicator
           current={kpis.totalOrders}
           previous={kpis.prevTotalOrders}
+        />
+      </div>
+
+      <div className="kpi-card">
+        <span className="kpi-label">Comensales</span>
+        <span className="kpi-value">{formatNumber(kpis.totalPax)}</span>
+        <ChangeIndicator
+          current={kpis.totalPax}
+          previous={kpis.prevTotalPax}
         />
       </div>
 

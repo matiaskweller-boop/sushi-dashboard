@@ -17,9 +17,11 @@ const EMPTY_DATA: DashboardData = {
   kpis: {
     totalSales: 0,
     totalOrders: 0,
+    totalPax: 0,
     avgTicket: 0,
     prevTotalSales: 0,
     prevTotalOrders: 0,
+    prevTotalPax: 0,
     prevAvgTicket: 0,
   },
   sucursalKPIs: [],

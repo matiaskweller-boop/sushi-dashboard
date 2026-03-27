@@ -146,10 +146,18 @@ export interface SalesData {
 export interface KPIs {
   totalSales: number;
   totalOrders: number;
+  totalPax: number;
   avgTicket: number;
   prevTotalSales: number;
   prevTotalOrders: number;
+  prevTotalPax: number;
   prevAvgTicket: number;
+}
+
+export interface PaymentBreakdown {
+  method: string;
+  amount: number;
+  percentage: number;
 }
 
 export interface SucursalKPIs {
@@ -158,8 +166,10 @@ export interface SucursalKPIs {
   color: string;
   totalSales: number;
   totalOrders: number;
+  totalPax: number;
   avgTicket: number;
   mainPaymentMethod: string;
+  paymentBreakdown: PaymentBreakdown[];
   error?: string;
 }
 

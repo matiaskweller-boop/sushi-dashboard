@@ -17,6 +17,42 @@ import {
 } from "@/types";
 import { format, subDays, startOfDay, endOfDay } from "date-fns";
 
+// Extract Argentina hour/day regardless of server timezone (works on both UTC/Vercel and local)
+const argFormatter = new Intl.DateTimeFormat("es-AR", {
+  timeZone: "America/Argentina/Buenos_Aires",
+  hour: "numeric",
+  hour12: false,
+  weekday: "short",
+  year: "numeric",
+  month: "2-digit",
+  day: "2-digit",
+});
+
+function getArgentinaHour(date: Date): number {
+  const parts = argFormatter.formatToParts(date);
+  const hourPart = parts.find((p) => p.type === "hour");
+  return parseInt(hourPart?.value || "0", 10);
+}
+
+function getArgentinaDayOfWeek(date: Date): number {
+  const day = date.toLocaleDateString("en-US", {
+    timeZone: "America/Argentina/Buenos_Aires",
+    weekday: "short",
+  });
+  const map: Record<string, number> = { Sun: 0, Mon: 1, Tue: 2, Wed: 3, Thu: 4, Fri: 5, Sat: 6 };
+  return map[day] ?? 0;
+}
+
+function formatArgentinaDate(date: Date, fmt: string): string {
+  // For format patterns like "yyyy-MM" and "yyyy-MM-dd", extract parts in AR timezone
+  const parts = argFormatter.formatToParts(date);
+  const year = parts.find((p) => p.type === "year")?.value || "";
+  const month = parts.find((p) => p.type === "month")?.value || "";
+  const day = parts.find((p) => p.type === "day")?.value || "";
+  if (fmt === "yyyy-MM") return `${year}-${month}`;
+  return `${year}-${month}-${day}`;
+}
+
 function formatDate(date: Date): string {
   return format(date, "yyyy-MM-dd");
 }
@@ -81,9 +117,11 @@ function calcKPIs(
   return {
     totalSales,
     totalOrders,
+    totalPax: totalPeople,
     avgTicket,
     prevTotalSales,
     prevTotalOrders,
+    prevTotalPax: prevTotalPeople,
     prevAvgTicket,
   };
 }
@@ -98,23 +136,31 @@ function calcSucursalKPIs(
   const closed = sales.filter((s) => s.saleState === "CLOSED");
   const totalSales = closed.reduce((sum, s) => sum + (s.total || 0), 0);
   const totalOrders = closed.length;
-  const totalPeople = closed.reduce((sum, s) => sum + (s.people || 1), 0);
-  const avgTicket = totalPeople > 0 ? totalSales / totalPeople : 0;
+  const totalPax = closed.reduce((sum, s) => sum + (s.people || 1), 0);
+  const avgTicket = totalPax > 0 ? totalSales / totalPax : 0;
 
-  // Calcular método de pago principal
-  const paymentCounts: Record<string, number> = {};
+  // Calcular desglose de medios de pago
+  const paymentAmounts: Record<string, number> = {};
+  let totalPayments = 0;
   closed.forEach((sale) => {
     sale.payments
       .filter((p) => !p.canceled)
       .forEach((p) => {
         const method = p.methodName || "Otro";
-        paymentCounts[method] = (paymentCounts[method] || 0) + p.amount;
+        paymentAmounts[method] = (paymentAmounts[method] || 0) + p.amount;
+        totalPayments += p.amount;
       });
   });
 
-  const mainPaymentMethod =
-    Object.entries(paymentCounts).sort((a, b) => b[1] - a[1])[0]?.[0] ||
-    "Sin datos";
+  const paymentBreakdown = Object.entries(paymentAmounts)
+    .map(([method, amount]) => ({
+      method,
+      amount,
+      percentage: totalPayments > 0 ? Math.round((amount / totalPayments) * 100) : 0,
+    }))
+    .sort((a, b) => b.amount - a.amount);
+
+  const mainPaymentMethod = paymentBreakdown[0]?.method || "Sin datos";
 
   return {
     sucursalId,
@@ -122,8 +168,10 @@ function calcSucursalKPIs(
     color,
     totalSales,
     totalOrders,
+    totalPax,
     avgTicket,
     mainPaymentMethod,
+    paymentBreakdown,
     error,
   };
 }
@@ -144,7 +192,7 @@ function calcHourlySales(
       .forEach((sale) => {
         const dateStr = sale.closedAt || sale.createdAt;
         if (dateStr) {
-          const hour = new Date(dateStr).getHours();
+          const hour = getArgentinaHour(new Date(dateStr));
           if (hour >= 0 && hour < 24) {
             hours[hour][sucursalId as SucursalId] += sale.total || 0;
           }
@@ -371,7 +419,7 @@ function calcHourlyOrderCounts(
       .forEach((sale) => {
         const dateStr = sale.createdAt;
         if (dateStr) {
-          const hour = new Date(dateStr).getHours();
+          const hour = getArgentinaHour(new Date(dateStr));
           if (hour >= 0 && hour < 24) {
             hours[hour][sucursalId as SucursalId] += 1;
           }
@@ -491,7 +539,7 @@ export async function getAdvancedKPIs(
   // Lunch vs Dinner
   let lunchRevenue = 0, dinnerRevenue = 0, lunchOrders = 0, dinnerOrders = 0;
   closedAll.forEach((sale) => {
-    const hour = new Date(sale.createdAt).getHours();
+    const hour = getArgentinaHour(new Date(sale.createdAt));
     if (hour >= 12 && hour <= 15) {
       lunchRevenue += sale.total || 0;
       lunchOrders += 1;
@@ -508,7 +556,7 @@ export async function getAdvancedKPIs(
     salesBySucursal[s.id]
       .filter((sale) => sale.saleState === "CLOSED")
       .forEach((sale) => {
-        const hour = new Date(sale.createdAt).getHours();
+        const hour = getArgentinaHour(new Date(sale.createdAt));
         hourlyRev[hour] = (hourlyRev[hour] || 0) + (sale.total || 0);
       });
     const peak = Object.entries(hourlyRev).sort((a, b) => b[1] - a[1])[0];
@@ -518,9 +566,9 @@ export async function getAdvancedKPIs(
   // Revenue heatmap (dayOfWeek x hour)
   const heatmapMap: Record<string, number> = {};
   closedAll.forEach((sale) => {
-    const dt = new Date(sale.createdAt);
-    const dayOfWeek = dt.getDay(); // 0=Sun
-    const hour = dt.getHours();
+    const dtRaw = new Date(sale.createdAt);
+    const dayOfWeek = getArgentinaDayOfWeek(dtRaw);
+    const hour = getArgentinaHour(dtRaw);
     const key = `${dayOfWeek}-${hour}`;
     heatmapMap[key] = (heatmapMap[key] || 0) + (sale.total || 0);
   });
@@ -613,7 +661,7 @@ export async function getProductAnalytics(
     const closed = sales.filter((s) => s.saleState === "CLOSED");
 
     for (const sale of closed) {
-      const hour = new Date(sale.createdAt).getHours();
+      const hour = getArgentinaHour(new Date(sale.createdAt));
       const slot = getTimeSlot(hour);
       timeSlotMap[slot].orders.add(sale.id);
 
@@ -749,8 +797,8 @@ function buildMonthlySummaries(
     if (!created) continue;
 
     const dt = new Date(created);
-    const monthKey = format(dt, "yyyy-MM");
-    const dayKey = format(dt, "yyyy-MM-dd");
+    const monthKey = formatArgentinaDate(dt, "yyyy-MM");
+    const dayKey = formatArgentinaDate(dt, "yyyy-MM-dd");
 
     if (!monthly[monthKey]) {
       monthly[monthKey] = {
@@ -801,7 +849,7 @@ function buildMonthlySummaries(
       m.tableServices += 1;
     }
 
-    const hour = String(dt.getHours());
+    const hour = String(getArgentinaHour(dt));
     m.hourlyRevenue[hour] = (m.hourlyRevenue[hour] || 0) + total;
     m.hourlyCounts[hour] = (m.hourlyCounts[hour] || 0) + 1;
 
@@ -809,7 +857,7 @@ function buildMonthlySummaries(
     m.dailyOrders[dayKey] = (m.dailyOrders[dayKey] || 0) + 1;
     m.dailyPeople[dayKey] = (m.dailyPeople[dayKey] || 0) + people;
 
-    const wd = String(dt.getDay());
+    const wd = String(getArgentinaDayOfWeek(dt));
     m.weekdayRevenue[wd] = (m.weekdayRevenue[wd] || 0) + total;
     m.weekdayOrders[wd] = (m.weekdayOrders[wd] || 0) + 1;
   }
