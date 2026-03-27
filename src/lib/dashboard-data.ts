@@ -67,6 +67,10 @@ function getDateRange(
   let to: Date = endOfDay(now);
 
   switch (period) {
+    case "yesterday":
+      from = startOfDay(subDays(now, 1));
+      to = endOfDay(subDays(now, 1));
+      break;
     case "7days":
       from = startOfDay(subDays(now, 6));
       break;
@@ -97,6 +101,24 @@ function getDateRange(
   };
 }
 
+function isLunch(sale: ParsedSale): boolean {
+  const hour = getArgentinaHour(new Date(sale.closedAt || sale.createdAt));
+  return hour >= 12 && hour < 17;
+}
+
+function calcTicketByShift(sales: ParsedSale[]): { lunch: number; dinner: number } {
+  const lunchSales = sales.filter(isLunch);
+  const dinnerSales = sales.filter((s) => !isLunch(s));
+  const lunchPax = lunchSales.reduce((sum, s) => sum + (s.people || 1), 0);
+  const dinnerPax = dinnerSales.reduce((sum, s) => sum + (s.people || 1), 0);
+  const lunchRevenue = lunchSales.reduce((sum, s) => sum + (s.total || 0), 0);
+  const dinnerRevenue = dinnerSales.reduce((sum, s) => sum + (s.total || 0), 0);
+  return {
+    lunch: lunchPax > 0 ? lunchRevenue / lunchPax : 0,
+    dinner: dinnerPax > 0 ? dinnerRevenue / dinnerPax : 0,
+  };
+}
+
 function calcKPIs(
   currentSales: ParsedSale[],
   prevSales: ParsedSale[]
@@ -108,6 +130,7 @@ function calcKPIs(
   const totalOrders = closedCurrent.length;
   const totalPeople = closedCurrent.reduce((sum, s) => sum + (s.people || 1), 0);
   const avgTicket = totalPeople > 0 ? totalSales / totalPeople : 0;
+  const shiftTickets = calcTicketByShift(closedCurrent);
 
   const prevTotalSales = closedPrev.reduce((sum, s) => sum + (s.total || 0), 0);
   const prevTotalOrders = closedPrev.length;
@@ -119,6 +142,8 @@ function calcKPIs(
     totalOrders,
     totalPax: totalPeople,
     avgTicket,
+    avgTicketLunch: shiftTickets.lunch,
+    avgTicketDinner: shiftTickets.dinner,
     prevTotalSales,
     prevTotalOrders,
     prevTotalPax: prevTotalPeople,
@@ -162,6 +187,15 @@ function calcSucursalKPIs(
 
   const mainPaymentMethod = paymentBreakdown[0]?.method || "Sin datos";
 
+  // Ticket y % almuerzo/cena
+  const shiftTickets = calcTicketByShift(closed);
+  const lunchSales = closed.filter(isLunch);
+  const dinnerSales = closed.filter((s) => !isLunch(s));
+  const lunchRevenue = lunchSales.reduce((sum, s) => sum + (s.total || 0), 0);
+  const dinnerRevenue = dinnerSales.reduce((sum, s) => sum + (s.total || 0), 0);
+  const lunchPct = totalSales > 0 ? Math.round((lunchRevenue / totalSales) * 100) : 0;
+  const dinnerPct = totalSales > 0 ? 100 - lunchPct : 0;
+
   return {
     sucursalId,
     name,
@@ -170,6 +204,10 @@ function calcSucursalKPIs(
     totalOrders,
     totalPax,
     avgTicket,
+    avgTicketLunch: shiftTickets.lunch,
+    avgTicketDinner: shiftTickets.dinner,
+    lunchPct,
+    dinnerPct,
     mainPaymentMethod,
     paymentBreakdown,
     error,

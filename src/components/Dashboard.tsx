@@ -19,6 +19,8 @@ const EMPTY_DATA: DashboardData = {
     totalOrders: 0,
     totalPax: 0,
     avgTicket: 0,
+    avgTicketLunch: 0,
+    avgTicketDinner: 0,
     prevTotalSales: 0,
     prevTotalOrders: 0,
     prevTotalPax: 0,

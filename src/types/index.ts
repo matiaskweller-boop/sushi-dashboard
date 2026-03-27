@@ -148,6 +148,8 @@ export interface KPIs {
   totalOrders: number;
   totalPax: number;
   avgTicket: number;
+  avgTicketLunch: number;
+  avgTicketDinner: number;
   prevTotalSales: number;
   prevTotalOrders: number;
   prevTotalPax: number;
@@ -168,6 +170,10 @@ export interface SucursalKPIs {
   totalOrders: number;
   totalPax: number;
   avgTicket: number;
+  avgTicketLunch: number;
+  avgTicketDinner: number;
+  lunchPct: number;
+  dinnerPct: number;
   mainPaymentMethod: string;
   paymentBreakdown: PaymentBreakdown[];
   error?: string;
@@ -208,7 +214,7 @@ export interface DashboardData {
   lastUpdated: string;
 }
 
-export type PeriodFilter = "today" | "7days" | "30days" | "custom";
+export type PeriodFilter = "today" | "yesterday" | "7days" | "30days" | "custom";
 
 // ===== Advanced KPIs Types =====
 

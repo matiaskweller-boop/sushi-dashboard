@@ -72,6 +72,37 @@ export default function SucursalCards({ data, loading }: Props) {
                 <span className="font-semibold">{formatMoney(s.avgTicket, currency, rate)}</span>
               </div>
 
+              {/* Ticket almuerzo/cena */}
+              <div className="pt-2 border-t border-gray-100 space-y-1.5">
+                <div className="flex justify-between">
+                  <span className="text-gray-500 text-xs">Ticket almuerzo</span>
+                  <span className="font-medium text-sm">{formatMoney(s.avgTicketLunch, currency, rate)}</span>
+                </div>
+                <div className="flex justify-between">
+                  <span className="text-gray-500 text-xs">Ticket cena</span>
+                  <span className="font-medium text-sm">{formatMoney(s.avgTicketDinner, currency, rate)}</span>
+                </div>
+                {/* Barra almuerzo vs cena */}
+                <div className="flex items-center gap-1.5 text-xs">
+                  <span className="text-amber-600 font-medium">{s.lunchPct}%</span>
+                  <div className="flex-1 flex h-2 rounded-full overflow-hidden bg-gray-100">
+                    <div
+                      className="h-full bg-amber-400 transition-all"
+                      style={{ width: `${s.lunchPct}%` }}
+                    />
+                    <div
+                      className="h-full bg-indigo-400 transition-all"
+                      style={{ width: `${s.dinnerPct}%` }}
+                    />
+                  </div>
+                  <span className="text-indigo-600 font-medium">{s.dinnerPct}%</span>
+                </div>
+                <div className="flex justify-between text-[10px] text-gray-400">
+                  <span>Almuerzo</span>
+                  <span>Cena</span>
+                </div>
+              </div>
+
               {/* Medios de pago */}
               <div className="pt-2 border-t border-gray-100">
                 <button

@@ -13,6 +13,7 @@ interface Props {
 
 const PERIODS: { value: PeriodFilterType; label: string }[] = [
   { value: "today", label: "Hoy" },
+  { value: "yesterday", label: "Ayer" },
   { value: "7days", label: "7 dias" },
   { value: "30days", label: "30 dias" },
   { value: "custom", label: "Personalizado" },
