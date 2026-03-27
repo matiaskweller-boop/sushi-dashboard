@@ -1,0 +1,57 @@
+@import url('https://fonts.googleapis.com/css2?family=DM+Sans:ital,opsz,wght@0,9..40,100..1000;1,9..40,100..1000&family=Noto+Serif+JP:wght@400;700&display=swap');
+
+@tailwind base;
+@tailwind components;
+@tailwind utilities;
+
+@layer base {
+  body {
+    @apply bg-bg-main text-navy font-sans;
+  }
+}
+
+@layer components {
+  .card {
+    @apply bg-white rounded-xl border border-card-border p-4 md:p-6 shadow-sm;
+  }
+
+  .kpi-card {
+    @apply card flex flex-col gap-1;
+  }
+
+  .kpi-value {
+    @apply text-2xl md:text-3xl font-bold;
+  }
+
+  .kpi-label {
+    @apply text-sm text-gray-500;
+  }
+
+  .kpi-change {
+    @apply text-sm font-medium flex items-center gap-1;
+  }
+
+  .kpi-change.positive {
+    @apply text-green-600;
+  }
+
+  .kpi-change.negative {
+    @apply text-red-500;
+  }
+
+  .skeleton {
+    @apply animate-pulse bg-gray-200 rounded;
+  }
+
+  .pill {
+    @apply px-3 py-1.5 rounded-full text-sm font-medium cursor-pointer transition-colors;
+  }
+
+  .pill.active {
+    @apply bg-navy text-white;
+  }
+
+  .pill:not(.active) {
+    @apply bg-gray-100 text-gray-600 hover:bg-gray-200;
+  }
+}
