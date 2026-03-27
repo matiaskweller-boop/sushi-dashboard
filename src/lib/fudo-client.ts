@@ -7,10 +7,12 @@ import {
   FudoPaymentAttributes,
   FudoPaymentMethodAttributes,
   FudoProductAttributes,
+  FudoCategoryAttributes,
   ParsedSale,
   ParsedItem,
   ParsedPayment,
   ParsedProduct,
+  ParsedCategory,
 } from "@/types";
 
 // ===== Constantes de la API de Fudo =====
@@ -27,6 +29,17 @@ const DATA_CACHE_TTL = 5 * 60 * 1000;
 
 // Cache de productos por sucursal (para resolver nombres)
 const productNameCache: Map<string, Map<string, string>> = new Map();
+
+// Cache de categorías por sucursal (sucursalId -> categoryId -> categoryName)
+const categoryNameCache: Map<string, Map<string, string>> = new Map();
+
+// Enriched product metadata: sucursalId -> productId -> { name, categoryId, categoryName }
+interface ProductMetadata {
+  name: string;
+  categoryId: string | null;
+  categoryName: string | null;
+}
+const productMetadataCache: Map<string, Map<string, ProductMetadata>> = new Map();
 
 // Rate limiting: una request a la vez por sucursal, con delay entre requests
 const requestQueues: Map<string, Promise<unknown>> = new Map();
@@ -194,7 +207,8 @@ function getRelationshipIds(
 
 function parseSalesPage(
   response: JsonApiResponse<FudoSaleAttributes>,
-  productNames: Map<string, string>
+  productNames: Map<string, string>,
+  metadata?: Map<string, ProductMetadata>
 ): ParsedSale[] {
   const { data, included } = response;
 
@@ -209,13 +223,16 @@ function parseSalesPage(
         if (!itemResource) return null;
         const itemAttrs = itemResource.attributes as unknown as FudoItemAttributes;
         const productId = getRelationshipId(itemResource, "product") || "";
+        const meta = metadata?.get(productId);
         return {
           id: itemResource.id,
           productId,
-          productName: productNames.get(productId) || `Producto #${productId}`,
+          productName: meta?.name || productNames.get(productId) || `Producto #${productId}`,
           price: itemAttrs.price || 0,
           quantity: itemAttrs.quantity || 1,
           canceled: !!itemAttrs.canceled,
+          categoryId: meta?.categoryId || null,
+          categoryName: meta?.categoryName || null,
         };
       })
       .filter((item): item is ParsedItem => item !== null);
@@ -259,14 +276,79 @@ function parseSalesPage(
 
 // ===== Funciones públicas =====
 
-async function loadProductNames(sucursal: SucursalConfig): Promise<Map<string, string>> {
-  const cached = productNameCache.get(sucursal.id);
-  if (cached && cached.size > 0) return cached;
+export async function getCategories(
+  sucursal: SucursalConfig
+): Promise<ParsedCategory[]> {
+  let allCategories: ParsedCategory[] = [];
+  let pageNumber = 1;
+  let hasMore = true;
 
-  const products = await getProducts(sucursal);
+  while (hasMore) {
+    const response = await fudoFetch<JsonApiResponse<FudoCategoryAttributes>>(
+      sucursal,
+      "/product-categories",
+      {
+        "page[size]": String(MAX_PAGE_SIZE),
+        "page[number]": String(pageNumber),
+      }
+    );
+
+    const categories = response.data.map((r) => ({
+      id: r.id,
+      name: r.attributes.name,
+      position: r.attributes.position,
+    }));
+
+    allCategories = allCategories.concat(categories);
+    hasMore = response.data.length >= MAX_PAGE_SIZE;
+    pageNumber++;
+    if (pageNumber > 20) break;
+  }
+
+  return allCategories;
+}
+
+async function loadProductMetadata(
+  sucursal: SucursalConfig
+): Promise<{ nameMap: Map<string, string>; metadata: Map<string, ProductMetadata> }> {
+  const cachedMeta = productMetadataCache.get(sucursal.id);
+  const cachedNames = productNameCache.get(sucursal.id);
+  if (cachedMeta && cachedMeta.size > 0 && cachedNames && cachedNames.size > 0) {
+    return { nameMap: cachedNames, metadata: cachedMeta };
+  }
+
+  // Load products and categories in parallel
+  const [products, categories] = await Promise.all([
+    getProducts(sucursal),
+    getCategories(sucursal).catch(() => [] as ParsedCategory[]),
+  ]);
+
+  // Build category name map
+  const catMap = new Map<string, string>();
+  categories.forEach((c) => catMap.set(c.id, c.name));
+  categoryNameCache.set(sucursal.id, catMap);
+
+  // Build product metadata
   const nameMap = new Map<string, string>();
-  products.forEach((p) => nameMap.set(p.id, p.name));
+  const metaMap = new Map<string, ProductMetadata>();
+  products.forEach((p) => {
+    nameMap.set(p.id, p.name);
+    metaMap.set(p.id, {
+      name: p.name,
+      categoryId: p.categoryId,
+      categoryName: p.categoryId ? catMap.get(p.categoryId) || null : null,
+    });
+  });
+
   productNameCache.set(sucursal.id, nameMap);
+  productMetadataCache.set(sucursal.id, metaMap);
+
+  return { nameMap, metadata: metaMap };
+}
+
+// Backward-compatible wrapper
+async function loadProductNames(sucursal: SucursalConfig): Promise<Map<string, string>> {
+  const { nameMap } = await loadProductMetadata(sucursal);
   return nameMap;
 }
 
@@ -287,7 +369,7 @@ export async function getSales(
     return cached.data as ParsedSale[];
   }
 
-  const productNames = await loadProductNames(sucursal);
+  const { nameMap: productNames, metadata } = await loadProductMetadata(sucursal);
 
   // Usar timezone local (Argentina UTC-3) para filtrar por día calendario
   const fromDate = new Date(from + "T00:00:00-03:00");
@@ -311,7 +393,7 @@ export async function getSales(
 
     if (!response.data || response.data.length === 0) break;
 
-    const sales = parseSalesPage(response, productNames);
+    const sales = parseSalesPage(response, productNames, metadata);
 
     for (const sale of sales) {
       const saleDate = new Date(sale.closedAt || sale.createdAt);
@@ -381,4 +463,6 @@ export function clearCache(): void {
   dataCache.clear();
   tokenCache.clear();
   productNameCache.clear();
+  categoryNameCache.clear();
+  productMetadataCache.clear();
 }

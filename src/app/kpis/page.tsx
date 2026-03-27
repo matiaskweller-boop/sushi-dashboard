@@ -6,6 +6,8 @@ import Header from "@/components/Header";
 import Navigation from "@/components/Navigation";
 import PeriodFilter from "@/components/PeriodFilter";
 import ErrorBanner from "@/components/ErrorBanner";
+import RevenueHeatmap from "@/components/RevenueHeatmap";
+import ProductAnalytics from "@/components/ProductAnalytics";
 import { PeriodFilter as PeriodFilterType, AdvancedKPIsData } from "@/types";
 import {
   ResponsiveContainer,
@@ -21,6 +23,9 @@ import {
   Cell,
 } from "recharts";
 
+import { formatMoney as _formatMoney, formatMoneyShort as _formatMoneyShort } from "@/lib/format";
+import { useCurrency } from "@/lib/CurrencyContext";
+
 const EMPTY_DATA: AdvancedKPIsData = {
   global: {
     avgDurationMinutes: 0,
@@ -34,29 +39,40 @@ const EMPTY_DATA: AdvancedKPIsData = {
   totalItems: 0,
   canceledItems: 0,
   peopleDistribution: [],
+  itemsPerPerson: 0,
+  revenuePerMinute: 0,
+  topProductConcentration: 0,
+  lunchRevenue: 0,
+  dinnerRevenue: 0,
+  lunchOrders: 0,
+  dinnerOrders: 0,
+  peakHours: {},
+  revenueHeatmap: [],
   errors: [],
   lastUpdated: "",
 };
 
-function formatMoney(amount: number): string {
-  return new Intl.NumberFormat("es-AR", {
-    style: "currency",
-    currency: "ARS",
-    minimumFractionDigits: 0,
-    maximumFractionDigits: 0,
-  }).format(amount);
-}
+const SUCURSAL_NAMES: Record<string, string> = {
+  palermo: "Palermo",
+  belgrano: "Belgrano",
+  puerto: "Puerto Madero",
+};
 
-function formatMoneyShort(amount: number): string {
-  if (amount >= 1000000) return `$${(amount / 1000000).toFixed(1)}M`;
-  if (amount >= 1000) return `$${(amount / 1000).toFixed(0)}K`;
-  return `$${amount.toFixed(0)}`;
-}
+const SUCURSAL_COLORS: Record<string, string> = {
+  palermo: "#2E6DA4",
+  belgrano: "#10B981",
+  puerto: "#8B5CF6",
+};
 
 export default function KPIsPage() {
   const [data, setData] = useState<AdvancedKPIsData>(EMPTY_DATA);
   const [loading, setLoading] = useState(true);
   const [period, setPeriod] = useState<PeriodFilterType>("today");
+  const { currency, getRate } = useCurrency();
+  const rate = getRate();
+
+  const formatMoney = (amount: number) => _formatMoney(amount, currency, rate);
+  const formatMoneyShort = (amount: number) => _formatMoneyShort(amount, currency, rate);
   const [customFrom, setCustomFrom] = useState(
     format(new Date(), "yyyy-MM-dd")
   );
@@ -128,7 +144,7 @@ export default function KPIsPage() {
 
         <ErrorBanner errors={data.errors} />
 
-        {/* Global KPI cards */}
+        {/* Global KPI cards - original 4 */}
         {loading ? (
           <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-4">
             {[1, 2, 3, 4].map((i) => (
@@ -174,6 +190,108 @@ export default function KPIsPage() {
           </div>
         )}
 
+        {/* New KPI cards row */}
+        {!loading && (
+          <div className="grid grid-cols-1 sm:grid-cols-3 gap-4">
+            <div className="kpi-card">
+              <span className="kpi-label">Items por comensal</span>
+              <span className="kpi-value">
+                {data.itemsPerPerson.toFixed(1)}
+              </span>
+            </div>
+            <div className="kpi-card">
+              <span className="kpi-label">Ingreso por minuto</span>
+              <span className="kpi-value">
+                {formatMoney(data.revenuePerMinute)}
+              </span>
+              <span className="text-xs text-gray-400">
+                Por minuto de mesa ocupada
+              </span>
+            </div>
+            <div className="kpi-card">
+              <span className="kpi-label">Concentracion top 5</span>
+              <span className="kpi-value">
+                {data.topProductConcentration.toFixed(1)}%
+              </span>
+              <span className="text-xs text-gray-400">
+                De los ingresos en 5 productos
+              </span>
+            </div>
+          </div>
+        )}
+
+        {/* Almuerzo vs Cena */}
+        {!loading && (
+          <div>
+            <h2 className="text-lg font-semibold mb-3">Almuerzo vs Cena</h2>
+            <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
+              <div className="card">
+                <div className="flex items-center gap-2 mb-3">
+                  <span className="text-xl">&#9728;&#65039;</span>
+                  <h3 className="font-semibold text-lg">Almuerzo</h3>
+                  <span className="text-xs text-gray-400">(12-16hs)</span>
+                </div>
+                <div className="grid grid-cols-2 gap-3">
+                  <div>
+                    <p className="text-xs text-gray-500">Ingresos</p>
+                    <p className="text-xl font-bold">{formatMoney(data.lunchRevenue)}</p>
+                  </div>
+                  <div>
+                    <p className="text-xs text-gray-500">Ordenes</p>
+                    <p className="text-xl font-bold">{data.lunchOrders}</p>
+                  </div>
+                </div>
+              </div>
+              <div className="card">
+                <div className="flex items-center gap-2 mb-3">
+                  <span className="text-xl">&#127769;</span>
+                  <h3 className="font-semibold text-lg">Cena</h3>
+                  <span className="text-xs text-gray-400">(19-00hs)</span>
+                </div>
+                <div className="grid grid-cols-2 gap-3">
+                  <div>
+                    <p className="text-xs text-gray-500">Ingresos</p>
+                    <p className="text-xl font-bold">{formatMoney(data.dinnerRevenue)}</p>
+                  </div>
+                  <div>
+                    <p className="text-xs text-gray-500">Ordenes</p>
+                    <p className="text-xl font-bold">{data.dinnerOrders}</p>
+                  </div>
+                </div>
+              </div>
+            </div>
+          </div>
+        )}
+
+        {/* Peak hours per sucursal */}
+        {!loading && data.peakHours && Object.keys(data.peakHours).length > 0 && (
+          <div>
+            <h2 className="text-lg font-semibold mb-3">Hora pico por sucursal</h2>
+            <div className="grid grid-cols-1 sm:grid-cols-3 gap-4">
+              {Object.entries(data.peakHours).map(([sucId, peak]) => (
+                <div key={sucId} className="card relative overflow-hidden">
+                  <div
+                    className="absolute top-0 left-0 right-0 h-1"
+                    style={{ backgroundColor: SUCURSAL_COLORS[sucId] || "#6B7280" }}
+                  />
+                  <h4 className="font-semibold text-sm" style={{ color: SUCURSAL_COLORS[sucId] }}>
+                    {SUCURSAL_NAMES[sucId] || sucId}
+                  </h4>
+                  <p className="text-2xl font-bold mt-1">{peak.hour}:00 hs</p>
+                  <p className="text-xs text-gray-500">
+                    {formatMoney(peak.revenue)} en esa hora
+                  </p>
+                </div>
+              ))}
+            </div>
+          </div>
+        )}
+
+        {/* Revenue Heatmap */}
+        {!loading && data.revenueHeatmap && data.revenueHeatmap.length > 0 && (
+          <RevenueHeatmap data={data.revenueHeatmap} />
+        )}
+
         {/* Per sucursal KPIs */}
         {!loading && data.bySucursal.length > 0 && (
           <div>
@@ -217,6 +335,18 @@ export default function KPIsPage() {
                 </div>
               ))}
             </div>
+          </div>
+        )}
+
+        {/* Product Analytics */}
+        {!loading && (
+          <div>
+            <h2 className="text-lg font-semibold mb-3">Analytics de productos</h2>
+            <ProductAnalytics
+              period={period}
+              customFrom={customFrom}
+              customTo={customTo}
+            />
           </div>
         )}
 

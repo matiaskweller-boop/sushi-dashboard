@@ -66,20 +66,8 @@ const WEEKDAY_NAMES = [
   "Sabado",
 ];
 
-function formatMoney(amount: number): string {
-  return new Intl.NumberFormat("es-AR", {
-    style: "currency",
-    currency: "ARS",
-    minimumFractionDigits: 0,
-    maximumFractionDigits: 0,
-  }).format(amount);
-}
-
-function formatMoneyShort(amount: number): string {
-  if (amount >= 1000000) return `$${(amount / 1000000).toFixed(1)}M`;
-  if (amount >= 1000) return `$${(amount / 1000).toFixed(0)}K`;
-  return `$${amount.toFixed(0)}`;
-}
+import { formatMoney as _formatMoney, formatMoneyShort as _formatMoneyShort } from "@/lib/format";
+import { useCurrency } from "@/lib/CurrencyContext";
 
 function formatMonth(ym: string): string {
   const [year, month] = ym.split("-");
@@ -105,6 +93,11 @@ export default function HistoricoPage() {
   const [loading, setLoading] = useState(true);
   const [sortKey, setSortKey] = useState<SortKey>("month");
   const [sortDir, setSortDir] = useState<SortDir>("desc");
+  const { currency, getRate } = useCurrency();
+  const rate = getRate();
+
+  const formatMoney = (amount: number) => _formatMoney(amount, currency, rate);
+  const formatMoneyShort = (amount: number) => _formatMoneyShort(amount, currency, rate);
 
   useEffect(() => {
     async function fetchData() {

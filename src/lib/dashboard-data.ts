@@ -11,6 +11,9 @@ import {
   KPIs,
   AdvancedKPIsData,
   AdvancedKPIsSucursal,
+  ProductAnalyticsData,
+  CategoryAnalytics,
+  TimeSlotAnalytics,
 } from "@/types";
 import { format, subDays, startOfDay, endOfDay } from "date-fns";
 
@@ -228,23 +231,25 @@ export async function getDashboardData(
     puerto: [],
   };
 
-  // Consultar sucursales secuencialmente para respetar rate limits de Fudo
-  for (const sucursal of SUCURSALES) {
-    try {
-      const sales = await getSales(sucursal, from, to);
-      salesBySucursal[sucursal.id] = sales;
-    } catch (err: unknown) {
-      const message = err instanceof Error ? err.message : "Error desconocido";
-      errors.push(`Error al obtener datos de ${sucursal.name}: ${message}`);
-    }
+  // Consultar sucursales en paralelo (cada una tiene su propio rate limit queue)
+  await Promise.all(
+    SUCURSALES.map(async (sucursal) => {
+      try {
+        const sales = await getSales(sucursal, from, to);
+        salesBySucursal[sucursal.id] = sales;
+      } catch (err: unknown) {
+        const message = err instanceof Error ? err.message : "Error desconocido";
+        errors.push(`Error al obtener datos de ${sucursal.name}: ${message}`);
+      }
 
-    try {
-      const prevSales = await getSales(sucursal, prevFrom, prevTo);
-      prevSalesBySucursal[sucursal.id] = prevSales;
-    } catch {
-      // Error en período anterior no es crítico
-    }
-  }
+      try {
+        const prevSales = await getSales(sucursal, prevFrom, prevTo);
+        prevSalesBySucursal[sucursal.id] = prevSales;
+      } catch {
+        // Error en período anterior no es crítico
+      }
+    })
+  );
 
   // Consolidar datos
   const allCurrentSales = Object.values(salesBySucursal).flat();
@@ -409,15 +414,17 @@ export async function getAdvancedKPIs(
     puerto: [],
   };
 
-  for (const sucursal of SUCURSALES) {
-    try {
-      const sales = await getSales(sucursal, from, to);
-      salesBySucursal[sucursal.id] = sales;
-    } catch (err: unknown) {
-      const message = err instanceof Error ? err.message : "Error desconocido";
-      errors.push(`Error al obtener datos de ${sucursal.name}: ${message}`);
-    }
-  }
+  await Promise.all(
+    SUCURSALES.map(async (sucursal) => {
+      try {
+        const sales = await getSales(sucursal, from, to);
+        salesBySucursal[sucursal.id] = sales;
+      } catch (err: unknown) {
+        const message = err instanceof Error ? err.message : "Error desconocido";
+        errors.push(`Error al obtener datos de ${sucursal.name}: ${message}`);
+      }
+    })
+  );
 
   const allSales = Object.values(salesBySucursal).flat();
   const globalMetrics = calcAdvancedKPIsForSales(allSales);
@@ -452,6 +459,76 @@ export async function getAdvancedKPIs(
   const hourlyOrderCounts = calcHourlyOrderCounts(salesBySucursal);
   const peopleDistribution = calcPeopleDistribution(allSales);
 
+  // New KPIs
+  const closedAll = allSales.filter((s) => s.saleState === "CLOSED");
+  const totalPeople = closedAll.reduce((sum, s) => sum + (s.people || 1), 0);
+  const itemsPerPerson = totalPeople > 0 ? globalMetrics.totalItems / totalPeople : 0;
+
+  // Revenue per minute
+  const allDurations = closedAll
+    .filter((s) => s.closedAt && s.createdAt)
+    .map((s) => {
+      const dur = (new Date(s.closedAt!).getTime() - new Date(s.createdAt).getTime()) / (1000 * 60);
+      return dur > 0 && dur < 600 ? dur : 0;
+    })
+    .filter((d) => d > 0);
+  const totalDurationMinutes = allDurations.reduce((a, b) => a + b, 0);
+  const revenuePerMinute = totalDurationMinutes > 0 ? globalMetrics.totalRevenue / totalDurationMinutes : 0;
+
+  // Top product concentration (top 5 by revenue)
+  const productRevenues: Record<string, number> = {};
+  closedAll.forEach((sale) => {
+    sale.items.filter((i) => !i.canceled).forEach((item) => {
+      const name = item.productName;
+      productRevenues[name] = (productRevenues[name] || 0) + item.price * item.quantity;
+    });
+  });
+  const sortedRevenues = Object.values(productRevenues).sort((a, b) => b - a);
+  const top5Revenue = sortedRevenues.slice(0, 5).reduce((a, b) => a + b, 0);
+  const totalProductRevenue = sortedRevenues.reduce((a, b) => a + b, 0);
+  const topProductConcentration = totalProductRevenue > 0 ? (top5Revenue / totalProductRevenue) * 100 : 0;
+
+  // Lunch vs Dinner
+  let lunchRevenue = 0, dinnerRevenue = 0, lunchOrders = 0, dinnerOrders = 0;
+  closedAll.forEach((sale) => {
+    const hour = new Date(sale.createdAt).getHours();
+    if (hour >= 12 && hour <= 15) {
+      lunchRevenue += sale.total || 0;
+      lunchOrders += 1;
+    } else if (hour >= 19 || hour === 0) {
+      dinnerRevenue += sale.total || 0;
+      dinnerOrders += 1;
+    }
+  });
+
+  // Peak hours per sucursal
+  const peakHours: Record<string, { hour: number; revenue: number }> = {};
+  for (const s of SUCURSALES) {
+    const hourlyRev: Record<number, number> = {};
+    salesBySucursal[s.id]
+      .filter((sale) => sale.saleState === "CLOSED")
+      .forEach((sale) => {
+        const hour = new Date(sale.createdAt).getHours();
+        hourlyRev[hour] = (hourlyRev[hour] || 0) + (sale.total || 0);
+      });
+    const peak = Object.entries(hourlyRev).sort((a, b) => b[1] - a[1])[0];
+    peakHours[s.id] = peak ? { hour: parseInt(peak[0]), revenue: peak[1] } : { hour: 0, revenue: 0 };
+  }
+
+  // Revenue heatmap (dayOfWeek x hour)
+  const heatmapMap: Record<string, number> = {};
+  closedAll.forEach((sale) => {
+    const dt = new Date(sale.createdAt);
+    const dayOfWeek = dt.getDay(); // 0=Sun
+    const hour = dt.getHours();
+    const key = `${dayOfWeek}-${hour}`;
+    heatmapMap[key] = (heatmapMap[key] || 0) + (sale.total || 0);
+  });
+  const revenueHeatmap = Object.entries(heatmapMap).map(([key, revenue]) => {
+    const [dow, h] = key.split("-").map(Number);
+    return { dayOfWeek: dow, hour: h, revenue };
+  });
+
   return {
     global: {
       avgDurationMinutes: globalMetrics.avgDurationMinutes,
@@ -468,6 +545,149 @@ export async function getAdvancedKPIs(
     totalItems: globalMetrics.totalItems,
     canceledItems: globalMetrics.canceledItems,
     peopleDistribution,
+    itemsPerPerson,
+    revenuePerMinute,
+    topProductConcentration,
+    lunchRevenue,
+    dinnerRevenue,
+    lunchOrders,
+    dinnerOrders,
+    peakHours,
+    revenueHeatmap,
+    errors,
+    lastUpdated: new Date().toISOString(),
+  };
+}
+
+// ===== Product Analytics =====
+
+function getTimeSlot(hour: number): string {
+  if (hour >= 12 && hour < 16) return "Almuerzo";
+  if (hour >= 16 && hour < 19) return "Tarde";
+  return "Cena"; // 19-23, 0
+}
+
+export async function getProductAnalytics(
+  period: string,
+  customFrom?: string,
+  customTo?: string
+): Promise<ProductAnalyticsData> {
+  const { from, to } = getDateRange(period, customFrom, customTo);
+
+  const errors: string[] = [];
+  const salesBySucursal: Record<SucursalId, ParsedSale[]> = {
+    palermo: [],
+    belgrano: [],
+    puerto: [],
+  };
+
+  await Promise.all(
+    SUCURSALES.map(async (sucursal) => {
+      try {
+        const sales = await getSales(sucursal, from, to);
+        salesBySucursal[sucursal.id] = sales;
+      } catch (err: unknown) {
+        const message = err instanceof Error ? err.message : "Error desconocido";
+        errors.push(`Error al obtener datos de ${sucursal.name}: ${message}`);
+      }
+    })
+  );
+
+  // Global category analytics
+  const categoryMap: Record<string, CategoryAnalytics> = {};
+  const bySucursalCategories: Record<SucursalId, Record<string, CategoryAnalytics>> = {
+    palermo: {},
+    belgrano: {},
+    puerto: {},
+  };
+
+  // Time slot analytics
+  const timeSlotMap: Record<string, { revenue: number; orders: Set<string>; products: Record<string, number> }> = {
+    Almuerzo: { revenue: 0, orders: new Set(), products: {} },
+    Tarde: { revenue: 0, orders: new Set(), products: {} },
+    Cena: { revenue: 0, orders: new Set(), products: {} },
+  };
+
+  for (const [sucursalId, sales] of Object.entries(salesBySucursal)) {
+    const sid = sucursalId as SucursalId;
+    const closed = sales.filter((s) => s.saleState === "CLOSED");
+
+    for (const sale of closed) {
+      const hour = new Date(sale.createdAt).getHours();
+      const slot = getTimeSlot(hour);
+      timeSlotMap[slot].orders.add(sale.id);
+
+      for (const item of sale.items.filter((i) => !i.canceled)) {
+        const catName = item.categoryName || "Sin categoría";
+        const qty = item.quantity || 1;
+        const rev = item.price * qty;
+
+        // Global
+        if (!categoryMap[catName]) {
+          categoryMap[catName] = {
+            categoryName: catName,
+            revenue: 0,
+            quantity: 0,
+            bySucursal: {
+              palermo: { revenue: 0, quantity: 0 },
+              belgrano: { revenue: 0, quantity: 0 },
+              puerto: { revenue: 0, quantity: 0 },
+            },
+          };
+        }
+        categoryMap[catName].revenue += rev;
+        categoryMap[catName].quantity += qty;
+        categoryMap[catName].bySucursal[sid].revenue += rev;
+        categoryMap[catName].bySucursal[sid].quantity += qty;
+
+        // Per sucursal
+        if (!bySucursalCategories[sid][catName]) {
+          bySucursalCategories[sid][catName] = {
+            categoryName: catName,
+            revenue: 0,
+            quantity: 0,
+            bySucursal: {
+              palermo: { revenue: 0, quantity: 0 },
+              belgrano: { revenue: 0, quantity: 0 },
+              puerto: { revenue: 0, quantity: 0 },
+            },
+          };
+        }
+        bySucursalCategories[sid][catName].revenue += rev;
+        bySucursalCategories[sid][catName].quantity += qty;
+
+        // Time slot products
+        timeSlotMap[slot].revenue += rev;
+        timeSlotMap[slot].products[item.productName] =
+          (timeSlotMap[slot].products[item.productName] || 0) + rev;
+      }
+    }
+  }
+
+  const categories = Object.values(categoryMap).sort((a, b) => b.revenue - a.revenue);
+
+  const bySucursal: Record<SucursalId, CategoryAnalytics[]> = {
+    palermo: Object.values(bySucursalCategories.palermo).sort((a, b) => b.revenue - a.revenue),
+    belgrano: Object.values(bySucursalCategories.belgrano).sort((a, b) => b.revenue - a.revenue),
+    puerto: Object.values(bySucursalCategories.puerto).sort((a, b) => b.revenue - a.revenue),
+  };
+
+  const timeSlots: TimeSlotAnalytics[] = ["Almuerzo", "Tarde", "Cena"].map((slot) => {
+    const ts = timeSlotMap[slot];
+    const topProduct = Object.entries(ts.products).sort((a, b) => b[1] - a[1])[0];
+    return {
+      slot,
+      revenue: ts.revenue,
+      orders: ts.orders.size,
+      starProduct: topProduct ? topProduct[0] : null,
+      starProductRevenue: topProduct ? topProduct[1] : 0,
+    };
+  });
+
+  return {
+    categories,
+    timeSlots,
+    bySucursal,
     errors,
     lastUpdated: new Date().toISOString(),
   };
@@ -666,14 +886,16 @@ export async function getLiveMonthlySummaries(): Promise<
   const fromDate = "2025-10-01";
   const toDate = format(new Date(), "yyyy-MM-dd");
 
-  for (const sucursal of SUCURSALES) {
-    try {
-      const sales = await getSales(sucursal, fromDate, toDate);
-      result[sucursal.id] = buildMonthlySummaries(sales);
-    } catch {
-      result[sucursal.id] = {};
-    }
-  }
+  await Promise.all(
+    SUCURSALES.map(async (sucursal) => {
+      try {
+        const sales = await getSales(sucursal, fromDate, toDate);
+        result[sucursal.id] = buildMonthlySummaries(sales);
+      } catch {
+        result[sucursal.id] = {};
+      }
+    })
+  );
 
   liveSummaryCache.set(cacheKey, {
     data: result,

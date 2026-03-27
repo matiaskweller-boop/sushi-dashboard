@@ -90,6 +90,12 @@ export interface ParsedSale {
   tableId: string | null;
 }
 
+export interface ParsedCategory {
+  id: string;
+  name: string;
+  position: number;
+}
+
 export interface ParsedItem {
   id: string;
   productId: string;
@@ -97,6 +103,8 @@ export interface ParsedItem {
   price: number;
   quantity: number;
   canceled: boolean;
+  categoryId: string | null;
+  categoryName: string | null;
 }
 
 export interface ParsedPayment {
@@ -217,6 +225,40 @@ export interface AdvancedKPIsData {
   totalItems: number;
   canceledItems: number;
   peopleDistribution: { people: string; count: number }[];
+  itemsPerPerson: number;
+  revenuePerMinute: number;
+  topProductConcentration: number;
+  lunchRevenue: number;
+  dinnerRevenue: number;
+  lunchOrders: number;
+  dinnerOrders: number;
+  peakHours: Record<string, { hour: number; revenue: number }>;
+  revenueHeatmap: { dayOfWeek: number; hour: number; revenue: number }[];
+  errors: string[];
+  lastUpdated: string;
+}
+
+// ===== Product Analytics Types =====
+
+export interface CategoryAnalytics {
+  categoryName: string;
+  revenue: number;
+  quantity: number;
+  bySucursal: Record<SucursalId, { revenue: number; quantity: number }>;
+}
+
+export interface TimeSlotAnalytics {
+  slot: string;
+  revenue: number;
+  orders: number;
+  starProduct: string | null;
+  starProductRevenue: number;
+}
+
+export interface ProductAnalyticsData {
+  categories: CategoryAnalytics[];
+  timeSlots: TimeSlotAnalytics[];
+  bySucursal: Record<SucursalId, CategoryAnalytics[]>;
   errors: string[];
   lastUpdated: string;
 }

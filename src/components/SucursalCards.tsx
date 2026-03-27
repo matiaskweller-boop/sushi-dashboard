@@ -1,15 +1,8 @@
 "use client";
 
 import { SucursalKPIs } from "@/types";
-
-function formatMoney(amount: number): string {
-  return new Intl.NumberFormat("es-AR", {
-    style: "currency",
-    currency: "ARS",
-    minimumFractionDigits: 0,
-    maximumFractionDigits: 0,
-  }).format(amount);
-}
+import { formatMoney } from "@/lib/format";
+import { useCurrency } from "@/lib/CurrencyContext";
 
 interface Props {
   data: SucursalKPIs[];
@@ -17,6 +10,9 @@ interface Props {
 }
 
 export default function SucursalCards({ data, loading }: Props) {
+  const { currency, getRate } = useCurrency();
+  const rate = getRate();
+
   if (loading) {
     return (
       <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
@@ -57,7 +53,7 @@ export default function SucursalCards({ data, loading }: Props) {
           <div className="space-y-2">
             <div className="flex justify-between">
               <span className="text-gray-500 text-sm">Ventas</span>
-              <span className="font-semibold">{formatMoney(s.totalSales)}</span>
+              <span className="font-semibold">{formatMoney(s.totalSales, currency, rate)}</span>
             </div>
             <div className="flex justify-between">
               <span className="text-gray-500 text-sm">Ordenes</span>
@@ -65,7 +61,7 @@ export default function SucursalCards({ data, loading }: Props) {
             </div>
             <div className="flex justify-between">
               <span className="text-gray-500 text-sm">Ticket promedio</span>
-              <span className="font-semibold">{formatMoney(s.avgTicket)}</span>
+              <span className="font-semibold">{formatMoney(s.avgTicket, currency, rate)}</span>
             </div>
             <div className="flex justify-between">
               <span className="text-gray-500 text-sm">Pago principal</span>

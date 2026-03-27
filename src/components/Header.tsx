@@ -1,6 +1,7 @@
 "use client";
 
 import { useRouter } from "next/navigation";
+import { useCurrency } from "@/lib/CurrencyContext";
 
 interface HeaderProps {
   connectedCount: number;
@@ -9,6 +10,7 @@ interface HeaderProps {
 
 export default function Header({ connectedCount, errors }: HeaderProps) {
   const router = useRouter();
+  const { currency, toggleCurrency, rates } = useCurrency();
 
   async function handleLogout() {
     await fetch("/api/auth", { method: "DELETE" });
@@ -33,7 +35,7 @@ export default function Header({ connectedCount, errors }: HeaderProps) {
           </div>
         </div>
 
-        <div className="flex items-center gap-4">
+        <div className="flex items-center gap-3">
           <div className="hidden sm:flex items-center gap-2 text-sm">
             <span
               className={`inline-block w-2 h-2 rounded-full ${
@@ -44,6 +46,23 @@ export default function Header({ connectedCount, errors }: HeaderProps) {
               {connectedCount}/{totalSucursales} sucursales conectadas
             </span>
           </div>
+
+          {/* ARS/USD toggle */}
+          {rates && (
+            <button
+              onClick={toggleCurrency}
+              className="flex items-center gap-1 px-2 py-1 rounded-full text-xs font-medium transition-colors bg-white/10 hover:bg-white/20"
+              title={`Dolar Blue: $${rates.current}`}
+            >
+              <span className={currency === "ARS" ? "text-white" : "text-blue-300"}>
+                ARS
+              </span>
+              <span className="text-blue-400">/</span>
+              <span className={currency === "USD" ? "text-white" : "text-blue-300"}>
+                USD
+              </span>
+            </button>
+          )}
 
           <button
             onClick={handleLogout}

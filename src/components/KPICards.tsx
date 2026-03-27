@@ -1,19 +1,8 @@
 "use client";
 
 import { KPIs } from "@/types";
-
-function formatMoney(amount: number): string {
-  return new Intl.NumberFormat("es-AR", {
-    style: "currency",
-    currency: "ARS",
-    minimumFractionDigits: 0,
-    maximumFractionDigits: 0,
-  }).format(amount);
-}
-
-function formatNumber(num: number): string {
-  return new Intl.NumberFormat("es-AR").format(num);
-}
+import { formatMoney, formatNumber } from "@/lib/format";
+import { useCurrency } from "@/lib/CurrencyContext";
 
 function ChangeIndicator({
   current,
@@ -67,6 +56,9 @@ interface Props {
 }
 
 export default function KPICards({ kpis, loading }: Props) {
+  const { currency, getRate } = useCurrency();
+  const rate = getRate();
+
   if (loading) {
     return (
       <div className="grid grid-cols-1 sm:grid-cols-3 gap-4">
@@ -85,7 +77,7 @@ export default function KPICards({ kpis, loading }: Props) {
     <div className="grid grid-cols-1 sm:grid-cols-3 gap-4">
       <div className="kpi-card">
         <span className="kpi-label">Ventas totales</span>
-        <span className="kpi-value">{formatMoney(kpis.totalSales)}</span>
+        <span className="kpi-value">{formatMoney(kpis.totalSales, currency, rate)}</span>
         <ChangeIndicator
           current={kpis.totalSales}
           previous={kpis.prevTotalSales}
@@ -103,7 +95,7 @@ export default function KPICards({ kpis, loading }: Props) {
 
       <div className="kpi-card">
         <span className="kpi-label">Ticket promedio</span>
-        <span className="kpi-value">{formatMoney(kpis.avgTicket)}</span>
+        <span className="kpi-value">{formatMoney(kpis.avgTicket, currency, rate)}</span>
         <ChangeIndicator
           current={kpis.avgTicket}
           previous={kpis.prevAvgTicket}

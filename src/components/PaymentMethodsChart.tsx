@@ -9,6 +9,8 @@ import {
   Legend,
 } from "recharts";
 import { PaymentMethodData } from "@/types";
+import { formatMoney } from "@/lib/format";
+import { useCurrency } from "@/lib/CurrencyContext";
 
 const COLORS = [
   "#2E6DA4",
@@ -27,6 +29,9 @@ interface Props {
 }
 
 export default function PaymentMethodsChart({ data, loading }: Props) {
+  const { currency, getRate } = useCurrency();
+  const rate = getRate();
+
   if (loading) {
     return (
       <div className="card">
@@ -73,13 +78,7 @@ export default function PaymentMethodsChart({ data, loading }: Props) {
               ))}
             </Pie>
             <Tooltip
-              formatter={(value: number) =>
-                new Intl.NumberFormat("es-AR", {
-                  style: "currency",
-                  currency: "ARS",
-                  minimumFractionDigits: 0,
-                }).format(value)
-              }
+              formatter={(value: number) => formatMoney(value, currency, rate)}
             />
             <Legend />
           </PieChart>

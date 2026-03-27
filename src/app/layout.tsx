@@ -1,5 +1,6 @@
 import type { Metadata, Viewport } from "next";
 import "./globals.css";
+import { CurrencyProvider } from "@/lib/CurrencyContext";
 
 export const metadata: Metadata = {
   title: "Masunori — Dashboard",
@@ -22,7 +23,9 @@ export default function RootLayout({
 }) {
   return (
     <html lang="es">
-      <body className="min-h-screen">{children}</body>
+      <body className="min-h-screen">
+        <CurrencyProvider>{children}</CurrencyProvider>
+      </body>
     </html>
   );
 }

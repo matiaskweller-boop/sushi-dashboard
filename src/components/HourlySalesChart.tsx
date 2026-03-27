@@ -11,12 +11,8 @@ import {
   Legend,
 } from "recharts";
 import { HourlySalesData } from "@/types";
-
-function formatMoney(amount: number): string {
-  if (amount >= 1000000) return `$${(amount / 1000000).toFixed(1)}M`;
-  if (amount >= 1000) return `$${(amount / 1000).toFixed(0)}K`;
-  return `$${amount.toFixed(0)}`;
-}
+import { formatMoney, formatMoneyShort } from "@/lib/format";
+import { useCurrency } from "@/lib/CurrencyContext";
 
 interface Props {
   data: HourlySalesData[];
@@ -24,6 +20,9 @@ interface Props {
 }
 
 export default function HourlySalesChart({ data, loading }: Props) {
+  const { currency, getRate } = useCurrency();
+  const rate = getRate();
+
   if (loading) {
     return (
       <div className="card">
@@ -45,15 +44,9 @@ export default function HourlySalesChart({ data, loading }: Props) {
               tick={{ fontSize: 12 }}
               tickFormatter={(h) => `${h}hs`}
             />
-            <YAxis tick={{ fontSize: 12 }} tickFormatter={formatMoney} />
+            <YAxis tick={{ fontSize: 12 }} tickFormatter={(v) => formatMoneyShort(v, currency, rate)} />
             <Tooltip
-              formatter={(value: number) =>
-                new Intl.NumberFormat("es-AR", {
-                  style: "currency",
-                  currency: "ARS",
-                  minimumFractionDigits: 0,
-                }).format(value)
-              }
+              formatter={(value: number) => formatMoney(value, currency, rate)}
               labelFormatter={(h) => `${h}:00 hs`}
             />
             <Legend />

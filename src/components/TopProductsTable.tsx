@@ -2,15 +2,8 @@
 
 import { useState } from "react";
 import { TopProduct, SucursalId } from "@/types";
-
-function formatMoney(amount: number): string {
-  return new Intl.NumberFormat("es-AR", {
-    style: "currency",
-    currency: "ARS",
-    minimumFractionDigits: 0,
-    maximumFractionDigits: 0,
-  }).format(amount);
-}
+import { formatMoney } from "@/lib/format";
+import { useCurrency } from "@/lib/CurrencyContext";
 
 type FilterTab = "all" | SucursalId;
 
@@ -33,6 +26,8 @@ interface Props {
 
 export default function TopProductsTable({ data, loading }: Props) {
   const [activeTab, setActiveTab] = useState<FilterTab>("all");
+  const { currency, getRate } = useCurrency();
+  const rate = getRate();
 
   if (loading) {
     return (
@@ -122,7 +117,7 @@ export default function TopProductsTable({ data, loading }: Props) {
                     {product.quantity}
                   </td>
                   <td className="py-3 text-right text-sm font-semibold">
-                    {formatMoney(product.revenue)}
+                    {formatMoney(product.revenue, currency, rate)}
                   </td>
                 </tr>
               ))}
