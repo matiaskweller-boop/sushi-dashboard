@@ -172,6 +172,8 @@ export interface SucursalKPIs {
   avgTicket: number;
   avgTicketLunch: number;
   avgTicketDinner: number;
+  lunchRevenue: number;
+  dinnerRevenue: number;
   lunchPct: number;
   dinnerPct: number;
   mainPaymentMethod: string;

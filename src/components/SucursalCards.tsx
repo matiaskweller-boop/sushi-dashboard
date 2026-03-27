@@ -72,8 +72,16 @@ export default function SucursalCards({ data, loading }: Props) {
                 <span className="font-semibold">{formatMoney(s.avgTicket, currency, rate)}</span>
               </div>
 
-              {/* Ticket almuerzo/cena */}
+              {/* Almuerzo vs Cena */}
               <div className="pt-2 border-t border-gray-100 space-y-1.5">
+                <div className="flex justify-between">
+                  <span className="text-gray-500 text-xs">Ventas almuerzo</span>
+                  <span className="font-medium text-sm">{formatMoney(s.lunchRevenue, currency, rate)}</span>
+                </div>
+                <div className="flex justify-between">
+                  <span className="text-gray-500 text-xs">Ventas cena</span>
+                  <span className="font-medium text-sm">{formatMoney(s.dinnerRevenue, currency, rate)}</span>
+                </div>
                 <div className="flex justify-between">
                   <span className="text-gray-500 text-xs">Ticket almuerzo</span>
                   <span className="font-medium text-sm">{formatMoney(s.avgTicketLunch, currency, rate)}</span>
@@ -98,8 +106,8 @@ export default function SucursalCards({ data, loading }: Props) {
                   <span className="text-indigo-600 font-medium">{s.dinnerPct}%</span>
                 </div>
                 <div className="flex justify-between text-[10px] text-gray-400">
-                  <span>Almuerzo</span>
-                  <span>Cena</span>
+                  <span>Almuerzo (12-17)</span>
+                  <span>Cena (17-00)</span>
                 </div>
               </div>
 

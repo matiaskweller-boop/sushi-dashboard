@@ -15,7 +15,7 @@ import {
   CategoryAnalytics,
   TimeSlotAnalytics,
 } from "@/types";
-import { format, subDays, startOfDay, endOfDay } from "date-fns";
+import { format } from "date-fns";
 
 // Extract Argentina hour/day regardless of server timezone (works on both UTC/Vercel and local)
 const argFormatter = new Intl.DateTimeFormat("es-AR", {
@@ -53,8 +53,23 @@ function formatArgentinaDate(date: Date, fmt: string): string {
   return `${year}-${month}-${day}`;
 }
 
-function formatDate(date: Date): string {
-  return format(date, "yyyy-MM-dd");
+/**
+ * Get today's date in Argentina timezone as "yyyy-MM-dd".
+ * Critical: on Vercel (UTC), new Date() at 23:00 AR = next day in UTC.
+ */
+function getArgentinaTodayStr(): string {
+  const now = new Date();
+  return formatArgentinaDate(now, "yyyy-MM-dd");
+}
+
+/**
+ * Subtract days from a "yyyy-MM-dd" string and return "yyyy-MM-dd".
+ */
+function subtractDays(dateStr: string, days: number): string {
+  // Parse as noon UTC to avoid DST edge cases
+  const d = new Date(dateStr + "T12:00:00Z");
+  d.setUTCDate(d.getUTCDate() - days);
+  return format(d, "yyyy-MM-dd");
 }
 
 function getDateRange(
@@ -62,43 +77,43 @@ function getDateRange(
   customFrom?: string,
   customTo?: string
 ): { from: string; to: string; prevFrom: string; prevTo: string } {
-  const now = new Date();
-  let from: Date;
-  let to: Date = endOfDay(now);
+  // Always compute "today" in Argentina timezone
+  const todayStr = getArgentinaTodayStr();
+  let from: string;
+  let to: string;
 
   switch (period) {
     case "yesterday":
-      from = startOfDay(subDays(now, 1));
-      to = endOfDay(subDays(now, 1));
+      from = subtractDays(todayStr, 1);
+      to = subtractDays(todayStr, 1);
       break;
     case "7days":
-      from = startOfDay(subDays(now, 6));
+      from = subtractDays(todayStr, 6);
+      to = todayStr;
       break;
     case "30days":
-      from = startOfDay(subDays(now, 29));
+      from = subtractDays(todayStr, 29);
+      to = todayStr;
       break;
     case "custom":
-      from = customFrom ? new Date(customFrom) : startOfDay(now);
-      to = customTo ? new Date(customTo) : endOfDay(now);
+      from = customFrom || todayStr;
+      to = customTo || todayStr;
       break;
     case "today":
     default:
-      from = startOfDay(now);
+      from = todayStr;
+      to = todayStr;
       break;
   }
 
-  const rangeDays = Math.ceil(
-    (to.getTime() - from.getTime()) / (1000 * 60 * 60 * 24)
-  );
-  const prevTo = new Date(from.getTime() - 1);
-  const prevFrom = startOfDay(subDays(prevTo, rangeDays - 1));
+  // Calculate previous period (same length, immediately before)
+  const fromDate = new Date(from + "T12:00:00Z");
+  const toDate = new Date(to + "T12:00:00Z");
+  const rangeDays = Math.round((toDate.getTime() - fromDate.getTime()) / (1000 * 60 * 60 * 24)) + 1;
+  const prevTo = subtractDays(from, 1);
+  const prevFrom = subtractDays(from, rangeDays);
 
-  return {
-    from: formatDate(from),
-    to: formatDate(to),
-    prevFrom: formatDate(prevFrom),
-    prevTo: formatDate(prevTo),
-  };
+  return { from, to, prevFrom, prevTo };
 }
 
 function isLunch(sale: ParsedSale): boolean {
@@ -206,6 +221,8 @@ function calcSucursalKPIs(
     avgTicket,
     avgTicketLunch: shiftTickets.lunch,
     avgTicketDinner: shiftTickets.dinner,
+    lunchRevenue,
+    dinnerRevenue,
     lunchPct,
     dinnerPct,
     mainPaymentMethod,
