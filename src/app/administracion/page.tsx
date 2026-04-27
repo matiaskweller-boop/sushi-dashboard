@@ -36,14 +36,14 @@ const MODULES = [
     title: "Carga de facturas",
     desc: "Subís foto, Gemini lee los datos y se cargan automáticamente",
     href: "/administracion/facturas",
-    status: "pronto",
+    status: "activo",
   },
   {
     icon: "🔔",
     title: "Alertas",
     desc: "Vencimientos, facturas sin pagar, deudas vencidas",
     href: "/administracion/alertas",
-    status: "pronto",
+    status: "activo",
   },
 ];
 

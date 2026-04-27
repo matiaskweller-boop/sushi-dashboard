@@ -1,0 +1,138 @@
+import { NextRequest, NextResponse } from "next/server";
+import { verifySession, getSessionFromRequest } from "@/lib/auth";
+import { GoogleGenerativeAI } from "@google/generative-ai";
+
+export const runtime = "nodejs";
+export const maxDuration = 60;
+
+const SYSTEM_PROMPT = `Sos un asistente que lee facturas/comprobantes de proveedores de un restaurante en Argentina.
+Te paso una foto. Tenés que extraer los siguientes datos en JSON.
+
+CAMPOS A EXTRAER:
+- proveedor: nombre del proveedor/emisor (string corto, en mayúsculas si es razón social)
+- razonSocial: razón social completa si aparece (string)
+- cuit: CUIT del emisor (string con formato 30-12345678-9 o solo dígitos, vacío si no hay)
+- fechaFC: fecha de la factura/comprobante en formato YYYY-MM-DD
+- nroComprobante: número de factura/comprobante completo (ej "0001-00012345")
+- tipoComprobante: uno de: "FAC A", "FAC B", "FAC C", "RECIBO", "NOTA DE CREDITO", "REMITO", "TICKET", "OTRO"
+- subtotal: subtotal sin IVA (número, 0 si no hay)
+- iva: monto del IVA (número, 0 si no hay)
+- total: TOTAL FINAL de la factura (número, OBLIGATORIO)
+- moneda: "ARS" o "USD" (default "ARS")
+- rubro: clasifica el contenido en uno de estos rubros del restaurante:
+  Almacen, Bebidas c/Alcohol, Bebidas s/Alcohol, Postres y Café, Carniceria,
+  Descartables, Productos Orientales, Pescaderia, Verduleria, Envios,
+  Alquiler, Bazar, Equipamiento, Farmacia, Honorarios Y Abonos, Limpieza,
+  Mantenimiento, Servicios, Sueldos, Varios, Acuerdos, IIBB, IVA, Otros
+- insumo: descripción corta de los items principales (string, max 80 chars)
+- detalleItems: array de items con { descripcion, cantidad, precioUnitario, subtotal }
+  (max 10 items, omitir si es muy largo)
+- confianza: número de 0 a 100 indicando qué tan seguro estás de los datos extraídos
+- notas: cualquier observación útil (ej "factura ilegible en zona del CUIT", "letra manuscrita")
+
+REGLAS:
+- Si un campo no se puede leer con seguridad, devolvé string vacío "" o 0 según el tipo
+- Para montos, devolvé NÚMEROS (no strings con $ ni separadores)
+- Las fechas argentinas suelen ser DD/MM/YYYY — convertir a YYYY-MM-DD
+- Si la confianza < 70 explicá en notas qué falta o está borroso
+- NO inventes datos. Si no aparece, vacío.
+
+Respondé SOLO con JSON válido, sin markdown, sin texto adicional.`;
+
+interface OCRResult {
+  proveedor: string;
+  razonSocial: string;
+  cuit: string;
+  fechaFC: string;
+  nroComprobante: string;
+  tipoComprobante: string;
+  subtotal: number;
+  iva: number;
+  total: number;
+  moneda: string;
+  rubro: string;
+  insumo: string;
+  detalleItems: Array<{ descripcion: string; cantidad: number; precioUnitario: number; subtotal: number }>;
+  confianza: number;
+  notas: string;
+}
+
+export async function POST(request: NextRequest) {
+  const token = getSessionFromRequest(request);
+  if (!token) return NextResponse.json({ error: "No autorizado" }, { status: 401 });
+  const session = await verifySession(token);
+  if (!session) return NextResponse.json({ error: "Sesion expirada" }, { status: 401 });
+
+  const apiKey = process.env.GEMINI_API_KEY;
+  if (!apiKey) return NextResponse.json({ error: "GEMINI_API_KEY no configurada" }, { status: 500 });
+
+  try {
+    const body = await request.json();
+    const { imageBase64, mimeType } = body as { imageBase64: string; mimeType: string };
+    if (!imageBase64) return NextResponse.json({ error: "Falta imageBase64" }, { status: 400 });
+
+    const genAI = new GoogleGenerativeAI(apiKey);
+    const model = genAI.getGenerativeModel({
+      model: "gemini-2.0-flash-exp",
+      generationConfig: {
+        temperature: 0.1,
+        responseMimeType: "application/json",
+      },
+    });
+
+    const result = await model.generateContent([
+      { text: SYSTEM_PROMPT },
+      {
+        inlineData: {
+          data: imageBase64,
+          mimeType: mimeType || "image/jpeg",
+        },
+      },
+    ]);
+
+    const text = result.response.text();
+    let parsed: OCRResult;
+    try {
+      parsed = JSON.parse(text);
+    } catch {
+      // Intentar extraer JSON de markdown si vino mal formado
+      const match = text.match(/\{[\s\S]*\}/);
+      if (!match) {
+        return NextResponse.json({ error: "Gemini devolvió respuesta no parseable", raw: text.substring(0, 500) }, { status: 500 });
+      }
+      parsed = JSON.parse(match[0]);
+    }
+
+    // Sanitizar
+    const ocrResult: OCRResult = {
+      proveedor: String(parsed.proveedor || "").trim(),
+      razonSocial: String(parsed.razonSocial || "").trim(),
+      cuit: String(parsed.cuit || "").trim(),
+      fechaFC: String(parsed.fechaFC || "").trim(),
+      nroComprobante: String(parsed.nroComprobante || "").trim(),
+      tipoComprobante: String(parsed.tipoComprobante || "").trim().toUpperCase(),
+      subtotal: Number(parsed.subtotal) || 0,
+      iva: Number(parsed.iva) || 0,
+      total: Number(parsed.total) || 0,
+      moneda: String(parsed.moneda || "ARS").trim().toUpperCase(),
+      rubro: String(parsed.rubro || "").trim(),
+      insumo: String(parsed.insumo || "").trim(),
+      detalleItems: Array.isArray(parsed.detalleItems) ? parsed.detalleItems.slice(0, 20).map((i) => ({
+        descripcion: String(i.descripcion || ""),
+        cantidad: Number(i.cantidad) || 0,
+        precioUnitario: Number(i.precioUnitario) || 0,
+        subtotal: Number(i.subtotal) || 0,
+      })) : [],
+      confianza: Math.max(0, Math.min(100, Number(parsed.confianza) || 0)),
+      notas: String(parsed.notas || "").trim(),
+    };
+
+    return NextResponse.json({ ok: true, data: ocrResult });
+  } catch (e) {
+    console.error("OCR error:", e);
+    return NextResponse.json(
+      { error: e instanceof Error ? e.message : "Error procesando imagen" },
+      { status: 500 }
+    );
+  }
+}
