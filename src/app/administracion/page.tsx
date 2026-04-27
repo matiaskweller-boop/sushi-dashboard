@@ -22,7 +22,7 @@ const MODULES = [
     title: "Proveedores",
     desc: "Master de proveedores con deuda al día, CBUs y plazos de pago",
     href: "/administracion/proveedores",
-    status: "pronto",
+    status: "activo",
   },
   {
     icon: "💵",
