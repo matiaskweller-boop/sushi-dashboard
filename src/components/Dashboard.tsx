@@ -1,6 +1,6 @@
 "use client";
 
-import { useState, useEffect, useCallback } from "react";
+import { useState, useEffect, useCallback, useRef, useMemo } from "react";
 import { DashboardData, PeriodFilter as PeriodFilterType } from "@/types";
 import Header from "./Header";
 import PeriodFilter from "./PeriodFilter";
@@ -37,14 +37,23 @@ const EMPTY_DATA: DashboardData = {
 export default function Dashboard() {
   const [data, setData] = useState<DashboardData>(EMPTY_DATA);
   const [loading, setLoading] = useState(true);
+  const [refreshing, setRefreshing] = useState(false);
   const [period, setPeriod] = useState<PeriodFilterType>("today");
   const [customFrom, setCustomFrom] = useState(
     format(new Date(), "yyyy-MM-dd")
   );
   const [customTo, setCustomTo] = useState(format(new Date(), "yyyy-MM-dd"));
+  const hasFetched = useRef(false);
+  const fetchingRef = useRef(false);
 
-  const fetchData = useCallback(async () => {
-    setLoading(true);
+  const fetchData = useCallback(async (isRefresh = false) => {
+    if (fetchingRef.current) return;
+    fetchingRef.current = true;
+
+    // Stale-while-revalidate: only show full loading on first fetch
+    if (!isRefresh) setLoading(true);
+    else setRefreshing(true);
+
     try {
       const params = new URLSearchParams({ period });
       if (period === "custom") {
@@ -67,20 +76,36 @@ export default function Dashboard() {
       console.error("Error fetching dashboard data:", error);
     } finally {
       setLoading(false);
+      setRefreshing(false);
+      fetchingRef.current = false;
     }
   }, [period, customFrom, customTo]);
 
+  // Initial fetch + refetch on period change
   useEffect(() => {
-    fetchData();
+    hasFetched.current = false;
+  }, [period, customFrom, customTo]);
+
+  useEffect(() => {
+    if (!hasFetched.current) {
+      hasFetched.current = true;
+      fetchData();
+    }
   }, [fetchData]);
 
   // Auto-refresh cada 5 minutos
   useEffect(() => {
-    const interval = setInterval(fetchData, 5 * 60 * 1000);
+    const interval = setInterval(() => fetchData(true), 5 * 60 * 1000);
     return () => clearInterval(interval);
   }, [fetchData]);
 
-  const connectedCount = data.sucursalKPIs.filter((s) => !s.error).length || 3;
+  const connectedCount = useMemo(
+    () => data.sucursalKPIs.filter((s) => !s.error).length || 3,
+    [data.sucursalKPIs]
+  );
+
+  const hasData = data.lastUpdated !== "";
+  const showLoading = loading && !hasData;
 
   return (
     <div className="min-h-screen bg-bg-main">
@@ -98,35 +123,40 @@ export default function Dashboard() {
             onCustomFromChange={setCustomFrom}
             onCustomToChange={setCustomTo}
           />
-          {data.lastUpdated && (
-            <button
-              onClick={fetchData}
-              className="text-xs text-gray-400 hover:text-gray-600 transition-colors self-end"
-            >
-              Actualizado:{" "}
-              {new Date(data.lastUpdated).toLocaleTimeString("es-AR")} — Click
-              para refrescar
-            </button>
-          )}
+          <div className="flex items-center gap-2 self-end">
+            {refreshing && (
+              <div className="w-4 h-4 border-2 border-blue-accent border-t-transparent rounded-full animate-spin" />
+            )}
+            {data.lastUpdated && (
+              <button
+                onClick={() => fetchData(true)}
+                className="text-xs text-gray-400 hover:text-gray-600 transition-colors"
+              >
+                Actualizado:{" "}
+                {new Date(data.lastUpdated).toLocaleTimeString("es-AR")} — Click
+                para refrescar
+              </button>
+            )}
+          </div>
         </div>
 
         {/* Errores */}
         <ErrorBanner errors={data.errors} />
 
         {/* KPIs principales */}
-        <KPICards kpis={data.kpis} loading={loading} />
+        <KPICards kpis={data.kpis} loading={showLoading} />
 
         {/* Comparativo por sucursal */}
-        <SucursalCards data={data.sucursalKPIs} loading={loading} />
+        <SucursalCards data={data.sucursalKPIs} loading={showLoading} />
 
         {/* Gráficos: lado a lado en desktop, stacked en mobile */}
         <div className="grid grid-cols-1 lg:grid-cols-2 gap-6">
-          <HourlySalesChart data={data.hourlySales} loading={loading} />
-          <PaymentMethodsChart data={data.paymentMethods} loading={loading} />
+          <HourlySalesChart data={data.hourlySales} loading={showLoading} />
+          <PaymentMethodsChart data={data.paymentMethods} loading={showLoading} />
         </div>
 
         {/* Top productos */}
-        <TopProductsTable data={data.topProducts} loading={loading} />
+        <TopProductsTable data={data.topProducts} loading={showLoading} />
       </main>
 
       {/* Footer */}

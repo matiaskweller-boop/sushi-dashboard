@@ -1,5 +1,5 @@
 'use client';
-import { createContext, useContext, useState, useEffect, ReactNode } from 'react';
+import { createContext, useContext, useState, useEffect, useCallback, useMemo, ReactNode } from 'react';
 
 interface CurrencyContextType {
   currency: 'ARS' | 'USD';
@@ -26,16 +26,18 @@ export function CurrencyProvider({ children }: { children: ReactNode }) {
       .catch(() => {});
   }, []);
 
-  const toggleCurrency = () => setCurrency((c) => (c === 'ARS' ? 'USD' : 'ARS'));
+  const toggleCurrency = useCallback(() => setCurrency((c) => (c === 'ARS' ? 'USD' : 'ARS')), []);
 
-  const getRate = (monthKey?: string) => {
+  const getRate = useCallback((monthKey?: string) => {
     if (!rates) return undefined;
     if (monthKey && rates.monthly[monthKey]) return rates.monthly[monthKey];
     return rates.current;
-  };
+  }, [rates]);
+
+  const value = useMemo(() => ({ currency, toggleCurrency, rates, getRate }), [currency, toggleCurrency, rates, getRate]);
 
   return (
-    <CurrencyContext.Provider value={{ currency, toggleCurrency, rates, getRate }}>
+    <CurrencyContext.Provider value={value}>
       {children}
     </CurrencyContext.Provider>
   );

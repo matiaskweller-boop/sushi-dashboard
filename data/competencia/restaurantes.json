@@ -1,0 +1,9 @@
+{
+  "masunori": { "name": "MASUNORI", "color": "#c8a45e", "format": "Handroll bar" },
+  "norimoto": { "name": "Norimoto", "color": "#60a5fa", "format": "Handroll bar" },
+  "gokana": { "name": "Gokana", "color": "#ef4444", "format": "Omakase fusion" },
+  "paru": { "name": "Paru", "color": "#22c55e", "format": "Nikkei salon" },
+  "lima": { "name": "Lima", "color": "#a855f7", "format": "Nikkei salon" },
+  "sombra": { "name": "Sombra", "color": "#f97316", "format": "Sushi de autor" },
+  "nomad": { "name": "Nomad", "color": "#14b8a6", "format": "Sushi fusion" }
+}

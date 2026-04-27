@@ -16,9 +16,19 @@ import {
 } from "@/types";
 
 // ===== Constantes de la API de Fudo =====
-const FUDO_AUTH_URL = "https://auth.fu.do/api";
-const FUDO_API_BASE = "https://api.fu.do/v1alpha1";
+// Proxy through Cloudflare Worker to avoid Fudo blocking datacenter IPs
+const FUDO_PROXY_BASE = "https://fudo-test.matiaskweller.workers.dev";
+const FUDO_AUTH_URL = `${FUDO_PROXY_BASE}/auth`;
+const FUDO_API_BASE = `${FUDO_PROXY_BASE}/api`;
 const MAX_PAGE_SIZE = 500;
+
+// Proxy secret for Cloudflare Worker auth
+const PROXY_SECRET = "masunori-fudo-proxy-2026";
+
+// Headers comunes para proxy auth
+const SERVER_HEADERS = {
+  "X-Proxy-Secret": PROXY_SECRET,
+};
 
 // Cache de JWT tokens por sucursal (en memoria del servidor)
 const tokenCache: Map<string, { jwt: string; expiresAt: number }> = new Map();
@@ -43,7 +53,7 @@ const productMetadataCache: Map<string, Map<string, ProductMetadata>> = new Map(
 
 // Rate limiting: una request a la vez por sucursal, con delay entre requests
 const requestQueues: Map<string, Promise<unknown>> = new Map();
-const REQUEST_DELAY_MS = 1000; // 1 segundo entre requests
+const REQUEST_DELAY_MS = 150; // 150ms entre requests (suficiente para evitar 429)
 
 function delay(ms: number): Promise<void> {
   return new Promise((resolve) => setTimeout(resolve, ms));
@@ -96,6 +106,7 @@ async function getAuthToken(sucursal: SucursalConfig): Promise<string> {
       headers: {
         "Content-Type": "application/json",
         Accept: "application/json",
+        ...SERVER_HEADERS,
       },
       body: JSON.stringify({
         apiKey: sucursal.apiKey,
@@ -146,6 +157,7 @@ async function fudoFetch<T>(
       headers: {
         Authorization: `Bearer ${jwt}`,
         Accept: "application/json",
+        ...SERVER_HEADERS,
       },
     })
   );
@@ -158,6 +170,7 @@ async function fudoFetch<T>(
         headers: {
           Authorization: `Bearer ${newJwt}`,
           Accept: "application/json",
+          ...SERVER_HEADERS,
         },
       })
     );
@@ -448,6 +461,9 @@ export async function getProducts(
       categoryId: getRelationshipId(r as unknown as JsonApiResource, "productCategory"),
       active: r.attributes.active,
       code: r.attributes.code,
+      stock: r.attributes.stock ?? null,
+      stockControl: r.attributes.stockControl ?? false,
+      cost: r.attributes.cost ?? null,
     }));
 
     allProducts = allProducts.concat(products);
@@ -459,10 +475,162 @@ export async function getProducts(
   return allProducts;
 }
 
+/**
+ * Update a product's attributes via PATCH.
+ * Only allows modifying: name, price, active.
+ */
+export async function patchProduct(
+  sucursal: SucursalConfig,
+  productId: string,
+  attributes: { name?: string; price?: number }
+): Promise<{ success: boolean; error?: string }> {
+  try {
+    const jwt = await getAuthToken(sucursal);
+    const url = `${FUDO_API_BASE}/products/${productId}`;
+
+    // Only include allowed fields (active is read-only in Fudo API)
+    const safeAttrs: Record<string, unknown> = {};
+    if (attributes.name !== undefined) safeAttrs.name = attributes.name;
+    if (attributes.price !== undefined) safeAttrs.price = attributes.price;
+
+    const response = await fetchWithRetry(sucursal.id, () =>
+      fetch(url, {
+        method: "PATCH",
+        headers: {
+          Authorization: `Bearer ${jwt}`,
+          "Content-Type": "application/json",
+          Accept: "application/json",
+        },
+        body: JSON.stringify({
+          data: {
+            type: "Product",
+            id: productId,
+            attributes: safeAttrs,
+          },
+        }),
+      })
+    );
+
+    if (!response.ok) {
+      const errorText = await response.text().catch(() => "");
+      return {
+        success: false,
+        error: `HTTP ${response.status}: ${errorText}`,
+      };
+    }
+
+    // Invalidate caches for this sucursal since product data changed
+    const keysToDelete: string[] = [];
+    dataCache.forEach((_, key) => {
+      if (key.startsWith(`${sucursal.id}:`)) keysToDelete.push(key);
+    });
+    keysToDelete.forEach((k) => dataCache.delete(k));
+    productNameCache.delete(sucursal.id);
+    productMetadataCache.delete(sucursal.id);
+
+    return { success: true };
+  } catch (err) {
+    return {
+      success: false,
+      error: err instanceof Error ? err.message : "Unknown error",
+    };
+  }
+}
+
+/**
+ * Create a new product in Fudo.
+ */
+export async function createProduct(
+  sucursal: SucursalConfig,
+  attributes: { name: string; price: number; code?: string; categoryId?: string }
+): Promise<{ success: boolean; productId?: string; error?: string }> {
+  try {
+    const jwt = await getAuthToken(sucursal);
+    const url = `${FUDO_API_BASE}/products`;
+
+    const body: Record<string, unknown> = {
+      data: {
+        type: "Product",
+        attributes: {
+          name: attributes.name,
+          price: attributes.price,
+          code: attributes.code || `${attributes.name.substring(0, 20)}_${Date.now()}`,
+        },
+        ...(attributes.categoryId
+          ? {
+              relationships: {
+                productCategory: {
+                  data: { type: "ProductCategory", id: attributes.categoryId },
+                },
+              },
+            }
+          : {}),
+      },
+    };
+
+    const response = await fetchWithRetry(sucursal.id, () =>
+      fetch(url, {
+        method: "POST",
+        headers: {
+          Authorization: `Bearer ${jwt}`,
+          "Content-Type": "application/json",
+          Accept: "application/json",
+        },
+        body: JSON.stringify(body),
+      })
+    );
+
+    if (!response.ok) {
+      const errorText = await response.text().catch(() => "");
+      return { success: false, error: `HTTP ${response.status}: ${errorText}` };
+    }
+
+    const data = await response.json();
+
+    // Invalidate caches
+    const keysToDelete: string[] = [];
+    dataCache.forEach((_, key) => {
+      if (key.startsWith(`${sucursal.id}:`)) keysToDelete.push(key);
+    });
+    keysToDelete.forEach((k) => dataCache.delete(k));
+    productNameCache.delete(sucursal.id);
+    productMetadataCache.delete(sucursal.id);
+
+    return { success: true, productId: data.data?.id };
+  } catch (err) {
+    return {
+      success: false,
+      error: err instanceof Error ? err.message : "Unknown error",
+    };
+  }
+}
+
 export function clearCache(): void {
   dataCache.clear();
   tokenCache.clear();
   productNameCache.clear();
   categoryNameCache.clear();
   productMetadataCache.clear();
+}
+
+// Pre-warm: cargar tokens + metadata de todas las sucursales en background
+// Se ejecuta al importar el módulo por primera vez (server startup)
+let _warmupDone = false;
+export async function warmupCaches(sucursales: SucursalConfig[]): Promise<void> {
+  if (_warmupDone) return;
+  _warmupDone = true;
+  console.log("[fudo-client] Pre-warming caches for all sucursales...");
+  const start = Date.now();
+  await Promise.all(
+    sucursales.map(async (s) => {
+      try {
+        await getAuthToken(s);
+        await loadProductMetadata(s);
+        console.log(`[fudo-client] Warmed up ${s.name} in ${Date.now() - start}ms`);
+      } catch (err) {
+        console.warn(`[fudo-client] Failed to warm up ${s.name}:`, err);
+      }
+    })
+  );
+  console.log(`[fudo-client] All caches warmed in ${Date.now() - start}ms`);
 }

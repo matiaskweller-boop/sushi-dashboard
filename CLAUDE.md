@@ -45,6 +45,14 @@ Configuradas en `src/lib/sucursales.ts`. Credenciales en `.env.local`.
 Cliente en `src/lib/fudo-client.ts` con cache en memoria (5 min para datos, 23hs para tokens).
 - **Timezone**: Fechas se construyen con `-03:00` (Argentina). "Hoy" = día calendario 00:00-23:59 AR.
 
+### Navegación v2.0
+
+4 secciones con dropdown:
+- **VENTAS**: Dashboard (/), KPIs (/kpis), Histórico (/historico)
+- **PRODUCTOS**: Consumo (/consumo), Stock (/stock) — SOLO LECTURA, no escribe a Fudo
+- **CARTA**: Menú (/menu), Competencia (/competencia)
+- **ADMINISTRACIÓN**: ERP (/administracion) — placeholder
+
 ### Estructura de archivos
 
 ```
@@ -56,8 +64,10 @@ src/
 │   ├── login/page.tsx          # Login "/login"
 │   ├── historico/page.tsx      # Histórico mensual con gráficos
 │   ├── kpis/page.tsx           # KPIs avanzados + heatmap
+│   ├── administracion/page.tsx # Placeholder ERP (próximamente)
 │   └── api/
-│       ├── auth/route.ts       # POST login / DELETE logout (JWT cookie)
+│       ├── auth/route.ts       # GET Google OAuth callback / DELETE logout
+│       ├── auth/login/route.ts # GET inicia flujo OAuth con Google
 │       ├── fudo/route.ts       # GET proxy a las 3 sucursales
 │       ├── fudo/kpis/route.ts  # GET KPIs avanzados
 │       ├── fudo/products/route.ts # GET product analytics por categoría
@@ -92,14 +102,15 @@ data/
 
 ### Autenticación del dashboard
 
-Login simple con usuario/contraseña via variables de entorno (`DASHBOARD_USER`, `DASHBOARD_PASSWORD`). Sesión con JWT en cookie httpOnly. Middleware protege todas las rutas excepto `/login` y `/api/auth`.
+Google OAuth como único método de login. Whitelist de emails permitidos en `ALLOWED_EMAILS`. Flujo: `/api/auth/login` redirige a Google → callback en `/api/auth` intercambia code por id_token → verifica email en whitelist → crea sesión JWT en cookie httpOnly. Middleware protege todas las rutas excepto `/login` y `/api/auth`.
 
 ## Variables de entorno
 
 ```
-DASHBOARD_USER=admin
-DASHBOARD_PASSWORD=xxx
-NEXTAUTH_SECRET=xxx
+GOOGLE_CLIENT_ID=xxx
+GOOGLE_CLIENT_SECRET=xxx
+ALLOWED_EMAILS=email1@gmail.com,email2@gmail.com
+SESSION_SECRET=xxx
 
 FUDO_PALERMO_API_KEY=xxx
 FUDO_PALERMO_API_SECRET=xxx
@@ -120,6 +131,17 @@ FUDO_PUERTO_API_SECRET=xxx
 - **Dólar blue**: Toggle ARS/USD en header. Usa promedio mensual de bluelytics.com.ar para datos históricos.
 - **Histórico**: Merge de JSON estático (pre-sept 2025) + datos live de Fudo (oct 2025→hoy). Cache 30 min.
 - **Sucursales**: Palermo (22 asientos), Belgrano (32), Puerto Madero (46). Seats configurados en sucursales.ts.
+- **Fudo API Proxy**: Las requests a Fudo pasan por un Cloudflare Worker (`fudo-test.matiaskweller.workers.dev`) porque Fudo bloquea IPs de datacenter (AWS/Vercel). Proxy code en `/Users/matiaskw/Desktop/fudo-cf-test/`.
+
+## ⚠️ REGLAS CRÍTICAS — Productos Fudo
+
+**PROHIBIDO crear productos masivamente.** En abril 2026, la creación masiva de productos SIN CATEGORÍA crasheó la app de Fudo POS para TODOS los usuarios durante UNA SEMANA. Reglas irrompibles:
+
+1. **SIEMPRE asignar categoría** — Todo producto DEBE tener `categoryId`. Sin excepción.
+2. **Uno a la vez** — Crear máximo 1 producto por operación, con confirmación humana (`confirmed: true`).
+3. **Nunca batch-create** — No crear productos en loop ni en masa. Cada producto se confirma individualmente.
+4. **PATCH limitado a 10** — Máximo 10 actualizaciones de precio/nombre por request.
+5. **Verificar antes de crear** — Siempre verificar que el producto no exista ya en la sucursal destino.
 
 <!-- VERCEL BEST PRACTICES START -->
 ## Best practices for developing on Vercel

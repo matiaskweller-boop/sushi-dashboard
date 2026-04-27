@@ -54,4 +54,76 @@
   .pill:not(.active) {
     @apply bg-gray-100 text-gray-600 hover:bg-gray-200;
   }
+
+  .animate-in {
+    animation: fadeSlideIn 0.3s ease-out;
+  }
+
+  @keyframes fadeSlideIn {
+    from {
+      opacity: 0;
+      transform: translateY(8px);
+    }
+    to {
+      opacity: 1;
+      transform: translateY(0);
+    }
+  }
+}
+
+/* ===== Print styles for Menu PDF (A3 horizontal) ===== */
+@media print {
+  @page {
+    size: A3 landscape;
+    margin: 10mm;
+  }
+
+  /* Hide everything except menu content */
+  body > * {
+    display: none !important;
+  }
+
+  /* Show only the menu print area */
+  #menu-print-area,
+  #menu-print-area * {
+    display: revert !important;
+    visibility: visible !important;
+  }
+
+  /* Force the print area to show */
+  body {
+    background: white !important;
+    -webkit-print-color-adjust: exact !important;
+    print-color-adjust: exact !important;
+  }
+
+  /* Hide non-print elements inside menu */
+  .no-print,
+  [data-no-print] {
+    display: none !important;
+  }
+
+  /* Menu styling for print */
+  #menu-print-area {
+    display: block !important;
+    background: #FDF8F0 !important;
+    padding: 8mm;
+    font-size: 9pt;
+  }
+
+  #menu-print-area .menu-print-page {
+    page-break-after: always;
+    columns: 3;
+    column-gap: 8mm;
+    column-rule: 1px solid #e0c8c2;
+  }
+
+  #menu-print-area .menu-print-page:last-child {
+    page-break-after: avoid;
+  }
+
+  #menu-print-area .menu-print-section {
+    break-inside: avoid;
+    margin-bottom: 4mm;
+  }
 }

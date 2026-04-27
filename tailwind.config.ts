@@ -16,6 +16,10 @@ const config: Config = {
         palermo: "#2E6DA4",
         belgrano: "#10B981",
         puerto: "#8B5CF6",
+        "menu-cream": "#FDF8F0",
+        "menu-gold": "#c8a45e",
+        "menu-gold-light": "#e8d5a8",
+        "menu-text": "#3d2e1a",
       },
       fontFamily: {
         sans: ["DM Sans", "system-ui", "sans-serif"],

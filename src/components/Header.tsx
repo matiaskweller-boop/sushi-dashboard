@@ -1,5 +1,6 @@
 "use client";
 
+import { memo, useCallback } from "react";
 import { useRouter } from "next/navigation";
 import { useCurrency } from "@/lib/CurrencyContext";
 
@@ -8,15 +9,15 @@ interface HeaderProps {
   errors: string[];
 }
 
-export default function Header({ connectedCount, errors }: HeaderProps) {
+export default memo(function Header({ connectedCount, errors }: HeaderProps) {
   const router = useRouter();
   const { currency, toggleCurrency, rates } = useCurrency();
 
-  async function handleLogout() {
+  const handleLogout = useCallback(async () => {
     await fetch("/api/auth", { method: "DELETE" });
     router.push("/login");
     router.refresh();
-  }
+  }, [router]);
 
   const totalSucursales = 3;
   const hasErrors = errors.length > 0;
@@ -74,4 +75,4 @@ export default function Header({ connectedCount, errors }: HeaderProps) {
       </div>
     </header>
   );
-}
+});

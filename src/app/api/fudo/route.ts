@@ -1,8 +1,15 @@
 import { NextRequest, NextResponse } from "next/server";
 import { verifySession, getSessionFromRequest } from "@/lib/auth";
 import { getDashboardData } from "@/lib/dashboard-data";
+import { warmupCaches } from "@/lib/fudo-client";
+import { SUCURSALES } from "@/lib/sucursales";
+
+// Pre-warm caches on first request (runs once per server instance)
+const warmupPromise = warmupCaches(SUCURSALES);
 
 export async function GET(request: NextRequest) {
+  // Ensure caches are warm before processing (no-op after first call)
+  await warmupPromise;
   // Verificar autenticación
   const token = getSessionFromRequest(request);
   if (!token) {

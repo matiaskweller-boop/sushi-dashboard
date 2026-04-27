@@ -1,0 +1,1373 @@
+{
+  "version": "2026-04",
+  "pages": [
+    {
+      "id": "handrolls-combos-takeaway",
+      "title": "Handrolls / Combos / Take Away",
+      "sections": [
+        {
+          "id": "arma-tu-handroll",
+          "title": "Arma tu Handroll",
+          "subtitle": "alga nori & shari",
+          "items": [
+            {
+              "id": "handroll-shiromi",
+              "name": "Shiromi",
+              "price": 8700,
+              "fudoMatch": "Handroll Shiromi"
+            },
+            {
+              "id": "handroll-langostino",
+              "name": "Langostino",
+              "price": 10500,
+              "fudoMatch": "Handroll Langostino"
+            },
+            {
+              "id": "handroll-trucha",
+              "name": "Trucha",
+              "price": 10700,
+              "fudoMatch": "Handroll Trucha"
+            },
+            {
+              "id": "handroll-atun-rojo",
+              "name": "Atun Rojo",
+              "price": 12500,
+              "fudoMatch": "Handroll Atun Rojo"
+            },
+            {
+              "id": "handroll-wagyu",
+              "name": "Wagyu",
+              "price": 18800,
+              "fudoMatch": "Handroll Wagyu"
+            },
+            {
+              "id": "handroll-vieiras",
+              "name": "Vieiras",
+              "price": 21800,
+              "fudoMatch": "Handroll Vieiras"
+            },
+            {
+              "id": "handroll-pepino",
+              "name": "Pepino",
+              "price": 6700,
+              "fudoMatch": "Handroll Pepino"
+            },
+            {
+              "id": "handroll-palta",
+              "name": "Palta",
+              "price": 7700,
+              "fudoMatch": "Handroll Palta"
+            },
+            {
+              "id": "handroll-hongos",
+              "name": "Hongos",
+              "price": 8100,
+              "fudoMatch": "Handroll Hongos"
+            },
+            {
+              "id": "handroll-mango",
+              "name": "Mango",
+              "price": 8200,
+              "fudoMatch": "Handroll Mango"
+            },
+            {
+              "id": "handroll-tofu",
+              "name": "Tofu",
+              "price": 8400,
+              "fudoMatch": "Handroll Tofu"
+            }
+          ]
+        },
+        {
+          "id": "combos-handrolls",
+          "title": "Combos Handrolls",
+          "items": [
+            {
+              "id": "combo-handroll-clasico-x4",
+              "name": "Clasico",
+              "description": "Trucha, shiromi, langostino, atun rojo",
+              "price": 27200
+            },
+            {
+              "id": "combo-handroll-kosher-x4",
+              "name": "Kosher",
+              "description": "2 trucha, 1 shiromi, 1 atun rojo",
+              "price": 27200
+            },
+            {
+              "id": "combo-handroll-trucha-x4",
+              "name": "Trucha x 4",
+              "price": 27800
+            },
+            {
+              "id": "combo-handroll-veggie-x4",
+              "name": "Veggie",
+              "description": "1 hongo, tofu, mango, palta",
+              "price": 24000
+            },
+            {
+              "id": "combo-handroll-clasico-x6",
+              "name": "Clasico",
+              "description": "2 trucha, 2 shiromi, langostino, atun rojo",
+              "price": 26200
+            },
+            {
+              "id": "combo-handroll-kosher-x6",
+              "name": "Kosher",
+              "description": "2 trucha, 2 shiromi, 2 atun rojo",
+              "price": 39500
+            },
+            {
+              "id": "combo-handroll-trucha-x6",
+              "name": "Trucha x 6",
+              "price": 40500
+            },
+            {
+              "id": "combo-handroll-clasico-x8",
+              "name": "Clasico",
+              "description": "2 trucha, 2 shiromi, 2 langostinos, 2 atun rojo",
+              "price": 52000
+            },
+            {
+              "id": "combo-handroll-kosher-x8",
+              "name": "Kosher",
+              "description": "3 trucha, 3 shiromi, 2 atun rojo",
+              "price": 52000
+            },
+            {
+              "id": "combo-handroll-trucha-x8",
+              "name": "Trucha x 8",
+              "price": 53000
+            }
+          ]
+        },
+        {
+          "id": "combos-take-away",
+          "title": "Combos Take Away",
+          "items": [
+            {
+              "id": "combo-takeaway-x10",
+              "name": "Combo x10",
+              "description": "5 Roll Avocado Trucha, 5 Roll Passion Trucha",
+              "price": 24000
+            },
+            {
+              "id": "combo-takeaway-x12",
+              "name": "Combo x12",
+              "description": "5 Roll Passion Trucha, 5 Roll Avocado Trucha, 2 Niguiris Trucha Trufa, 2 Niguiris Trucha Teriyaki, 2 Niguiris Shiromi Mayo Spicy y Shiso, 2 Sashimi Shiromi, 2 Sashimi Trucha",
+              "price": 35000
+            },
+            {
+              "id": "combo-takeaway-x12-pro",
+              "name": "Combo x12 PRO",
+              "description": "2 Niguiris Trucha Trufa, 4 Niguiris Trucha Teriyaki, 2 Niguiris Shiromi Mayo Spicy y Shiso, 2 Sashimi Shiromi, 2 Sashimi Trucha",
+              "price": 42000
+            },
+            {
+              "id": "combo-takeaway-x20",
+              "name": "Combo x20",
+              "description": "5 Roll Passion Trucha, 5 Roll Avocado Trucha, 2 Niguiris Trucha Trufa, 2 Niguiris Trucha Teriyaki, 2 Niguiris Shiromi Mayo Spicy y Shiso, 2 Sashimi Shiromi, 2 Sashimi Trucha",
+              "price": 44000
+            },
+            {
+              "id": "combo-takeaway-x20-pro",
+              "name": "Combo x20 PRO",
+              "description": "5 piezas Trucha, Palta y Pepino, 5 piezas Pesca Blanca y Palta, 2 Niguiris Trucha Flameada Teriyaki y Togarashi, 2 Niguiris Pesca Blanca Emulsion Aji Amarillo y Negui, 2 Niguiris Pesca Blanca Mayo Spicy y Shiso, 2 Sashimis Pesca Blanca, 2 Sashimis Trucha",
+              "price": 48000
+            },
+            {
+              "id": "combo-takeaway-x50",
+              "name": "Combo x50",
+              "description": "10 Roll Avocado Trucha, 10 Roll Bsas Trucha, 10 Roll Passion Trucha, 5 Niguiris Shiromi con Emulsion Aji Amarillo y Negui, 5 Sashimis Shiromi, 5 Niguiris Trucha Flameada Teriyaki, 5 Sashimis Trucha",
+              "price": 105000
+            },
+            {
+              "id": "combo-takeaway-x100",
+              "name": "Combo x100",
+              "description": "20 Roll Avocado Trucha, 20 Roll Bsas Trucha, 20 Roll Passion Trucha, 10 Niguiris Shiromi con Emulsion Aji Amarillo y Negui, 10 Niguiris Trucha Flameada Teriyaki, 10 Sashimi Trucha, 10 Sashimi Shiromi",
+              "price": 210000
+            }
+          ]
+        }
+      ]
+    },
+    {
+      "id": "ceviche-chirashi-omakase-calientes",
+      "title": "Ceviche / Chirashi / Omakase / Platos Calientes",
+      "sections": [
+        {
+          "id": "chirashi",
+          "title": "Chirashi",
+          "items": [
+            {
+              "id": "chirashi-teen",
+              "name": "Teen",
+              "description": "Media porcion, trucha, shiromi, langostinos",
+              "price": 29000
+            },
+            {
+              "id": "chirashi-veggie",
+              "name": "Veggie",
+              "description": "Shari, pepino, mango, shitake, furikake, rosa de palta",
+              "price": 35000
+            },
+            {
+              "id": "chirashi-kosher",
+              "name": "Kosher",
+              "description": "Shari, trucha, shiromi, rosa de palta",
+              "price": 46900
+            },
+            {
+              "id": "chirashi-trucha",
+              "name": "Trucha",
+              "description": "Shari, laminas de trucha, acompanado de rosa de palta, salsas y toppings",
+              "price": 48100
+            },
+            {
+              "id": "chirashi-masu",
+              "name": "Masu",
+              "description": "Shari, trucha, shiromi, langostinos, rosa de palta, vieiras",
+              "price": 48500
+            }
+          ]
+        },
+        {
+          "id": "ceviche",
+          "title": "Ceviche",
+          "items": [
+            {
+              "id": "ceviche-veggie",
+              "name": "Veggie",
+              "description": "Mango, palta, chaucha, choclo, leche de tigre veggie",
+              "price": 27200
+            },
+            {
+              "id": "ceviche-clasico",
+              "name": "Clasico",
+              "description": "Shiromi del dia, rocoto, cilantro, cebolla morada, leche de tigre",
+              "price": 32000
+            },
+            {
+              "id": "ceviche-wasabi",
+              "name": "Wasabi",
+              "description": "Trucha, shiromi y langostinos, salsa citrica de wasabi, furikake",
+              "price": 36500
+            },
+            {
+              "id": "ceviche-nikkei",
+              "name": "Nikkei",
+              "description": "Trucha, salsa nikkei, echalotte, hilos de masa filo",
+              "price": 35500
+            },
+            {
+              "id": "ceviche-rocoto",
+              "name": "Rocoto",
+              "description": "Trucha, pepino, chili jam, furikake de frutos secos",
+              "price": 37000
+            }
+          ]
+        },
+        {
+          "id": "tartar",
+          "title": "Tartar",
+          "items": [
+            {
+              "id": "tartar-trucha-palta",
+              "name": "Trucha & Palta",
+              "description": "Cubos de trucha, mayo spicy, kurusupi, laminas de palta",
+              "price": 41900
+            },
+            {
+              "id": "tartar-atun-rojo-palta",
+              "name": "Atun Rojo & Palta",
+              "description": "Atun rojo, mayo wasabi, salsa nikkei, laminas de palta",
+              "price": 44900
+            }
+          ]
+        },
+        {
+          "id": "tiraditos",
+          "title": "Tiraditos",
+          "items": [
+            {
+              "id": "tiradito-akashi",
+              "name": "Akashi",
+              "description": "Shiromi, umami, salsa abura, cristales de sal, ciboulette",
+              "price": 29000
+            },
+            {
+              "id": "tiradito-carpassion",
+              "name": "CarPassion",
+              "description": "Trucha, salsa de maracuya, masa filo, ciboulette",
+              "price": 31500
+            },
+            {
+              "id": "tiradito-masu-lime",
+              "name": "Masu Lime",
+              "description": "Trucha flameada, trufa, lima, ciboulette, cristales de sal",
+              "price": 32500
+            }
+          ]
+        },
+        {
+          "id": "sashimi",
+          "title": "Sashimi",
+          "subtitle": "x 2 piezas",
+          "items": [
+            {
+              "id": "sashimi-shiromi",
+              "name": "Shiromi",
+              "price": 9900,
+              "fudoMatch": "Sashimi Shiromi"
+            },
+            {
+              "id": "sashimi-trucha",
+              "name": "Trucha",
+              "price": 10500,
+              "fudoMatch": "Sashimi Trucha"
+            },
+            {
+              "id": "sashimi-atun-rojo",
+              "name": "Atun Rojo",
+              "price": 12000,
+              "fudoMatch": "Sashimi Atun Rojo"
+            },
+            {
+              "id": "sashimi-langostinos",
+              "name": "Langostinos",
+              "price": 14000,
+              "fudoMatch": "Sashimi Langostinos"
+            }
+          ]
+        },
+        {
+          "id": "geisha-ikura",
+          "title": "Geisha Ikura",
+          "items": [
+            {
+              "id": "geisha-ikura",
+              "name": "Ikura",
+              "description": "Shari, trucha y huevas",
+              "price": 20000
+            }
+          ]
+        },
+        {
+          "id": "gunkans",
+          "title": "Gunkans",
+          "subtitle": "x 2 piezas",
+          "items": [
+            {
+              "id": "gunkan-trucha",
+              "name": "Trucha",
+              "description": "Nori, trucha, salsa nikkei, ralladura de lima, huevas",
+              "price": 13000,
+              "fudoMatch": "Gunkan Trucha"
+            },
+            {
+              "id": "gunkan-ikura",
+              "name": "Ikura",
+              "description": "Nori, huevas curadas en soja con wasabi",
+              "price": 15500,
+              "fudoMatch": "Gunkan Ikura"
+            },
+            {
+              "id": "gunkan-centolla",
+              "name": "Centolla",
+              "description": "Nori, centolla, mayo spicy, ajo confitado, togarashi",
+              "price": 16600,
+              "fudoMatch": "Gunkan Centolla"
+            }
+          ]
+        },
+        {
+          "id": "omakase",
+          "title": "Omakase",
+          "subtitle": "12 piezas, 3 pasos",
+          "items": [
+            {
+              "id": "omakase-12-piezas",
+              "name": "Omakase",
+              "description": "Primer paso: Niguiri trucha, niguiri shiromi, niguiri a eleccion, gunkan a eleccion del sushiman. Segundo paso: 2 sashimi trucha, 1 sashimi shiromi, 1 sashimi atun rojo. Tercer paso: 4 handrolls: trucha, shiromi, langostino, a eleccion",
+              "price": 69000
+            }
+          ]
+        },
+        {
+          "id": "platos-calientes",
+          "title": "Platos Calientes",
+          "items": [
+            {
+              "id": "rock-shrimp-tempura-media",
+              "name": "Rock Shrimp Tempura 1/2",
+              "description": "Langostinos, miel de pomelo picante, aji limo, cilantro",
+              "price": 29200,
+              "tag": "exclusivo Puerto Madero"
+            },
+            {
+              "id": "rock-shrimp-tempura",
+              "name": "Rock Shrimp Tempura",
+              "description": "Porcion completa",
+              "price": 40900,
+              "tag": "exclusivo Puerto Madero"
+            },
+            {
+              "id": "wok-de-pollo",
+              "name": "Wok de Pollo",
+              "description": "Gohan, zanahoria, cebolla, huevo, jengibre, aceite sesamo",
+              "price": 36300,
+              "tag": "exclusivo Puerto Madero / Belgrano"
+            },
+            {
+              "id": "wok-de-trucha",
+              "name": "Wok de Trucha",
+              "description": "Gohan, zanahoria, cebolla, huevo, jengibre, trucha",
+              "price": 36300,
+              "tag": "exclusivo Puerto Madero / Belgrano"
+            },
+            {
+              "id": "shiromi-satsumaimo",
+              "name": "Shiromi Satsumaimo",
+              "description": "Filet de shiromi, pure de boniato",
+              "price": 38700,
+              "tag": "exclusivo Puerto Madero"
+            },
+            {
+              "id": "sopa-miso",
+              "name": "Sopa Miso",
+              "description": "Acompanada de arroz con tofu",
+              "price": 24000,
+              "tag": "exclusivo Puerto Madero"
+            }
+          ]
+        }
+      ]
+    },
+    {
+      "id": "niguiris-rolls",
+      "title": "Niguiris / Rolls",
+      "sections": [
+        {
+          "id": "niguiris",
+          "title": "Niguiris",
+          "subtitle": "x 2 piezas",
+          "items": [
+            {
+              "id": "niguiri-clasico-shiromi",
+              "name": "Clasico shiromi del dia",
+              "price": 8900
+            },
+            {
+              "id": "niguiri-clasico-trucha",
+              "name": "Clasico trucha",
+              "price": 9000
+            },
+            {
+              "id": "niguiri-shiromi-nikkei",
+              "name": "Shiromi nikkei",
+              "description": "Salsa nikkei, furikake",
+              "price": 10800
+            },
+            {
+              "id": "niguiri-shiromi-trufa",
+              "name": "Shiromi trufa",
+              "description": "Aceite de trufa, cristales de sal, lima",
+              "price": 11000
+            },
+            {
+              "id": "niguiri-trucha-teriyaki",
+              "name": "Trucha teriyaki",
+              "description": "Trucha flameada, teriyaki, togarashi",
+              "price": 11500
+            },
+            {
+              "id": "niguiri-trucha-trufa",
+              "name": "Trucha trufa",
+              "description": "Aceite de trufa, pomelo, jengibre, negui",
+              "price": 11500
+            },
+            {
+              "id": "niguiri-ebi",
+              "name": "Ebi",
+              "description": "Langostino, manteca ahumada, kurusupi",
+              "price": 11900
+            },
+            {
+              "id": "niguiri-gravlax",
+              "name": "Gravlax",
+              "description": "Trucha ahumada, aji amarillo, eneldo",
+              "price": 12500
+            },
+            {
+              "id": "niguiri-maguro",
+              "name": "Niguiri Maguro",
+              "description": "Atun rojo curado, aceite de trufa, cristal de sal, ralladura de lima, flameado",
+              "price": 12500
+            },
+            {
+              "id": "crispy-rice-trucha",
+              "name": "Crispy Rice Trucha",
+              "description": "Base crocante de shari, palta, tartar de trucha, ikura",
+              "price": 21700,
+              "tag": "exclusivo Puerto Madero"
+            },
+            {
+              "id": "crispy-rice-atun-rojo",
+              "name": "Crispy Rice Atun Rojo",
+              "description": "Base crocante de shari, palta, tartar de atun, ikura",
+              "price": 21700,
+              "tag": "exclusivo Puerto Madero"
+            },
+            {
+              "id": "niguiri-wagyu",
+              "name": "Wagyu",
+              "description": "Carne wagyu flameada, abura, lima, masa filo",
+              "price": 17000,
+              "fudoMatch": "Niguiri Wagyu"
+            },
+            {
+              "id": "niguiri-tako",
+              "name": "Tako",
+              "description": "Pulpo, mayonesa de albahaca, togarashi",
+              "price": 18500,
+              "fudoMatch": "Niguiri Tako"
+            },
+            {
+              "id": "moriwase-x8",
+              "name": "Moriwase x 8",
+              "description": "Trucha, shiromi, wagyu, unagi, tako, gravlax, ebi, atun rojo. Sujeto a disponibilidad del dia",
+              "price": 38000,
+              "tag": "Degustacion"
+            }
+          ]
+        },
+        {
+          "id": "rolls",
+          "title": "Rolls",
+          "subtitle": "x 10 piezas",
+          "items": [
+            {
+              "id": "roll-avocado-trucha",
+              "name": "Avocado Trucha",
+              "description": "Trucha, queso, cobertura de palta, maracuya, kurusupi",
+              "price": 30400
+            },
+            {
+              "id": "roll-masumaki",
+              "name": "Masumaki",
+              "description": "Trucha, palta, pepino, sesamo",
+              "price": 28000
+            },
+            {
+              "id": "roll-passion",
+              "name": "Passion",
+              "description": "Trucha, palta, mango, maracuya, masa filo",
+              "price": 30400
+            },
+            {
+              "id": "roll-buenos-aires-trucha",
+              "name": "Buenos Aires Trucha",
+              "description": "Trucha, queso, cubierto de trucha, teriyaki, sesamo",
+              "price": 30400
+            },
+            {
+              "id": "roll-buenos-aires-shrimp",
+              "name": "Buenos Aires Shrimp",
+              "description": "Langostinos furai, queso, cubierto de trucha, teriyaki, sesamo",
+              "price": 30400,
+              "tag": "exclusivo Puerto Madero"
+            },
+            {
+              "id": "roll-avocado-shrimp",
+              "name": "Avocado Shrimp",
+              "description": "Langostinos furai, queso, palta, maracuya, kurusupi",
+              "price": 30400,
+              "tag": "exclusivo Puerto Madero"
+            },
+            {
+              "id": "roll-crocante",
+              "name": "Roll Crocante",
+              "description": "Trucha, queso, palta, almibar de pomelo",
+              "price": 32500,
+              "tag": "exclusivo Puerto Madero"
+            },
+            {
+              "id": "roll-crispy-crab",
+              "name": "Crispy Crab",
+              "description": "Langostino tempura, centolla, quinoa crocante, manteca batayaki",
+              "price": 34300,
+              "tag": "exclusivo Puerto Madero"
+            },
+            {
+              "id": "roll-hosomaki",
+              "name": "Hosomaki",
+              "description": "Nori, shiromi, trucha, palta, ciboulette",
+              "price": 32500
+            }
+          ]
+        }
+      ]
+    },
+    {
+      "id": "postres-bebidas-vinos-copa",
+      "title": "Postres / Bebidas / Vinos por Copa",
+      "sections": [
+        {
+          "id": "postres",
+          "title": "Postres",
+          "items": [
+            {
+              "id": "alfajor-negro",
+              "name": "Alfajor Negro",
+              "price": 6500,
+              "tag": "Simkolate"
+            },
+            {
+              "id": "alfajor-pistacho",
+              "name": "Alfajor Pistacho",
+              "price": 6500,
+              "tag": "Simkolate"
+            },
+            {
+              "id": "helado",
+              "name": "Helado",
+              "description": "Chocolate, dulce de leche o pistacho",
+              "price": 7900
+            },
+            {
+              "id": "tiramisu",
+              "name": "Tiramisu",
+              "description": "Macha y cafe",
+              "price": 14900
+            },
+            {
+              "id": "cheesecake-dulce-de-leche",
+              "name": "Cheesecake Dulce de leche",
+              "description": "Base de vainilla crocante, mousse, caramelo, crema chantilly",
+              "price": 17500,
+              "tag": "The Cheesecake Factory"
+            },
+            {
+              "id": "cheesecake-chocolate-godiva",
+              "name": "Cheesecake Chocolate Godiva",
+              "description": "Chocolate con leche, mousse, ganache y crema de chocolate",
+              "price": 17500,
+              "tag": "The Cheesecake Factory"
+            },
+            {
+              "id": "flan-dulce-de-leche",
+              "name": "Flan de dulce de leche",
+              "description": "Acompanado con crema chantilly",
+              "price": 10200
+            }
+          ]
+        },
+        {
+          "id": "infusiones",
+          "title": "Infusiones",
+          "items": [
+            {
+              "id": "te-de-sabores",
+              "name": "Te de sabores",
+              "price": 3100
+            },
+            {
+              "id": "te-verde-en-hebras",
+              "name": "Te verde en hebras",
+              "price": 3900
+            },
+            {
+              "id": "expreso",
+              "name": "Expreso",
+              "price": 4300
+            },
+            {
+              "id": "cafe-cortado",
+              "name": "Cafe cortado",
+              "price": 5400
+            },
+            {
+              "id": "lagrima",
+              "name": "Lagrima",
+              "price": 5400
+            }
+          ]
+        },
+        {
+          "id": "sin-alcohol",
+          "title": "Sin Alcohol",
+          "items": [
+            {
+              "id": "agua",
+              "name": "Agua sin gas / con gas",
+              "price": 4700
+            },
+            {
+              "id": "coca-cola",
+              "name": "Coca Original / Zero",
+              "price": 4700
+            },
+            {
+              "id": "sprite",
+              "name": "Sprite / Sprite Zero",
+              "price": 4700
+            },
+            {
+              "id": "schwepps",
+              "name": "Schwepps pomelo o tonica",
+              "price": 4800
+            }
+          ]
+        },
+        {
+          "id": "mocktails",
+          "title": "Mocktails",
+          "items": [
+            {
+              "id": "limonada-menta-jengibre",
+              "name": "Limonada menta y jengibre",
+              "price": 8800
+            },
+            {
+              "id": "pomelada",
+              "name": "Pomelada",
+              "price": 8800
+            }
+          ]
+        },
+        {
+          "id": "tragos",
+          "title": "Tragos",
+          "items": [
+            {
+              "id": "aperol",
+              "name": "Aperol",
+              "price": 11000
+            },
+            {
+              "id": "negroni",
+              "name": "Negroni",
+              "price": 11500
+            },
+            {
+              "id": "margarita",
+              "name": "Margarita",
+              "price": 13900
+            },
+            {
+              "id": "old-fashioned",
+              "name": "Old Fashioned",
+              "price": 11500
+            },
+            {
+              "id": "pisco-sour",
+              "name": "Pisco Sour",
+              "price": 13900
+            },
+            {
+              "id": "cynar-julep",
+              "name": "Cynar Julep",
+              "price": 12000
+            },
+            {
+              "id": "espreso-martini",
+              "name": "Espreso Martini",
+              "price": 15500
+            },
+            {
+              "id": "martini-dry",
+              "name": "Martini Dry",
+              "price": 11600
+            },
+            {
+              "id": "gin-tonic",
+              "name": "Gin Tonic",
+              "price": 11600
+            },
+            {
+              "id": "caipiroska",
+              "name": "Caipiroska",
+              "price": 11700
+            },
+            {
+              "id": "caipiroska-grey-goose",
+              "name": "Caipiroska Grey Goose",
+              "price": 17600
+            },
+            {
+              "id": "yuzu-gin",
+              "name": "Yuzu Gin",
+              "price": 18300
+            },
+            {
+              "id": "vermouth",
+              "name": "Vermouth",
+              "price": 11500
+            },
+            {
+              "id": "vodka",
+              "name": "Vodka",
+              "price": 11700
+            },
+            {
+              "id": "vodka-grey-goose",
+              "name": "Vodka Grey Goose",
+              "price": 18600
+            },
+            {
+              "id": "fernet",
+              "name": "Fernet",
+              "price": 11600
+            },
+            {
+              "id": "campari",
+              "name": "Campari",
+              "price": 11700
+            }
+          ]
+        },
+        {
+          "id": "tragos-de-autor",
+          "title": "Tragos de Autor",
+          "items": [
+            {
+              "id": "natsu-marubekku",
+              "name": "Natsu Marubekku",
+              "price": 18000
+            },
+            {
+              "id": "jingoku-spicy",
+              "name": "Jingoku Spicy",
+              "price": 18400
+            },
+            {
+              "id": "pisco-ringo",
+              "name": "Pisco Ringo",
+              "price": 18400
+            },
+            {
+              "id": "midori-sake",
+              "name": "Midori Sake",
+              "price": 18400
+            },
+            {
+              "id": "daikokku",
+              "name": "Daikokku",
+              "price": 18400
+            },
+            {
+              "id": "umeshu-tonic",
+              "name": "Umeshu Tonic",
+              "price": 18400
+            }
+          ]
+        },
+        {
+          "id": "cerveza",
+          "title": "Cerveza",
+          "items": [
+            {
+              "id": "stella-artois",
+              "name": "Stella Artois",
+              "price": 6500
+            },
+            {
+              "id": "kira",
+              "name": "Kira",
+              "description": "Kolsch, American IPA, Ginger",
+              "price": 7800
+            },
+            {
+              "id": "asahi",
+              "name": "Asahi",
+              "price": 9100
+            }
+          ]
+        },
+        {
+          "id": "sake",
+          "title": "Sake",
+          "items": [
+            {
+              "id": "sake-botella-180ml",
+              "name": "Sake bot. 180ml",
+              "price": 29600
+            },
+            {
+              "id": "sake-shot-50ml",
+              "name": "Sake shot 50ml",
+              "price": 14800
+            },
+            {
+              "id": "sake-degustacion-12ml",
+              "name": "Sake degustacion 12ml",
+              "price": 5000
+            }
+          ]
+        },
+        {
+          "id": "whisky",
+          "title": "Whisky",
+          "items": [
+            {
+              "id": "black-label-medida",
+              "name": "Black Label medida",
+              "price": 24800
+            },
+            {
+              "id": "blue-label-medida",
+              "name": "Blue Label medida",
+              "price": 53500
+            }
+          ]
+        }
+      ]
+    },
+    {
+      "id": "vinos-por-botella",
+      "title": "Vinos por Botella",
+      "sections": [
+        {
+          "id": "vinos-botella-catena",
+          "title": "Vinos por Botella",
+          "subtitle": "Bodega Catena",
+          "items": [
+            {
+              "id": "tilia-chardonnay",
+              "name": "Tilia Chardonnay",
+              "price": 27700
+            },
+            {
+              "id": "tilia-malbec",
+              "name": "Tilia Malbec",
+              "price": 27700
+            },
+            {
+              "id": "saint-felicien-chardonnay",
+              "name": "Saint Felicien Chardonnay",
+              "price": 28600
+            },
+            {
+              "id": "saint-felicien-malbec",
+              "name": "Saint Felicien Malbec",
+              "price": 28700
+            },
+            {
+              "id": "saint-felicien-rose",
+              "name": "Saint Felicien Rose",
+              "price": 78800,
+              "tag": "ed. especial"
+            },
+            {
+              "id": "el-enemigo-malbec",
+              "name": "El Enemigo Malbec",
+              "price": 51900
+            },
+            {
+              "id": "el-enemigo-cabernet-franc",
+              "name": "El Enemigo Cabernet Franc",
+              "price": 52400
+            },
+            {
+              "id": "el-enemigo-chardonnay",
+              "name": "El Enemigo Chardonnay",
+              "price": 53000
+            }
+          ]
+        },
+        {
+          "id": "vinos-botella-zuccardi",
+          "title": "Vinos por Botella",
+          "subtitle": "Bodega Zuccardi",
+          "items": [
+            {
+              "id": "zuccardi-q-malbec-2024",
+              "name": "Zuccardi Q Malbec 2024",
+              "price": 40100
+            },
+            {
+              "id": "zuccardi-q-chardonnay-2024",
+              "name": "Zuccardi Q Chardonnay 2024",
+              "price": 40100
+            },
+            {
+              "id": "alma-4-pinot-rose",
+              "name": "Alma 4 Pinot Rose",
+              "price": 45500
+            },
+            {
+              "id": "poligonos-vista-flores-chenin-2024",
+              "name": "Poligonos Vista Flores Chenin 2024",
+              "price": 55500
+            },
+            {
+              "id": "paraje-botanico-2023",
+              "name": "Paraje Botanico 2023",
+              "price": 161700
+            },
+            {
+              "id": "finca-los-membrillos-semillon-2020",
+              "name": "Finca Los Membrillos Semillon 2020",
+              "price": 316700
+            }
+          ]
+        },
+        {
+          "id": "vinos-botella-chacra",
+          "title": "Vinos por Botella",
+          "subtitle": "Bodega Chacra",
+          "items": [
+            {
+              "id": "barda-pinot-noir-2022",
+              "name": "Barda Pinot Noir 2022",
+              "price": 151600
+            }
+          ]
+        },
+        {
+          "id": "vinos-botella-riccitelli",
+          "title": "Vinos por Botella",
+          "subtitle": "Bodega Riccitelli",
+          "items": [
+            {
+              "id": "kung-fu-malbec",
+              "name": "Kung Fu Malbec",
+              "price": 63200
+            },
+            {
+              "id": "kung-fu-pet-nat",
+              "name": "Kung Fu Pet Nat",
+              "price": 63200
+            }
+          ]
+        },
+        {
+          "id": "vinos-botella-bira",
+          "title": "Vinos por Botella",
+          "subtitle": "Bodega Bira",
+          "items": [
+            {
+              "id": "rosso-duco",
+              "name": "Rosso D'Uco",
+              "price": 30000
+            },
+            {
+              "id": "bianco-duco",
+              "name": "Bianco D'Uco",
+              "price": 30900
+            },
+            {
+              "id": "rosa-di-rosso",
+              "name": "Rosa Di Rosso",
+              "price": 30900
+            },
+            {
+              "id": "tano",
+              "name": "Tano",
+              "price": 54100
+            },
+            {
+              "id": "bin-otto",
+              "name": "Bin Otto",
+              "price": 70000
+            }
+          ]
+        },
+        {
+          "id": "vinos-botella-anaia",
+          "title": "Vinos por Botella",
+          "subtitle": "Bodega Anaia",
+          "items": [
+            {
+              "id": "gran-viognier",
+              "name": "Gran Viognier",
+              "price": 39000
+            },
+            {
+              "id": "gran-rose",
+              "name": "Gran Rose",
+              "price": 39000
+            },
+            {
+              "id": "disruptivo-pinot-noir",
+              "name": "Disruptivo Pinot Noir",
+              "price": 114000
+            }
+          ]
+        },
+        {
+          "id": "vinos-por-copa",
+          "title": "Vinos por Copa",
+          "items": [
+            {
+              "id": "copa-rosso-duco",
+              "name": "Rosso D'Uco",
+              "price": 10000
+            },
+            {
+              "id": "copa-bianco-duco",
+              "name": "Bianco D'Uco",
+              "price": 10000
+            },
+            {
+              "id": "copa-rosa-di-rosso",
+              "name": "Rosa Di Rosso",
+              "price": 10000
+            },
+            {
+              "id": "copa-zuccardi-a-chardonnay",
+              "name": "Zuccardi A Chardonnay",
+              "price": 15500
+            },
+            {
+              "id": "copa-zuccardi-brazos-malbec-rose",
+              "name": "Zuccardi Brazos Malbec Rose",
+              "price": 15500
+            },
+            {
+              "id": "copa-enemigo-malbec",
+              "name": "Enemigo Malbec",
+              "price": 16600
+            },
+            {
+              "id": "copa-enemigo-chardonnay",
+              "name": "Enemigo Chardonnay",
+              "price": 16600
+            }
+          ]
+        },
+        {
+          "id": "espumantes",
+          "title": "Espumantes",
+          "items": [
+            {
+              "id": "chandon",
+              "name": "Chandon",
+              "price": 29000
+            },
+            {
+              "id": "las-perdices-rose",
+              "name": "Las Perdices Rose",
+              "price": 29400
+            },
+            {
+              "id": "zuccardi-blanc-de-blancs",
+              "name": "Zuccardi Blanc de Blancs",
+              "price": 84000
+            },
+            {
+              "id": "veuve-clicquot-rose",
+              "name": "Veuve Clicquot Rose",
+              "price": 290000
+            },
+            {
+              "id": "veuve-clicquot-extra-brut",
+              "name": "Veuve Clicquot Extra Brut",
+              "price": 290000
+            }
+          ]
+        }
+      ]
+    },
+    {
+      "id": "menu-ejecutivo",
+      "title": "Menu Ejecutivo por Sucursal",
+      "sections": [
+        {
+          "id": "ejecutivo-puerto-madero",
+          "title": "Menu Ejecutivo",
+          "subtitle": "12 a 16 hs - Puerto Madero",
+          "items": [
+            {
+              "id": "ejecutivo-pm-handroll-x4",
+              "name": "Handroll x 4",
+              "description": "2 trucha, 2 shiromi",
+              "price": 26200
+            },
+            {
+              "id": "ejecutivo-pm-x4-niguiris",
+              "name": "x 4 + Niguiris",
+              "description": "2 trucha, 2 shiromi, 2 niguiris clasicos",
+              "price": 38700
+            },
+            {
+              "id": "ejecutivo-pm-handroll-x6",
+              "name": "Handroll x 6",
+              "description": "2 trucha, 2 shiromi, 1 langostino, 1 atun rojo",
+              "price": 39500
+            },
+            {
+              "id": "ejecutivo-pm-ceviche-clasico",
+              "name": "Ceviche clasico",
+              "description": "Shiromi del dia, rocoto, cebolla morada, leche de tigre",
+              "price": 32000
+            },
+            {
+              "id": "ejecutivo-pm-ceviche-especial",
+              "name": "Ceviche especial",
+              "description": "Wasabi, rocoto o nikkei",
+              "price": 37000
+            },
+            {
+              "id": "ejecutivo-pm-tiradito-roll",
+              "name": "Tiradito + Roll",
+              "description": "5 laminas de shiromi + 5 piezas de roll",
+              "price": 29400
+            },
+            {
+              "id": "ejecutivo-pm-chirashi",
+              "name": "Chirashi",
+              "description": "Trucha, shiromi, langostinos, rosa de palta",
+              "price": 48500
+            },
+            {
+              "id": "ejecutivo-pm-chirashi-kosher",
+              "name": "Chirashi Kosher",
+              "description": "Trucha, shiromi, rosa de palta",
+              "price": 46900
+            },
+            {
+              "id": "ejecutivo-pm-masuteen",
+              "name": "Masuteen",
+              "description": "Media porcion shari, proteinas, media flor de palta",
+              "price": 29000
+            },
+            {
+              "id": "ejecutivo-pm-wok-pollo",
+              "name": "Wok de Pollo",
+              "price": 29400
+            }
+          ]
+        },
+        {
+          "id": "ejecutivo-palermo",
+          "title": "Menu Ejecutivo",
+          "subtitle": "12 a 16 hs - Palermo",
+          "items": [
+            {
+              "id": "ejecutivo-pa-handroll-x4",
+              "name": "Handroll x 4",
+              "description": "2 trucha, 2 shiromi",
+              "price": 26200
+            },
+            {
+              "id": "ejecutivo-pa-x4-niguiris",
+              "name": "x 4 + Niguiris",
+              "description": "2 trucha, 2 shiromi, 2 niguiris clasicos",
+              "price": 38700
+            },
+            {
+              "id": "ejecutivo-pa-handroll-x6",
+              "name": "Handroll x 6",
+              "description": "2 trucha, 2 shiromi, 1 langostino, 1 atun rojo",
+              "price": 39100
+            },
+            {
+              "id": "ejecutivo-pa-ceviche-clasico",
+              "name": "Ceviche clasico",
+              "description": "Shiromi del dia, rocoto, cebolla morada, leche de tigre",
+              "price": 33900
+            },
+            {
+              "id": "ejecutivo-pa-ceviche-especial",
+              "name": "Ceviche especial",
+              "description": "Wasabi, rocoto o nikkei",
+              "price": 39000
+            },
+            {
+              "id": "ejecutivo-pa-tiradito-roll",
+              "name": "Tiradito + Roll",
+              "description": "5 laminas de shiromi + 5 piezas de roll",
+              "price": 29400
+            },
+            {
+              "id": "ejecutivo-pa-chirashi",
+              "name": "Chirashi",
+              "description": "Trucha, shiromi, langostinos, rosa de palta",
+              "price": 47100
+            },
+            {
+              "id": "ejecutivo-pa-chirashi-kosher",
+              "name": "Chirashi Kosher",
+              "description": "Trucha, shiromi, rosa de palta",
+              "price": 46900
+            },
+            {
+              "id": "ejecutivo-pa-masuteen",
+              "name": "Masuteen",
+              "description": "Media porcion shari, proteinas, media flor de palta",
+              "price": 28500
+            }
+          ]
+        },
+        {
+          "id": "ejecutivo-belgrano",
+          "title": "Menu Ejecutivo",
+          "subtitle": "12 a 16 hs - Belgrano",
+          "items": [
+            {
+              "id": "ejecutivo-be-handroll-x4",
+              "name": "Handroll x 4",
+              "description": "2 trucha, 2 shiromi",
+              "price": 26200
+            },
+            {
+              "id": "ejecutivo-be-x4-niguiris",
+              "name": "x 4 + Niguiris",
+              "description": "2 trucha, 2 shiromi, 2 niguiris clasicos",
+              "price": 38700
+            },
+            {
+              "id": "ejecutivo-be-handroll-x6",
+              "name": "Handroll x 6",
+              "description": "2 trucha, 2 shiromi, 1 langostino, 1 atun rojo",
+              "price": 39100
+            },
+            {
+              "id": "ejecutivo-be-ceviche-clasico",
+              "name": "Ceviche clasico",
+              "description": "Shiromi del dia, rocoto, cebolla morada, leche de tigre",
+              "price": 33900
+            },
+            {
+              "id": "ejecutivo-be-ceviche-especial",
+              "name": "Ceviche especial",
+              "description": "Wasabi, rocoto o nikkei",
+              "price": 39000
+            },
+            {
+              "id": "ejecutivo-be-tiradito-roll",
+              "name": "Tiradito + Roll",
+              "description": "5 laminas de shiromi + 5 piezas de roll",
+              "price": 29400
+            },
+            {
+              "id": "ejecutivo-be-chirashi",
+              "name": "Chirashi",
+              "description": "Trucha, shiromi, langostinos, rosa de palta",
+              "price": 47100
+            },
+            {
+              "id": "ejecutivo-be-chirashi-kosher",
+              "name": "Chirashi Kosher",
+              "description": "Trucha, shiromi, rosa de palta",
+              "price": 46900
+            },
+            {
+              "id": "ejecutivo-be-masuteen",
+              "name": "Masuteen",
+              "description": "Media porcion shari, proteinas, media flor de palta",
+              "price": 28500
+            },
+            {
+              "id": "ejecutivo-be-wok-pollo",
+              "name": "Wok de Pollo",
+              "description": "Con reserva para evitar demoras",
+              "price": 29400
+            }
+          ]
+        }
+      ]
+    }
+  ]
+}

@@ -68,6 +68,9 @@ export interface FudoProductAttributes {
   sellAlone: boolean;
   favourite: boolean;
   position: number;
+  stock: number | null;
+  stockControl: boolean;
+  cost: number | null;
 }
 
 export interface FudoCategoryAttributes {
@@ -122,6 +125,9 @@ export interface ParsedProduct {
   categoryId: string | null;
   active: boolean;
   code: string | null;
+  stock: number | null;
+  stockControl: boolean;
+  cost: number | null;
 }
 
 // ===== App Types =====
@@ -246,6 +252,11 @@ export interface AdvancedKPIsData {
   itemsPerPerson: number;
   revenuePerMinute: number;
   topProductConcentration: number;
+  topProducts: { name: string; revenue: number; quantity: number; percentage: number }[];
+  // New growth KPIs
+  growthVsSameWeekday: number | null; // % change vs same weekday last week
+  revenuePerPerson: number; // revenue / total people
+  estimatedOccupancy: number; // estimated seat occupancy rate %
   lunchRevenue: number;
   dinnerRevenue: number;
   lunchOrders: number;
@@ -277,6 +288,40 @@ export interface ProductAnalyticsData {
   categories: CategoryAnalytics[];
   timeSlots: TimeSlotAnalytics[];
   bySucursal: Record<SucursalId, CategoryAnalytics[]>;
+  errors: string[];
+  lastUpdated: string;
+}
+
+// ===== Consumption Tracking Types =====
+
+export interface ConsumptionProduct {
+  name: string;
+  categoryName: string;
+  totalQuantity: number;
+  monthlyData: Record<string, number>; // "YYYY-MM" -> quantity
+  bySucursal: Record<SucursalId, number>;
+  trend: number; // % change last month vs avg of previous months
+}
+
+export interface CategoryConsumption {
+  categoryName: string;
+  totalQuantity: number;
+  monthlyData: Record<string, number>;
+}
+
+export interface LowMovementProduct {
+  name: string;
+  categoryName: string;
+  totalQuantity: number;
+  lastSoldMonth: string | null; // last month with sales, null if never
+  monthsWithoutSales: number; // consecutive months without sales from the end
+}
+
+export interface ConsumptionData {
+  products: ConsumptionProduct[];
+  categories: CategoryConsumption[];
+  lowMovement: LowMovementProduct[]; // products with declining/no sales
+  months: string[]; // sorted list of "YYYY-MM" strings
   errors: string[];
   lastUpdated: string;
 }

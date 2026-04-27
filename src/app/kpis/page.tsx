@@ -42,6 +42,10 @@ const EMPTY_DATA: AdvancedKPIsData = {
   itemsPerPerson: 0,
   revenuePerMinute: 0,
   topProductConcentration: 0,
+  topProducts: [],
+  growthVsSameWeekday: null,
+  revenuePerPerson: 0,
+  estimatedOccupancy: 0,
   lunchRevenue: 0,
   dinnerRevenue: 0,
   lunchOrders: 0,
@@ -63,6 +67,64 @@ const SUCURSAL_COLORS: Record<string, string> = {
   belgrano: "#10B981",
   puerto: "#8B5CF6",
 };
+
+function TopProductsExpandable({ products, formatMoney }: {
+  products: { name: string; revenue: number; quantity: number; percentage: number }[];
+  formatMoney: (amount: number) => string;
+}) {
+  const [showTop, setShowTop] = useState<5 | 10>(5);
+  const [expanded, setExpanded] = useState(false);
+  const displayed = products.slice(0, showTop);
+  const maxRevenue = displayed[0]?.revenue || 1;
+
+  return (
+    <div className="card">
+      <div className="flex items-center justify-between mb-3">
+        <h3 className="font-semibold text-lg">Top productos (sin bebidas)</h3>
+        <div className="flex gap-2">
+          <button
+            onClick={() => setShowTop(5)}
+            className={`px-3 py-1 text-xs rounded-full transition-colors ${showTop === 5 ? "bg-navy text-white" : "bg-gray-100 text-gray-600 hover:bg-gray-200"}`}
+          >Top 5</button>
+          <button
+            onClick={() => setShowTop(10)}
+            className={`px-3 py-1 text-xs rounded-full transition-colors ${showTop === 10 ? "bg-navy text-white" : "bg-gray-100 text-gray-600 hover:bg-gray-200"}`}
+          >Top 10</button>
+        </div>
+      </div>
+      <button
+        onClick={() => setExpanded(!expanded)}
+        className="w-full text-left text-sm text-blue-600 hover:text-blue-800 mb-2"
+      >
+        {expanded ? "▼ Ocultar detalle" : "▶ Ver detalle"}
+      </button>
+      {expanded && (
+        <div className="space-y-2 animate-in">
+          {displayed.map((p, i) => (
+            <div key={p.name} className="flex items-center gap-3">
+              <span className="text-xs text-gray-400 w-5 text-right font-mono">{i + 1}.</span>
+              <div className="flex-1 min-w-0">
+                <div className="flex items-center justify-between mb-0.5">
+                  <span className="text-sm font-medium truncate">{p.name}</span>
+                  <span className="text-sm font-mono ml-2 whitespace-nowrap">{formatMoney(p.revenue)}</span>
+                </div>
+                <div className="flex items-center gap-2">
+                  <div className="flex-1 bg-gray-100 rounded-full h-2">
+                    <div
+                      className="h-2 rounded-full bg-navy transition-all"
+                      style={{ width: `${(p.revenue / maxRevenue) * 100}%` }}
+                    />
+                  </div>
+                  <span className="text-xs text-gray-400 whitespace-nowrap">{p.percentage.toFixed(1)}% · {p.quantity} uds</span>
+                </div>
+              </div>
+            </div>
+          ))}
+        </div>
+      )}
+    </div>
+  );
+}
 
 export default function KPIsPage() {
   const [data, setData] = useState<AdvancedKPIsData>(EMPTY_DATA);
@@ -178,7 +240,10 @@ export default function KPIsPage() {
                 {formatMoney(data.global.revpash)}
               </span>
               <span className="text-xs text-gray-400">
-                Ingreso por asiento por hora
+                Revenue Per Available Seat Hour
+              </span>
+              <span className="text-[10px] text-gray-300 leading-tight mt-0.5">
+                Cuanto genera cada asiento por hora de operacion. Mayor = mejor uso del espacio.
               </span>
             </div>
             <div className="kpi-card">
@@ -190,7 +255,44 @@ export default function KPIsPage() {
           </div>
         )}
 
-        {/* New KPI cards row */}
+        {/* New growth KPIs */}
+        {!loading && (
+          <div className="grid grid-cols-1 sm:grid-cols-3 gap-4">
+            <div className="kpi-card">
+              <span className="kpi-label">Crecimiento vs periodo anterior</span>
+              <span className="kpi-value">
+                {data.growthVsSameWeekday !== null ? (
+                  <span className={data.growthVsSameWeekday >= 0 ? "text-green-600" : "text-red-500"}>
+                    {data.growthVsSameWeekday >= 0 ? "+" : ""}{data.growthVsSameWeekday.toFixed(1)}%
+                  </span>
+                ) : "—"}
+              </span>
+              <span className="text-xs text-gray-400">
+                Comparado con el mismo periodo anterior
+              </span>
+            </div>
+            <div className="kpi-card">
+              <span className="kpi-label">Revenue por comensal</span>
+              <span className="kpi-value">
+                {formatMoney(data.revenuePerPerson)}
+              </span>
+              <span className="text-xs text-gray-400">
+                Gasto promedio por persona
+              </span>
+            </div>
+            <div className="kpi-card">
+              <span className="kpi-label">Ocupacion estimada</span>
+              <span className="kpi-value">
+                {data.estimatedOccupancy.toFixed(0)}%
+              </span>
+              <span className="text-xs text-gray-400">
+                % de asientos-hora utilizados
+              </span>
+            </div>
+          </div>
+        )}
+
+        {/* Additional KPIs row */}
         {!loading && (
           <div className="grid grid-cols-1 sm:grid-cols-3 gap-4">
             <div className="kpi-card">
@@ -214,10 +316,15 @@ export default function KPIsPage() {
                 {data.topProductConcentration.toFixed(1)}%
               </span>
               <span className="text-xs text-gray-400">
-                De los ingresos en 5 productos
+                De los ingresos en 5 productos (sin bebidas)
               </span>
             </div>
           </div>
+        )}
+
+        {/* Expandable Top Products */}
+        {!loading && data.topProducts.length > 0 && (
+          <TopProductsExpandable products={data.topProducts} formatMoney={formatMoney} />
         )}
 
         {/* Almuerzo vs Cena */}
@@ -320,7 +427,7 @@ export default function KPIsPage() {
                       </p>
                     </div>
                     <div>
-                      <p className="text-xs text-gray-500">RevPASH</p>
+                      <p className="text-xs text-gray-500">RevPASH <span className="text-[9px] text-gray-300">($/asiento/hr)</span></p>
                       <p className="text-lg font-bold">
                         {formatMoney(s.revpash)}
                       </p>

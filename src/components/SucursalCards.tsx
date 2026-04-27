@@ -1,6 +1,6 @@
 "use client";
 
-import { useState } from "react";
+import { useState, memo } from "react";
 import { SucursalKPIs } from "@/types";
 import { formatMoney, formatNumber } from "@/lib/format";
 import { useCurrency } from "@/lib/CurrencyContext";
@@ -10,7 +10,7 @@ interface Props {
   loading: boolean;
 }
 
-export default function SucursalCards({ data, loading }: Props) {
+export default memo(function SucursalCards({ data, loading }: Props) {
   const { currency, getRate } = useCurrency();
   const rate = getRate();
   const [expandedPayments, setExpandedPayments] = useState<Record<string, boolean>>({});
@@ -55,59 +55,57 @@ export default function SucursalCards({ data, loading }: Props) {
             </h3>
 
             <div className="space-y-2">
+              {/* Ventas totales */}
               <div className="flex justify-between">
                 <span className="text-gray-500 text-sm">Ventas</span>
                 <span className="font-semibold">{formatMoney(s.totalSales, currency, rate)}</span>
               </div>
+
+              {/* Facturación almuerzo vs cena */}
               <div className="flex justify-between">
-                <span className="text-gray-500 text-sm">Ordenes</span>
-                <span className="font-semibold">{formatNumber(s.totalOrders)}</span>
+                <span className="text-gray-500 text-xs pl-2">Almuerzo</span>
+                <span className="font-medium text-sm">{formatMoney(s.lunchRevenue, currency, rate)}</span>
               </div>
               <div className="flex justify-between">
-                <span className="text-gray-500 text-sm">Comensales</span>
-                <span className="font-semibold">{formatNumber(s.totalPax)}</span>
+                <span className="text-gray-500 text-xs pl-2">Cena</span>
+                <span className="font-medium text-sm">{formatMoney(s.dinnerRevenue, currency, rate)}</span>
               </div>
-              <div className="flex justify-between">
-                <span className="text-gray-500 text-sm">Ticket promedio</span>
-                <span className="font-semibold">{formatMoney(s.avgTicket, currency, rate)}</span>
+              <div className="flex items-center gap-1.5 text-xs">
+                <span className="text-amber-600 font-medium">{s.lunchPct}%</span>
+                <div className="flex-1 flex h-2 rounded-full overflow-hidden bg-gray-100">
+                  <div
+                    className="h-full bg-amber-400 transition-all duration-500"
+                    style={{ width: `${s.lunchPct}%` }}
+                  />
+                  <div
+                    className="h-full bg-indigo-400 transition-all duration-500"
+                    style={{ width: `${s.dinnerPct}%` }}
+                  />
+                </div>
+                <span className="text-indigo-600 font-medium">{s.dinnerPct}%</span>
               </div>
 
-              {/* Almuerzo vs Cena */}
+              {/* Ordenes, comensales, tickets */}
               <div className="pt-2 border-t border-gray-100 space-y-1.5">
                 <div className="flex justify-between">
-                  <span className="text-gray-500 text-xs">Ventas almuerzo</span>
-                  <span className="font-medium text-sm">{formatMoney(s.lunchRevenue, currency, rate)}</span>
+                  <span className="text-gray-500 text-sm">Ordenes</span>
+                  <span className="font-semibold">{formatNumber(s.totalOrders)}</span>
                 </div>
                 <div className="flex justify-between">
-                  <span className="text-gray-500 text-xs">Ventas cena</span>
-                  <span className="font-medium text-sm">{formatMoney(s.dinnerRevenue, currency, rate)}</span>
+                  <span className="text-gray-500 text-sm">Comensales</span>
+                  <span className="font-semibold">{formatNumber(s.totalPax)}</span>
                 </div>
                 <div className="flex justify-between">
-                  <span className="text-gray-500 text-xs">Ticket almuerzo</span>
+                  <span className="text-gray-500 text-sm">Ticket promedio</span>
+                  <span className="font-semibold">{formatMoney(s.avgTicket, currency, rate)}</span>
+                </div>
+                <div className="flex justify-between">
+                  <span className="text-gray-500 text-xs pl-2">Ticket almuerzo</span>
                   <span className="font-medium text-sm">{formatMoney(s.avgTicketLunch, currency, rate)}</span>
                 </div>
                 <div className="flex justify-between">
-                  <span className="text-gray-500 text-xs">Ticket cena</span>
+                  <span className="text-gray-500 text-xs pl-2">Ticket cena</span>
                   <span className="font-medium text-sm">{formatMoney(s.avgTicketDinner, currency, rate)}</span>
-                </div>
-                {/* Barra almuerzo vs cena */}
-                <div className="flex items-center gap-1.5 text-xs">
-                  <span className="text-amber-600 font-medium">{s.lunchPct}%</span>
-                  <div className="flex-1 flex h-2 rounded-full overflow-hidden bg-gray-100">
-                    <div
-                      className="h-full bg-amber-400 transition-all"
-                      style={{ width: `${s.lunchPct}%` }}
-                    />
-                    <div
-                      className="h-full bg-indigo-400 transition-all"
-                      style={{ width: `${s.dinnerPct}%` }}
-                    />
-                  </div>
-                  <span className="text-indigo-600 font-medium">{s.dinnerPct}%</span>
-                </div>
-                <div className="flex justify-between text-[10px] text-gray-400">
-                  <span>Almuerzo (12-17)</span>
-                  <span>Cena (17-00)</span>
                 </div>
               </div>
 
@@ -144,7 +142,7 @@ export default function SucursalCards({ data, loading }: Props) {
                           </div>
                           <div className="w-full bg-gray-100 rounded-full h-1.5 mt-0.5">
                             <div
-                              className="h-1.5 rounded-full transition-all"
+                              className="h-1.5 rounded-full transition-all duration-500"
                               style={{
                                 width: `${pm.percentage}%`,
                                 backgroundColor: s.color,
@@ -171,4 +169,4 @@ export default function SucursalCards({ data, loading }: Props) {
       })}
     </div>
   );
-}
+})

@@ -1,10 +1,12 @@
 "use client";
 
+import { memo } from "react";
+
 interface Props {
   errors: string[];
 }
 
-export default function ErrorBanner({ errors }: Props) {
+export default memo(function ErrorBanner({ errors }: Props) {
   if (errors.length === 0) return null;
 
   return (
@@ -39,4 +41,4 @@ export default function ErrorBanner({ errors }: Props) {
       </div>
     </div>
   );
-}
+})

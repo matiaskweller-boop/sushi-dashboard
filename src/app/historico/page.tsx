@@ -93,11 +93,17 @@ export default function HistoricoPage() {
   const [loading, setLoading] = useState(true);
   const [sortKey, setSortKey] = useState<SortKey>("month");
   const [sortDir, setSortDir] = useState<SortDir>("desc");
-  const { currency, getRate } = useCurrency();
+  const { currency, getRate, rates } = useCurrency();
   const rate = getRate();
 
-  const formatMoney = (amount: number) => _formatMoney(amount, currency, rate);
-  const formatMoneyShort = (amount: number) => _formatMoneyShort(amount, currency, rate);
+  const formatMoney = (amount: number, monthKey?: string) => {
+    const r = monthKey ? getRate(monthKey) : rate;
+    return _formatMoney(amount, currency, r);
+  };
+  const formatMoneyShort = (amount: number, monthKey?: string) => {
+    const r = monthKey ? getRate(monthKey) : rate;
+    return _formatMoneyShort(amount, currency, r);
+  };
 
   useEffect(() => {
     async function fetchData() {
@@ -153,6 +159,42 @@ export default function HistoricoPage() {
         palermo: data.palermo?.[month]?.totalSales || 0,
         belgrano: data.belgrano?.[month]?.totalSales || 0,
         puerto: data.puerto?.[month]?.totalSales || 0,
+      }));
+  }, [data]);
+
+  // Orders evolution
+  const ordersEvolution = useMemo(() => {
+    if (!data) return [];
+    const allMonths = new Set<string>();
+    Object.values(data).forEach((sucData) =>
+      Object.keys(sucData).forEach((m) => allMonths.add(m))
+    );
+    return Array.from(allMonths)
+      .sort()
+      .map((month) => ({
+        month: formatMonth(month),
+        monthRaw: month,
+        palermo: data.palermo?.[month]?.totalOrders || 0,
+        belgrano: data.belgrano?.[month]?.totalOrders || 0,
+        puerto: data.puerto?.[month]?.totalOrders || 0,
+      }));
+  }, [data]);
+
+  // People per table evolution
+  const peopleEvolution = useMemo(() => {
+    if (!data) return [];
+    const allMonths = new Set<string>();
+    Object.values(data).forEach((sucData) =>
+      Object.keys(sucData).forEach((m) => allMonths.add(m))
+    );
+    return Array.from(allMonths)
+      .sort()
+      .map((month) => ({
+        month: formatMonth(month),
+        monthRaw: month,
+        palermo: data.palermo?.[month]?.avgPeoplePerOrder || 0,
+        belgrano: data.belgrano?.[month]?.avgPeoplePerOrder || 0,
+        puerto: data.puerto?.[month]?.avgPeoplePerOrder || 0,
       }));
   }, [data]);
 
@@ -332,9 +374,9 @@ export default function HistoricoPage() {
                   textAnchor="end"
                   height={60}
                 />
-                <YAxis tick={{ fontSize: 12 }} tickFormatter={formatMoneyShort} />
+                <YAxis tick={{ fontSize: 12 }} tickFormatter={(v) => formatMoneyShort(v)} />
                 <Tooltip
-                  formatter={(value: number) => [formatMoney(value), ""]}
+                  formatter={(value: number, _name: string, props: { payload?: { monthRaw?: string } }) => [formatMoney(value, props.payload?.monthRaw), ""]}
                 />
                 <Legend />
                 <Line
@@ -385,9 +427,9 @@ export default function HistoricoPage() {
                   textAnchor="end"
                   height={60}
                 />
-                <YAxis tick={{ fontSize: 12 }} tickFormatter={formatMoneyShort} />
+                <YAxis tick={{ fontSize: 12 }} tickFormatter={(v) => formatMoneyShort(v)} />
                 <Tooltip
-                  formatter={(value: number) => [formatMoney(value), ""]}
+                  formatter={(value: number, _name: string, props: { payload?: { monthRaw?: string } }) => [formatMoney(value, props.payload?.monthRaw), ""]}
                 />
                 <Legend />
                 <Bar
@@ -411,6 +453,48 @@ export default function HistoricoPage() {
                   radius={[2, 2, 0, 0]}
                 />
               </BarChart>
+            </ResponsiveContainer>
+          </div>
+        </div>
+
+        {/* Orders evolution */}
+        <div className="card">
+          <h3 className="font-semibold text-lg mb-4">
+            Evolucion de ordenes mensuales
+          </h3>
+          <div className="h-64 md:h-80">
+            <ResponsiveContainer width="100%" height="100%">
+              <LineChart data={ordersEvolution}>
+                <CartesianGrid strokeDasharray="3 3" stroke="#E2E8F0" />
+                <XAxis dataKey="month" tick={{ fontSize: 11 }} angle={-45} textAnchor="end" height={60} />
+                <YAxis tick={{ fontSize: 12 }} />
+                <Tooltip formatter={(value: number) => [`${value} ordenes`, ""]} />
+                <Legend />
+                <Line type="monotone" dataKey="palermo" name="Palermo" stroke="#2E6DA4" strokeWidth={2} dot={{ r: 3 }} connectNulls />
+                <Line type="monotone" dataKey="belgrano" name="Belgrano" stroke="#10B981" strokeWidth={2} dot={{ r: 3 }} connectNulls />
+                <Line type="monotone" dataKey="puerto" name="Puerto Madero" stroke="#8B5CF6" strokeWidth={2} dot={{ r: 3 }} connectNulls />
+              </LineChart>
+            </ResponsiveContainer>
+          </div>
+        </div>
+
+        {/* People per table evolution */}
+        <div className="card">
+          <h3 className="font-semibold text-lg mb-4">
+            Comensales promedio por mesa
+          </h3>
+          <div className="h-64 md:h-80">
+            <ResponsiveContainer width="100%" height="100%">
+              <LineChart data={peopleEvolution}>
+                <CartesianGrid strokeDasharray="3 3" stroke="#E2E8F0" />
+                <XAxis dataKey="month" tick={{ fontSize: 11 }} angle={-45} textAnchor="end" height={60} />
+                <YAxis tick={{ fontSize: 12 }} domain={[0, 'auto']} />
+                <Tooltip formatter={(value: number) => [`${Number(value).toFixed(1)} personas`, ""]} />
+                <Legend />
+                <Line type="monotone" dataKey="palermo" name="Palermo" stroke="#2E6DA4" strokeWidth={2} dot={{ r: 3 }} connectNulls />
+                <Line type="monotone" dataKey="belgrano" name="Belgrano" stroke="#10B981" strokeWidth={2} dot={{ r: 3 }} connectNulls />
+                <Line type="monotone" dataKey="puerto" name="Puerto Madero" stroke="#8B5CF6" strokeWidth={2} dot={{ r: 3 }} connectNulls />
+              </LineChart>
             </ResponsiveContainer>
           </div>
         </div>
@@ -594,10 +678,10 @@ export default function HistoricoPage() {
                       {row.orders.toLocaleString("es-AR")}
                     </td>
                     <td className="py-2 px-3 font-mono">
-                      {formatMoney(row.sales)}
+                      {formatMoney(row.sales, row.monthRaw)}
                     </td>
                     <td className="py-2 px-3 font-mono">
-                      {formatMoney(row.ticket)}
+                      {formatMoney(row.ticket, row.monthRaw)}
                     </td>
                     <td className="py-2 px-3 font-mono">
                       {row.duration.toFixed(0)} min
@@ -608,6 +692,21 @@ export default function HistoricoPage() {
                   </tr>
                 ))}
               </tbody>
+              <tfoot>
+                <tr className="border-t-2 border-navy bg-gray-50 font-semibold">
+                  <td className="py-2.5 px-3">Totales</td>
+                  <td className="py-2.5 px-3"></td>
+                  <td className="py-2.5 px-3 font-mono">
+                    {tableData.reduce((s, r) => s + r.orders, 0).toLocaleString("es-AR")}
+                  </td>
+                  <td className="py-2.5 px-3 font-mono">
+                    {formatMoney(tableData.reduce((s, r) => s + r.sales, 0))}
+                  </td>
+                  <td className="py-2.5 px-3 font-mono text-gray-400">—</td>
+                  <td className="py-2.5 px-3 font-mono text-gray-400">—</td>
+                  <td className="py-2.5 px-3 font-mono text-gray-400">—</td>
+                </tr>
+              </tfoot>
             </table>
           </div>
         </div>
@@ -626,7 +725,7 @@ export default function HistoricoPage() {
                   tick={{ fontSize: 12 }}
                   tickFormatter={(h) => `${h}hs`}
                 />
-                <YAxis tick={{ fontSize: 12 }} tickFormatter={formatMoneyShort} />
+                <YAxis tick={{ fontSize: 12 }} tickFormatter={(v) => formatMoneyShort(v)} />
                 <Tooltip
                   labelFormatter={(h) => `${h}:00 hs`}
                   formatter={(value: number) => [formatMoney(value), "Ventas"]}
@@ -641,6 +740,29 @@ export default function HistoricoPage() {
             </ResponsiveContainer>
           </div>
         </div>
+
+        {/* Exchange rates reference table (visible when in USD mode) */}
+        {currency === "USD" && rates && (
+          <div className="card">
+            <h3 className="font-semibold text-lg mb-3">Tipo de cambio usado por mes</h3>
+            <p className="text-xs text-gray-400 mb-3">
+              Dolar blue promedio mensual (venta). Fuentes: Bluelytics + registro manual.
+              Para corregir un valor, editar <code className="bg-gray-100 px-1 rounded">data/exchange-rates.json</code>
+            </p>
+            <div className="overflow-x-auto">
+              <div className="flex flex-wrap gap-2">
+                {Object.entries(rates.monthly)
+                  .sort(([a], [b]) => a.localeCompare(b))
+                  .map(([month, r]) => (
+                    <div key={month} className="bg-gray-50 border border-gray-200 rounded-lg px-3 py-1.5 text-xs">
+                      <span className="font-medium">{formatMonth(month)}</span>
+                      <span className="text-gray-500 ml-1.5">${r.toLocaleString("es-AR")}</span>
+                    </div>
+                  ))}
+              </div>
+            </div>
+          </div>
+        )}
       </main>
 
       <footer className="text-center py-6 text-xs text-gray-400">

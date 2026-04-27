@@ -1,0 +1,1569 @@
+{
+  "fecha": "2026-04",
+  "fuente": "Menús de salón / take-away (no Rappi)",
+  "restaurants": {
+    "masunori": {
+      "name": "Masunori",
+      "color": "#c8a45e",
+      "format": "Handroll bar al paso"
+    },
+    "gokana": {
+      "name": "Gokana",
+      "color": "#60a5fa",
+      "format": "Omakase fusión"
+    },
+    "paru": {
+      "name": "Paru",
+      "color": "#f87171",
+      "format": "Nikkei de salón"
+    },
+    "lima": {
+      "name": "Lima",
+      "color": "#4ade80",
+      "format": "Nikkei de salón"
+    },
+    "sombra": {
+      "name": "Sombra",
+      "color": "#c084fc",
+      "format": "Sushi de autor"
+    },
+    "norimoto": {
+      "name": "Norimoto",
+      "color": "#2dd4bf",
+      "format": "Handroll bar al paso"
+    },
+    "selvatica": {
+      "name": "Selvática",
+      "color": "#fb923c",
+      "format": "Nikkei inmersivo"
+    },
+    "osaka": {
+      "name": "Osaka",
+      "color": "#e879f9",
+      "format": "Nikkei premium (Michelin)"
+    },
+    "muro": {
+      "name": "Muro",
+      "color": "#f43f5e",
+      "format": "Sushi fusión accesible"
+    }
+  },
+  "categories": {
+    "nigiris_clasicos": {
+      "label": "Nigiris Clásicos",
+      "unit": "x2 piezas",
+      "items": [
+        {
+          "item": "Trucha/Salmon x2",
+          "masunori": 10000,
+          "gokana": 9000,
+          "paru": 12400,
+          "lima": 9000,
+          "sombra": 9410,
+          "norimoto": 11100,
+          "selvatica": 10500,
+          "osaka": 19000,
+          "note": "Norimoto: Sashimi/Nigiri. Selvática x1",
+          "muro": 5900
+        },
+        {
+          "item": "Pesca Blanca x2",
+          "masunori": 8900,
+          "gokana": 8000,
+          "paru": 8600,
+          "lima": 7000,
+          "sombra": 8880,
+          "norimoto": 10200,
+          "selvatica": 8500,
+          "osaka": 17500,
+          "note": "Norimoto: Shiromi. Selvática x1",
+          "muro": null
+        },
+        {
+          "item": "Shiromi de temporada x2",
+          "masunori": null,
+          "gokana": null,
+          "paru": null,
+          "lima": null,
+          "sombra": null,
+          "norimoto": 11100,
+          "selvatica": null,
+          "osaka": null,
+          "muro": null
+        },
+        {
+          "item": "Langostino/Ebi x2",
+          "masunori": 12900,
+          "gokana": 9000,
+          "paru": 8600,
+          "lima": 10000,
+          "sombra": 12300,
+          "norimoto": 6600,
+          "selvatica": 9500,
+          "osaka": 17500,
+          "note": "Selvática x1",
+          "muro": 2950
+        },
+        {
+          "item": "Shiromi Nikkei x2",
+          "masunori": 11600,
+          "gokana": null,
+          "paru": null,
+          "lima": null,
+          "sombra": null,
+          "norimoto": null,
+          "selvatica": null,
+          "osaka": null,
+          "muro": null
+        },
+        {
+          "item": "Shiromi Trufa x2",
+          "masunori": 11700,
+          "gokana": 13900,
+          "paru": null,
+          "lima": 13000,
+          "sombra": 12300,
+          "norimoto": 13500,
+          "selvatica": 16000,
+          "osaka": 20500,
+          "note": "Norimoto: Trucha aceite de trufa. Selvática x1",
+          "muro": 5900
+        },
+        {
+          "item": "Trucha Teriyaki x2",
+          "masunori": 12800,
+          "gokana": 13400,
+          "paru": null,
+          "lima": 12000,
+          "sombra": 11290,
+          "norimoto": null,
+          "selvatica": null,
+          "osaka": null,
+          "muro": null
+        },
+        {
+          "item": "Trucha Trufa x2",
+          "masunori": 12800,
+          "gokana": 13900,
+          "paru": null,
+          "lima": 13000,
+          "sombra": 12300,
+          "norimoto": 13500,
+          "selvatica": 16000,
+          "osaka": null,
+          "muro": 5900
+        },
+        {
+          "item": "Tako/Pulpo x2",
+          "masunori": 21400,
+          "gokana": 17000,
+          "paru": 10960,
+          "lima": 15000,
+          "sombra": 16800,
+          "norimoto": null,
+          "selvatica": 26000,
+          "osaka": 33000,
+          "note": "Selvática x1",
+          "muro": null
+        },
+        {
+          "item": "Unagi/Anguila x2",
+          "masunori": 23600,
+          "gokana": 12800,
+          "paru": null,
+          "lima": null,
+          "sombra": null,
+          "norimoto": 16100,
+          "selvatica": null,
+          "osaka": null,
+          "note": "Gokana x1. Norimoto: Anguila Japón",
+          "muro": 7000
+        },
+        {
+          "item": "Atún Rojo x2",
+          "masunori": null,
+          "gokana": 16500,
+          "paru": null,
+          "lima": 13000,
+          "sombra": 12000,
+          "norimoto": 11100,
+          "selvatica": 13000,
+          "osaka": null,
+          "note": "Norimoto: Atún rojo Vietnam. Selvática x1",
+          "muro": 5500
+        }
+      ]
+    },
+    "nigiris_autor": {
+      "label": "Nigiris de Autor",
+      "unit": "x2 piezas",
+      "items": [
+        {
+          "item": "Shiromi curado x2",
+          "masunori": 13200,
+          "gokana": 13400,
+          "paru": null,
+          "lima": null,
+          "sombra": 12300,
+          "norimoto": 11800,
+          "selvatica": null,
+          "osaka": null,
+          "note": "Norimoto: Shiromi jengibre negui",
+          "muro": null
+        },
+        {
+          "item": "Shiromi mayo spicy x2",
+          "masunori": null,
+          "gokana": null,
+          "paru": null,
+          "lima": null,
+          "sombra": null,
+          "norimoto": 11400,
+          "selvatica": 13000,
+          "osaka": 17000,
+          "muro": null
+        },
+        {
+          "item": "Trucha salsa nori x2",
+          "masunori": null,
+          "gokana": null,
+          "paru": null,
+          "lima": null,
+          "sombra": null,
+          "norimoto": 13500,
+          "selvatica": null,
+          "osaka": null,
+          "muro": null
+        },
+        {
+          "item": "Trucha batayaki x2",
+          "masunori": null,
+          "gokana": null,
+          "paru": null,
+          "lima": null,
+          "sombra": null,
+          "norimoto": 13200,
+          "selvatica": null,
+          "osaka": null,
+          "muro": null
+        },
+        {
+          "item": "Atún ponzu x2",
+          "masunori": null,
+          "gokana": null,
+          "paru": null,
+          "lima": null,
+          "sombra": null,
+          "norimoto": 13500,
+          "selvatica": null,
+          "osaka": null,
+          "muro": null
+        },
+        {
+          "item": "Gravlax x2",
+          "masunori": 15700,
+          "gokana": null,
+          "paru": null,
+          "lima": null,
+          "sombra": null,
+          "norimoto": null,
+          "selvatica": null,
+          "osaka": null,
+          "muro": null
+        },
+        {
+          "item": "Crispy Rice x2",
+          "masunori": 20700,
+          "gokana": 12500,
+          "paru": null,
+          "lima": 14000,
+          "sombra": null,
+          "norimoto": null,
+          "selvatica": null,
+          "osaka": null,
+          "muro": null
+        },
+        {
+          "item": "Wagyu x2",
+          "masunori": 21400,
+          "gokana": null,
+          "paru": null,
+          "lima": null,
+          "sombra": null,
+          "norimoto": null,
+          "selvatica": null,
+          "osaka": null,
+          "muro": null
+        },
+        {
+          "item": "Gunkan Trucha/Ikura x2",
+          "masunori": 14400,
+          "gokana": 9500,
+          "paru": null,
+          "lima": 16000,
+          "sombra": 8500,
+          "norimoto": 15200,
+          "selvatica": null,
+          "osaka": null,
+          "note": "Gokana/Sombra x1",
+          "muro": 6000
+        },
+        {
+          "item": "Gunkan Centolla x2",
+          "masunori": 22200,
+          "gokana": null,
+          "paru": null,
+          "lima": null,
+          "sombra": null,
+          "norimoto": 14400,
+          "selvatica": null,
+          "osaka": null,
+          "muro": null
+        },
+        {
+          "item": "Gunkan Vieiras trufa x2",
+          "masunori": null,
+          "gokana": null,
+          "paru": null,
+          "lima": null,
+          "sombra": null,
+          "norimoto": 16400,
+          "selvatica": null,
+          "osaka": null,
+          "muro": null
+        },
+        {
+          "item": "Geisha Ikura x2",
+          "masunori": 20000,
+          "gokana": null,
+          "paru": null,
+          "lima": null,
+          "sombra": null,
+          "norimoto": null,
+          "selvatica": null,
+          "osaka": null,
+          "muro": null
+        },
+        {
+          "item": "Sake Passion x2",
+          "masunori": null,
+          "gokana": 13400,
+          "paru": null,
+          "lima": 12000,
+          "sombra": 11800,
+          "norimoto": null,
+          "selvatica": 16000,
+          "osaka": null,
+          "muro": null
+        },
+        {
+          "item": "Acevichado x2",
+          "masunori": null,
+          "gokana": 13400,
+          "paru": null,
+          "lima": 12000,
+          "sombra": 12300,
+          "norimoto": null,
+          "selvatica": 19000,
+          "osaka": 17000,
+          "muro": null
+        }
+      ]
+    },
+    "ceviches": {
+      "label": "Ceviches",
+      "unit": "porción",
+      "items": [
+        {
+          "item": "Clásico",
+          "masunori": 33900,
+          "gokana": 26900,
+          "paru": 31000,
+          "lima": 27000,
+          "sombra": 26300,
+          "norimoto": null,
+          "selvatica": 37000,
+          "osaka": 44000,
+          "muro": null
+        },
+        {
+          "item": "Wasabi",
+          "masunori": 37200,
+          "gokana": 29200,
+          "paru": 38500,
+          "lima": 45000,
+          "sombra": 29800,
+          "norimoto": null,
+          "selvatica": null,
+          "osaka": 44000,
+          "muro": null
+        },
+        {
+          "item": "Nikkei",
+          "masunori": 38700,
+          "gokana": null,
+          "paru": 38500,
+          "lima": 36000,
+          "sombra": null,
+          "norimoto": null,
+          "selvatica": 47000,
+          "osaka": 45000,
+          "muro": null
+        },
+        {
+          "item": "Rocoto",
+          "masunori": 40400,
+          "gokana": 28800,
+          "paru": 44900,
+          "lima": null,
+          "sombra": 28900,
+          "norimoto": null,
+          "selvatica": 37000,
+          "osaka": null,
+          "muro": null
+        },
+        {
+          "item": "Veggie",
+          "masunori": 28700,
+          "gokana": null,
+          "paru": null,
+          "lima": null,
+          "sombra": 25080,
+          "norimoto": null,
+          "selvatica": null,
+          "osaka": null,
+          "muro": null
+        },
+        {
+          "item": "Botánico",
+          "masunori": null,
+          "gokana": null,
+          "paru": null,
+          "lima": null,
+          "sombra": null,
+          "norimoto": null,
+          "selvatica": 35000,
+          "osaka": null,
+          "muro": null
+        },
+        {
+          "item": "Brasa",
+          "masunori": null,
+          "gokana": null,
+          "paru": null,
+          "lima": null,
+          "sombra": null,
+          "norimoto": null,
+          "selvatica": 55000,
+          "osaka": null,
+          "muro": null
+        },
+        {
+          "item": "De Barrio",
+          "masunori": null,
+          "gokana": null,
+          "paru": null,
+          "lima": null,
+          "sombra": null,
+          "norimoto": null,
+          "selvatica": 52000,
+          "osaka": null,
+          "muro": null
+        },
+        {
+          "item": "Salmón Circus",
+          "masunori": null,
+          "gokana": null,
+          "paru": null,
+          "lima": null,
+          "sombra": null,
+          "norimoto": null,
+          "selvatica": 47000,
+          "osaka": null,
+          "muro": null
+        },
+        {
+          "item": "4 Mares",
+          "masunori": null,
+          "gokana": null,
+          "paru": null,
+          "lima": null,
+          "sombra": null,
+          "norimoto": null,
+          "selvatica": 52000,
+          "osaka": null,
+          "muro": null
+        },
+        {
+          "item": "Degustación 3 ceviches",
+          "masunori": null,
+          "gokana": null,
+          "paru": null,
+          "lima": null,
+          "sombra": null,
+          "norimoto": null,
+          "selvatica": 82000,
+          "osaka": null,
+          "muro": null
+        }
+      ]
+    },
+    "tiraditos": {
+      "label": "Tiraditos",
+      "unit": "12 cortes",
+      "items": [
+        {
+          "item": "Akashi / Blanco (shiromi)",
+          "masunori": 30400,
+          "gokana": 27000,
+          "paru": 32600,
+          "lima": 30000,
+          "sombra": 26700,
+          "norimoto": null,
+          "selvatica": 37000,
+          "osaka": 44000,
+          "muro": null
+        },
+        {
+          "item": "CarPassion (trucha)",
+          "masunori": 32100,
+          "gokana": 27000,
+          "paru": 37900,
+          "lima": 33000,
+          "sombra": 27900,
+          "norimoto": null,
+          "selvatica": 39000,
+          "osaka": 47000,
+          "muro": null
+        },
+        {
+          "item": "Masu Lime / Trufado",
+          "masunori": 33000,
+          "gokana": 27900,
+          "paru": null,
+          "lima": 34000,
+          "sombra": 28800,
+          "norimoto": null,
+          "selvatica": 39000,
+          "osaka": 45000,
+          "muro": null
+        },
+        {
+          "item": "Pulpo/Yimura",
+          "masunori": null,
+          "gokana": 35500,
+          "paru": null,
+          "lima": 39000,
+          "sombra": null,
+          "norimoto": null,
+          "selvatica": 48000,
+          "osaka": null,
+          "muro": null
+        },
+        {
+          "item": "Tataki Salmon",
+          "masunori": null,
+          "gokana": null,
+          "paru": 44900,
+          "lima": null,
+          "sombra": null,
+          "norimoto": null,
+          "selvatica": 26000,
+          "osaka": null,
+          "muro": null
+        },
+        {
+          "item": "Andino",
+          "masunori": null,
+          "gokana": null,
+          "paru": null,
+          "lima": null,
+          "sombra": null,
+          "norimoto": null,
+          "selvatica": 51000,
+          "osaka": null,
+          "muro": null
+        },
+        {
+          "item": "Oliva Oliva",
+          "masunori": null,
+          "gokana": null,
+          "paru": null,
+          "lima": null,
+          "sombra": null,
+          "norimoto": null,
+          "selvatica": 48000,
+          "osaka": null,
+          "muro": null
+        },
+        {
+          "item": "Janguru Black",
+          "masunori": null,
+          "gokana": null,
+          "paru": null,
+          "lima": null,
+          "sombra": null,
+          "norimoto": null,
+          "selvatica": 49000,
+          "osaka": null,
+          "muro": null
+        }
+      ]
+    },
+    "rolls": {
+      "label": "Rolls",
+      "unit": "x10 piezas",
+      "items": [
+        {
+          "item": "Avocado Trucha x10",
+          "masunori": 30300,
+          "gokana": 27800,
+          "paru": 35800,
+          "lima": 29000,
+          "sombra": 27900,
+          "norimoto": null,
+          "selvatica": 30000,
+          "osaka": 40000,
+          "muro": null
+        },
+        {
+          "item": "Masumaki/NY clásico x10",
+          "masunori": 30700,
+          "gokana": 25500,
+          "paru": null,
+          "lima": 29000,
+          "sombra": 25600,
+          "norimoto": null,
+          "selvatica": 30000,
+          "osaka": 39000,
+          "muro": null
+        },
+        {
+          "item": "Passion x10",
+          "masunori": 31300,
+          "gokana": 27800,
+          "paru": 37400,
+          "lima": 29000,
+          "sombra": 27900,
+          "norimoto": null,
+          "selvatica": 30000,
+          "osaka": 41000,
+          "muro": null
+        },
+        {
+          "item": "Buenos Aires Trucha x10",
+          "masunori": 31300,
+          "gokana": 27800,
+          "paru": 29000,
+          "lima": 29000,
+          "sombra": 27900,
+          "norimoto": null,
+          "selvatica": 31000,
+          "osaka": 37000,
+          "muro": null
+        },
+        {
+          "item": "Buenos Aires Shrimp x10",
+          "masunori": 32000,
+          "gokana": 27800,
+          "paru": 35800,
+          "lima": 29000,
+          "sombra": 27900,
+          "norimoto": null,
+          "selvatica": 31000,
+          "osaka": 43000,
+          "muro": null
+        },
+        {
+          "item": "Roll premium x10",
+          "masunori": null,
+          "gokana": 27800,
+          "paru": 35800,
+          "lima": 29000,
+          "sombra": 34500,
+          "norimoto": null,
+          "selvatica": 31000,
+          "osaka": 43000,
+          "muro": null
+        },
+        {
+          "item": "Roll veggie x10",
+          "masunori": null,
+          "gokana": null,
+          "paru": 26700,
+          "lima": 22000,
+          "sombra": null,
+          "norimoto": null,
+          "selvatica": 28000,
+          "osaka": 32000,
+          "muro": null
+        },
+        {
+          "item": "Hosomaki x10",
+          "masunori": 38700,
+          "gokana": null,
+          "paru": null,
+          "lima": null,
+          "sombra": null,
+          "norimoto": null,
+          "selvatica": null,
+          "osaka": null,
+          "muro": null
+        },
+        {
+          "item": "Crispy Crab x10 (Madero)",
+          "masunori": 34300,
+          "gokana": null,
+          "paru": null,
+          "lima": null,
+          "sombra": null,
+          "norimoto": null,
+          "selvatica": null,
+          "osaka": null,
+          "muro": null
+        }
+      ]
+    },
+    "chirashi": {
+      "label": "Chirashi Bowls",
+      "unit": "bowl",
+      "items": [
+        {
+          "item": "Masu / Clásico (mixto)",
+          "masunori": 47400,
+          "gokana": 44000,
+          "paru": null,
+          "lima": null,
+          "sombra": 44000,
+          "norimoto": null,
+          "selvatica": null,
+          "osaka": null,
+          "muro": null
+        },
+        {
+          "item": "Kosher",
+          "masunori": 46900,
+          "gokana": null,
+          "paru": null,
+          "lima": null,
+          "sombra": null,
+          "norimoto": null,
+          "selvatica": null,
+          "osaka": null,
+          "muro": null
+        },
+        {
+          "item": "Armá tu Chirashi",
+          "masunori": 49700,
+          "gokana": 48000,
+          "paru": null,
+          "lima": null,
+          "sombra": 48500,
+          "norimoto": null,
+          "selvatica": null,
+          "osaka": null,
+          "muro": null
+        },
+        {
+          "item": "Teen (menú niño)",
+          "masunori": 26700,
+          "gokana": null,
+          "paru": null,
+          "lima": null,
+          "sombra": null,
+          "norimoto": null,
+          "selvatica": null,
+          "osaka": null,
+          "muro": null
+        },
+        {
+          "item": "Solo Trucha",
+          "masunori": null,
+          "gokana": 48000,
+          "paru": null,
+          "lima": null,
+          "sombra": 48500,
+          "norimoto": null,
+          "selvatica": null,
+          "osaka": null,
+          "muro": null
+        },
+        {
+          "item": "Veggie",
+          "masunori": null,
+          "gokana": 37000,
+          "paru": null,
+          "lima": null,
+          "sombra": null,
+          "norimoto": null,
+          "selvatica": null,
+          "osaka": null,
+          "muro": null
+        }
+      ]
+    },
+    "handrolls": {
+      "label": "Handrolls",
+      "unit": "individual",
+      "items": [
+        {
+          "item": "Handroll Shiromi",
+          "masunori": 8700,
+          "gokana": 8900,
+          "paru": null,
+          "lima": null,
+          "sombra": null,
+          "norimoto": 6400,
+          "selvatica": null,
+          "osaka": null,
+          "note": "Norimoto: Shiromi Mar Argentino",
+          "muro": 3950
+        },
+        {
+          "item": "Handroll Trucha",
+          "masunori": 10700,
+          "gokana": 8900,
+          "paru": null,
+          "lima": null,
+          "sombra": null,
+          "norimoto": 6600,
+          "selvatica": null,
+          "osaka": null,
+          "note": "Norimoto: Trucha Patagonia",
+          "muro": 4200
+        },
+        {
+          "item": "Handroll Langostino",
+          "masunori": 10500,
+          "gokana": 8800,
+          "paru": null,
+          "lima": null,
+          "sombra": null,
+          "norimoto": 6600,
+          "selvatica": null,
+          "osaka": null,
+          "note": "Norimoto: Langostinos Patagonia",
+          "muro": 3500
+        },
+        {
+          "item": "Handroll Vieiras",
+          "masunori": null,
+          "gokana": null,
+          "paru": null,
+          "lima": null,
+          "sombra": null,
+          "norimoto": 7900,
+          "selvatica": null,
+          "osaka": null,
+          "note": "Norimoto: Vieiras Patagonia",
+          "muro": null
+        },
+        {
+          "item": "Handroll Atún Rojo",
+          "masunori": null,
+          "gokana": null,
+          "paru": null,
+          "lima": null,
+          "sombra": null,
+          "norimoto": 8900,
+          "selvatica": null,
+          "osaka": null,
+          "note": "Norimoto: Atún rojo Vietnam",
+          "muro": null
+        },
+        {
+          "item": "Handroll Anguila",
+          "masunori": null,
+          "gokana": 16500,
+          "paru": null,
+          "lima": null,
+          "sombra": null,
+          "norimoto": 17500,
+          "selvatica": null,
+          "osaka": null,
+          "note": "Norimoto: Anguila Japón",
+          "muro": null
+        },
+        {
+          "item": "Handroll Centolla",
+          "masunori": null,
+          "gokana": null,
+          "paru": null,
+          "lima": null,
+          "sombra": null,
+          "norimoto": 15800,
+          "selvatica": null,
+          "osaka": null,
+          "note": "Norimoto: Centolla Tierra del Fuego",
+          "muro": null
+        },
+        {
+          "item": "Handroll Wagyu",
+          "masunori": 18800,
+          "gokana": null,
+          "paru": null,
+          "lima": null,
+          "sombra": null,
+          "norimoto": null,
+          "selvatica": null,
+          "osaka": null,
+          "muro": null
+        },
+        {
+          "item": "Handroll Trufado",
+          "masunori": null,
+          "gokana": 9200,
+          "paru": null,
+          "lima": null,
+          "sombra": null,
+          "norimoto": null,
+          "selvatica": null,
+          "osaka": null,
+          "muro": null
+        },
+        {
+          "item": "Handroll Tuna",
+          "masunori": null,
+          "gokana": 12500,
+          "paru": null,
+          "lima": null,
+          "sombra": null,
+          "norimoto": null,
+          "selvatica": null,
+          "osaka": null,
+          "muro": null
+        },
+        {
+          "item": "Selección x4",
+          "masunori": 26200,
+          "gokana": null,
+          "paru": null,
+          "lima": null,
+          "sombra": null,
+          "norimoto": 27500,
+          "selvatica": null,
+          "osaka": null,
+          "muro": null
+        },
+        {
+          "item": "Selección x6",
+          "masunori": 38100,
+          "gokana": null,
+          "paru": null,
+          "lima": null,
+          "sombra": null,
+          "norimoto": 40500,
+          "selvatica": null,
+          "osaka": null,
+          "muro": null
+        },
+        {
+          "item": "Selección x8",
+          "masunori": 49500,
+          "gokana": null,
+          "paru": null,
+          "lima": null,
+          "sombra": null,
+          "norimoto": 53700,
+          "selvatica": null,
+          "osaka": null,
+          "muro": null
+        },
+        {
+          "item": "Selección Veggie x4",
+          "masunori": null,
+          "gokana": null,
+          "paru": null,
+          "lima": null,
+          "sombra": null,
+          "norimoto": 20100,
+          "selvatica": null,
+          "osaka": null,
+          "muro": null
+        },
+        {
+          "item": "Ostras x4",
+          "masunori": null,
+          "gokana": null,
+          "paru": null,
+          "lima": null,
+          "sombra": null,
+          "norimoto": 8600,
+          "selvatica": null,
+          "osaka": null,
+          "muro": null
+        }
+      ]
+    },
+    "combos": {
+      "label": "Combos y Packs",
+      "unit": "pack",
+      "items": [
+        {
+          "item": "Omakase 12-20 pzas",
+          "masunori": 64000,
+          "gokana": 48000,
+          "paru": null,
+          "lima": null,
+          "sombra": 49700,
+          "norimoto": null,
+          "selvatica": null,
+          "osaka": null,
+          "muro": null
+        },
+        {
+          "item": "Moriwase Nigiris x8",
+          "masunori": 64100,
+          "gokana": null,
+          "paru": null,
+          "lima": null,
+          "sombra": null,
+          "norimoto": null,
+          "selvatica": null,
+          "osaka": null,
+          "muro": null
+        },
+        {
+          "item": "Omakase ~30 pzas",
+          "masunori": null,
+          "gokana": null,
+          "paru": null,
+          "lima": null,
+          "sombra": 68000,
+          "norimoto": null,
+          "selvatica": null,
+          "osaka": null,
+          "muro": null
+        },
+        {
+          "item": "Nigiri Moriawase x12",
+          "masunori": null,
+          "gokana": 50000,
+          "paru": null,
+          "lima": null,
+          "sombra": 48700,
+          "norimoto": null,
+          "selvatica": null,
+          "osaka": null,
+          "muro": null
+        },
+        {
+          "item": "Paru Selección 15",
+          "masunori": null,
+          "gokana": null,
+          "paru": 29700,
+          "lima": null,
+          "sombra": null,
+          "norimoto": null,
+          "selvatica": null,
+          "osaka": null,
+          "muro": null
+        },
+        {
+          "item": "Combinado x40",
+          "masunori": null,
+          "gokana": 96000,
+          "paru": null,
+          "lima": null,
+          "sombra": 98500,
+          "norimoto": null,
+          "selvatica": null,
+          "osaka": null,
+          "muro": null
+        },
+        {
+          "item": "Combinado x120",
+          "masunori": null,
+          "gokana": null,
+          "paru": null,
+          "lima": null,
+          "sombra": 255000,
+          "norimoto": null,
+          "selvatica": null,
+          "osaka": null,
+          "muro": null
+        },
+        {
+          "item": "Combinado x200",
+          "masunori": null,
+          "gokana": null,
+          "paru": null,
+          "lima": null,
+          "sombra": 400000,
+          "norimoto": null,
+          "selvatica": null,
+          "osaka": null,
+          "muro": null
+        },
+        {
+          "item": "Degustación Nigiris",
+          "masunori": null,
+          "gokana": null,
+          "paru": null,
+          "lima": null,
+          "sombra": null,
+          "norimoto": null,
+          "selvatica": 37000,
+          "osaka": null,
+          "muro": null
+        }
+      ]
+    },
+    "calientes": {
+      "label": "Platos Calientes",
+      "unit": "plato",
+      "items": [
+        {
+          "item": "Rock Shrimp Tempura 1/2",
+          "masunori": 29200,
+          "gokana": null,
+          "paru": null,
+          "lima": 30000,
+          "sombra": null,
+          "norimoto": null,
+          "selvatica": null,
+          "osaka": null,
+          "muro": null
+        },
+        {
+          "item": "Wok de Pollo",
+          "masunori": 30900,
+          "gokana": null,
+          "paru": 30900,
+          "lima": null,
+          "sombra": null,
+          "norimoto": null,
+          "selvatica": null,
+          "osaka": null,
+          "muro": null
+        },
+        {
+          "item": "Wok de Trucha",
+          "masunori": 36300,
+          "gokana": null,
+          "paru": 39900,
+          "lima": 45000,
+          "sombra": null,
+          "norimoto": null,
+          "selvatica": null,
+          "osaka": 54000,
+          "muro": null
+        },
+        {
+          "item": "Shiromi satsumaimo",
+          "masunori": 38700,
+          "gokana": null,
+          "paru": 33500,
+          "lima": null,
+          "sombra": null,
+          "norimoto": null,
+          "selvatica": null,
+          "osaka": 54000,
+          "muro": null
+        },
+        {
+          "item": "Lomo Saltado",
+          "masunori": null,
+          "gokana": null,
+          "paru": 39000,
+          "lima": 36000,
+          "sombra": null,
+          "norimoto": null,
+          "selvatica": null,
+          "osaka": null,
+          "muro": null
+        },
+        {
+          "item": "Risotto/Quinoto Langostinos",
+          "masunori": null,
+          "gokana": null,
+          "paru": 34300,
+          "lima": 36000,
+          "sombra": null,
+          "norimoto": null,
+          "selvatica": null,
+          "osaka": null,
+          "muro": null
+        },
+        {
+          "item": "Picante Mariscos",
+          "masunori": null,
+          "gokana": null,
+          "paru": 49900,
+          "lima": 55000,
+          "sombra": null,
+          "norimoto": null,
+          "selvatica": null,
+          "osaka": null,
+          "muro": null
+        }
+      ]
+    },
+    "crispy_rice": {
+      "label": "Crispy Rice",
+      "unit": "x2 piezas",
+      "items": [
+        {
+          "item": "Crispy Rice Trucha x2",
+          "masunori": 20700,
+          "gokana": 12500,
+          "paru": null,
+          "lima": 14000,
+          "sombra": null,
+          "norimoto": null,
+          "selvatica": null,
+          "osaka": null,
+          "muro": null
+        },
+        {
+          "item": "Crispy Rice Shiromi x2",
+          "masunori": null,
+          "gokana": 11500,
+          "paru": null,
+          "lima": 12000,
+          "sombra": null,
+          "norimoto": null,
+          "selvatica": null,
+          "osaka": null,
+          "muro": null
+        },
+        {
+          "item": "Crispy Rice Vieiras x2",
+          "masunori": null,
+          "gokana": 14000,
+          "paru": null,
+          "lima": 15000,
+          "sombra": null,
+          "norimoto": null,
+          "selvatica": null,
+          "osaka": null,
+          "muro": null
+        },
+        {
+          "item": "Crispy Rice Langostinos x2",
+          "masunori": null,
+          "gokana": 12500,
+          "paru": null,
+          "lima": null,
+          "sombra": null,
+          "norimoto": null,
+          "selvatica": null,
+          "osaka": null,
+          "muro": null
+        }
+      ]
+    },
+    "tragos": {
+      "label": "Tragos",
+      "unit": "por trago",
+      "items": [
+        {
+          "item": "Gin Tonic",
+          "masunori": 12000,
+          "gokana": null,
+          "paru": null,
+          "lima": null,
+          "sombra": null,
+          "norimoto": null,
+          "selvatica": 14000,
+          "osaka": null,
+          "muro": 9500
+        },
+        {
+          "item": "Negroni",
+          "masunori": 12000,
+          "gokana": null,
+          "paru": null,
+          "lima": null,
+          "sombra": null,
+          "norimoto": null,
+          "selvatica": 14000,
+          "osaka": null,
+          "muro": null
+        },
+        {
+          "item": "Aperol Spritz",
+          "masunori": 12000,
+          "gokana": null,
+          "paru": null,
+          "lima": null,
+          "sombra": null,
+          "norimoto": null,
+          "selvatica": 14000,
+          "osaka": null,
+          "muro": null
+        },
+        {
+          "item": "Pisco Sour",
+          "masunori": 12000,
+          "gokana": null,
+          "paru": null,
+          "lima": 13500,
+          "sombra": null,
+          "norimoto": null,
+          "selvatica": 14000,
+          "osaka": null,
+          "muro": null
+        },
+        {
+          "item": "Old Fashioned",
+          "masunori": 14000,
+          "gokana": null,
+          "paru": null,
+          "lima": null,
+          "sombra": null,
+          "norimoto": null,
+          "selvatica": 13000,
+          "osaka": null,
+          "muro": null
+        },
+        {
+          "item": "Caipiroska",
+          "masunori": 12000,
+          "gokana": null,
+          "paru": null,
+          "lima": null,
+          "sombra": null,
+          "norimoto": null,
+          "selvatica": 14000,
+          "osaka": null,
+          "muro": null
+        }
+      ]
+    },
+    "bebidas": {
+      "label": "Bebidas",
+      "unit": "por unidad",
+      "items": [
+        {
+          "item": "Agua",
+          "masunori": 3500,
+          "gokana": null,
+          "paru": 2800,
+          "lima": null,
+          "sombra": null,
+          "norimoto": null,
+          "selvatica": 4600,
+          "osaka": null,
+          "muro": 3500
+        },
+        {
+          "item": "Coca/Gaseosa",
+          "masunori": 3500,
+          "gokana": null,
+          "paru": 3000,
+          "lima": null,
+          "sombra": null,
+          "norimoto": null,
+          "selvatica": 4600,
+          "osaka": null,
+          "muro": 4500
+        },
+        {
+          "item": "Asahi",
+          "masunori": 9000,
+          "gokana": null,
+          "paru": null,
+          "lima": null,
+          "sombra": null,
+          "norimoto": null,
+          "selvatica": 10000,
+          "osaka": null,
+          "muro": 9500
+        },
+        {
+          "item": "Stella Artois",
+          "masunori": 7500,
+          "gokana": null,
+          "paru": 3800,
+          "lima": null,
+          "sombra": null,
+          "norimoto": null,
+          "selvatica": null,
+          "osaka": 10000,
+          "muro": null
+        }
+      ]
+    }
+  },
+  "tickets_estimados": [
+    {
+      "name": "Muro",
+      "avg": 12000,
+      "min": 8000,
+      "max": 18000
+    },
+    {
+      "name": "Norimoto",
+      "avg": 28000,
+      "min": 20000,
+      "max": 40000
+    },
+    {
+      "name": "Sombra",
+      "avg": 32000,
+      "min": 25000,
+      "max": 48000
+    },
+    {
+      "name": "Gokana",
+      "avg": 38000,
+      "min": 27000,
+      "max": 55000
+    },
+    {
+      "name": "Paru",
+      "avg": 42000,
+      "min": 30000,
+      "max": 60000
+    },
+    {
+      "name": "Lima",
+      "avg": 45000,
+      "min": 30000,
+      "max": 65000
+    },
+    {
+      "name": "Selvática",
+      "avg": 51000,
+      "min": 35000,
+      "max": 80000
+    },
+    {
+      "name": "Osaka",
+      "avg": 70000,
+      "min": 55000,
+      "max": 90000
+    }
+  ],
+  "gaps": [
+    {
+      "category": "Crispy Rice / Nigiri Crispy",
+      "who": "Lima, Gokana",
+      "range": "$10.000 - $16.000",
+      "impact": "Alto",
+      "difficulty": "Baja",
+      "reason": "Tendencia fuerte, usa ingredientes existentes, alto margen. Masunori a $20.7k es el más caro"
+    },
+    {
+      "category": "Handrolls premium",
+      "who": "Norimoto",
+      "range": "$6.400 - $17.500",
+      "impact": "Alto",
+      "difficulty": "Baja",
+      "reason": "Norimoto ofrece Centolla ($15.8k), Atún Rojo ($8.9k), Vieiras ($7.9k). Masunori solo tiene Shiromi/Trucha/Langostino/Wagyu"
+    },
+    {
+      "category": "Ostras",
+      "who": "Norimoto",
+      "range": "$8.600 x4",
+      "impact": "Medio",
+      "difficulty": "Media",
+      "reason": "Norimoto ofrece ostras como entrada. Diferenciador para happy hour"
+    },
+    {
+      "category": "Nigiris de Autor variados",
+      "who": "Norimoto, Gokana, Sombra",
+      "range": "$11.000 - $16.000",
+      "impact": "Alto",
+      "difficulty": "Baja",
+      "reason": "Norimoto tiene 6 nigiris de autor diferentes. Masunori podría ampliar su línea"
+    },
+    {
+      "category": "Tiraditos premium",
+      "who": "Selvática, Paru, Lima",
+      "range": "$37.000 - $51.000",
+      "impact": "Medio",
+      "difficulty": "Baja",
+      "reason": "Selvática cobra hasta $51k por tiradito. Alto margen"
+    },
+    {
+      "category": "Ceviches premium",
+      "who": "Selvática",
+      "range": "$35.000 - $82.000",
+      "impact": "Medio",
+      "difficulty": "Media",
+      "reason": "Selvática tiene degustación de ceviches a $82k. Oportunidad de subir ticket"
+    },
+    {
+      "category": "Combos delivery",
+      "who": "Sombra, Gokana",
+      "range": "$48.000 - $400.000",
+      "impact": "Alto",
+      "difficulty": "Baja",
+      "reason": "Sombra vende combos de hasta $400k. Canal sin explotar"
+    }
+  ],
+  "ventajas": [
+    {
+      "item": "Handrolls más económicos",
+      "detail": "Masunori $8.7-10.7k vs Norimoto $6.4-8.9k pero combos competitivos ($26.2k vs $27.5k x4)"
+    },
+    {
+      "item": "Formato al paso (30 min)",
+      "detail": "Solo Norimoto compite directo. Selvática/Osaka/Paru son experiencias largas"
+    },
+    {
+      "item": "Menú ejecutivo 12-19h",
+      "detail": "Único con lunch deal en segmento premium"
+    },
+    {
+      "item": "Menú kosher",
+      "detail": "Único en el set competitivo"
+    },
+    {
+      "item": "3 locales en zonas clave",
+      "detail": "Palermo + Belgrano + Pto Madero. Norimoto solo 2"
+    },
+    {
+      "item": "Gunkan de centolla",
+      "detail": "Masunori $22.2k. Norimoto también tiene centolla ($14.4k en gunkan, $15.8k handroll)"
+    },
+    {
+      "item": "Precio competitivo en nigiris",
+      "detail": "Masunori en rango medio. Norimoto más caro en sashimis/nigiris autor"
+    },
+    {
+      "item": "Segmento premium vs Muro",
+      "detail": "Muro es mucho más económico (.9k x2 nigiris). Masunori compite en calidad/experiencia, no en precio"
+    }
+  ],
+  "menuSources": {
+    "masunori": {
+      "url": null,
+      "label": "Menu propio (Fudo)"
+    },
+    "selvatica": {
+      "url": "https://qr.selvatica.com.ar/alcorta/",
+      "label": "QR Selvatica Alcorta"
+    },
+    "paru": {
+      "url": "https://pedir.tucan.la/menu/ParuInkasPalermo/Take%20Away",
+      "label": "Paru Palermo (Tucan)"
+    },
+    "muro": {
+      "url": "https://menu.murosushi.com/",
+      "label": "Menu Muro Sushi"
+    },
+    "gokana": {
+      "url": "https://gokana.com.ar/",
+      "label": "Gokana (masDelivery)"
+    },
+    "lima": {
+      "url": "https://drive.google.com/file/d/1dYCY4QZcTjYkywJjWiqxsasIrkDxvWYo/view",
+      "label": "PDF Menu regular (Google Drive)"
+    },
+    "sombra": {
+      "url": "https://pedidos.masdelivery.com/sombra-sushi",
+      "label": "Sombra Sushi (masDelivery)"
+    },
+    "norimoto": {
+      "url": "https://norimoto.com.ar/menu/",
+      "label": "Norimoto (web)"
+    },
+    "osaka": {
+      "url": "https://osakanikkei.com/es/buenos-aires-es/to-go-es/",
+      "label": "Osaka Nikkei TO GO (Buenos Aires)"
+    }
+  }
+}

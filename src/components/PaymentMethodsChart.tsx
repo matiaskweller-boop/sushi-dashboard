@@ -1,5 +1,6 @@
 "use client";
 
+import { memo, useState, useEffect } from "react";
 import {
   ResponsiveContainer,
   PieChart,
@@ -28,9 +29,13 @@ interface Props {
   loading: boolean;
 }
 
-export default function PaymentMethodsChart({ data, loading }: Props) {
+export default memo(function PaymentMethodsChart({ data, loading }: Props) {
   const { currency, getRate } = useCurrency();
   const rate = getRate();
+  const [hasAnimated, setHasAnimated] = useState(false);
+  useEffect(() => {
+    if (!loading && data.length > 0) setHasAnimated(true);
+  }, [loading, data]);
 
   if (loading) {
     return (
@@ -53,7 +58,7 @@ export default function PaymentMethodsChart({ data, loading }: Props) {
   }
 
   return (
-    <div className="card">
+    <div className="card animate-in">
       <h3 className="font-semibold text-lg mb-4">Metodos de pago</h3>
       <div className="h-64 md:h-80">
         <ResponsiveContainer width="100%" height="100%">
@@ -69,6 +74,7 @@ export default function PaymentMethodsChart({ data, loading }: Props) {
               nameKey="method"
               label={({ method, percentage }) => `${method} ${percentage}%`}
               labelLine={false}
+              isAnimationActive={!hasAnimated}
             >
               {data.map((_, index) => (
                 <Cell
@@ -86,4 +92,4 @@ export default function PaymentMethodsChart({ data, loading }: Props) {
       </div>
     </div>
   );
-}
+})

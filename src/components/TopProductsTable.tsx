@@ -1,6 +1,6 @@
 "use client";
 
-import { useState } from "react";
+import { useState, memo } from "react";
 import { TopProduct, SucursalId } from "@/types";
 import { formatMoney } from "@/lib/format";
 import { useCurrency } from "@/lib/CurrencyContext";
@@ -24,7 +24,7 @@ interface Props {
   loading: boolean;
 }
 
-export default function TopProductsTable({ data, loading }: Props) {
+export default memo(function TopProductsTable({ data, loading }: Props) {
   const [activeTab, setActiveTab] = useState<FilterTab>("all");
   const { currency, getRate } = useCurrency();
   const rate = getRate();
@@ -103,7 +103,7 @@ export default function TopProductsTable({ data, loading }: Props) {
                     <div className="font-medium text-sm">{product.name}</div>
                     <div className="mt-1 h-1.5 bg-gray-100 rounded-full overflow-hidden">
                       <div
-                        className="h-full rounded-full transition-all"
+                        className="h-full rounded-full transition-all duration-500"
                         style={{
                           width: `${(product.quantity / maxQuantity) * 100}%`,
                           backgroundColor:
@@ -127,4 +127,4 @@ export default function TopProductsTable({ data, loading }: Props) {
       )}
     </div>
   );
-}
+})

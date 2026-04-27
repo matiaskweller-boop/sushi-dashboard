@@ -22,6 +22,11 @@ npm-debug.log*
 
 # local env files
 .env*.local
+.env.local.gcp
+.env.local.vercel
+.env.prod.gcp
+.env.vercel-check
+.env.vercel-pull
 
 # vercel
 .vercel

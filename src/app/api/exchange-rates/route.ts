@@ -4,6 +4,7 @@ import {
   getHistoricalBlueRates,
   calcMonthlyAverages,
 } from "@/lib/exchange-rates";
+import fallbackRates from "../../../../data/exchange-rates.json";
 
 export async function GET() {
   try {
@@ -19,7 +20,19 @@ export async function GET() {
       );
     }
 
-    const monthly = calcMonthlyAverages(historical);
+    // Merge: fallback rates (manual) + Bluelytics (auto, has priority)
+    const bluelyticsMonthly = calcMonthlyAverages(historical);
+    // Filter out non-rate fields (like _nota)
+    const fallback: Record<string, number> = {};
+    for (const [key, value] of Object.entries(fallbackRates)) {
+      if (/^\d{4}-\d{2}$/.test(key) && typeof value === "number") {
+        fallback[key] = value;
+      }
+    }
+    const monthly: Record<string, number> = {
+      ...fallback,
+      ...bluelyticsMonthly,
+    };
 
     return NextResponse.json(
       { current, monthly },

@@ -1,5 +1,6 @@
 "use client";
 
+import { memo } from "react";
 import { KPIs } from "@/types";
 import { formatMoney, formatNumber } from "@/lib/format";
 import { useCurrency } from "@/lib/CurrencyContext";
@@ -55,7 +56,7 @@ interface Props {
   loading: boolean;
 }
 
-export default function KPICards({ kpis, loading }: Props) {
+export default memo(function KPICards({ kpis, loading }: Props) {
   const { currency, getRate } = useCurrency();
   const rate = getRate();
 
@@ -124,4 +125,4 @@ export default function KPICards({ kpis, loading }: Props) {
       </div>
     </div>
   );
-}
+})

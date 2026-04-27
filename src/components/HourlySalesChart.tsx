@@ -1,5 +1,6 @@
 "use client";
 
+import { memo, useState, useEffect } from "react";
 import {
   ResponsiveContainer,
   LineChart,
@@ -19,9 +20,14 @@ interface Props {
   loading: boolean;
 }
 
-export default function HourlySalesChart({ data, loading }: Props) {
+export default memo(function HourlySalesChart({ data, loading }: Props) {
   const { currency, getRate } = useCurrency();
   const rate = getRate();
+  const [hasAnimated, setHasAnimated] = useState(false);
+
+  useEffect(() => {
+    if (!loading && data.length > 0) setHasAnimated(true);
+  }, [loading, data]);
 
   if (loading) {
     return (
@@ -33,7 +39,7 @@ export default function HourlySalesChart({ data, loading }: Props) {
   }
 
   return (
-    <div className="card">
+    <div className="card animate-in">
       <h3 className="font-semibold text-lg mb-4">Ventas por hora</h3>
       <div className="h-64 md:h-80">
         <ResponsiveContainer width="100%" height="100%">
@@ -58,6 +64,7 @@ export default function HourlySalesChart({ data, loading }: Props) {
               strokeWidth={2}
               dot={false}
               activeDot={{ r: 4 }}
+              isAnimationActive={!hasAnimated}
             />
             <Line
               type="monotone"
@@ -67,6 +74,7 @@ export default function HourlySalesChart({ data, loading }: Props) {
               strokeWidth={2}
               dot={false}
               activeDot={{ r: 4 }}
+              isAnimationActive={!hasAnimated}
             />
             <Line
               type="monotone"
@@ -76,10 +84,11 @@ export default function HourlySalesChart({ data, loading }: Props) {
               strokeWidth={2}
               dot={false}
               activeDot={{ r: 4 }}
+              isAnimationActive={!hasAnimated}
             />
           </LineChart>
         </ResponsiveContainer>
       </div>
     </div>
   );
-}
+})

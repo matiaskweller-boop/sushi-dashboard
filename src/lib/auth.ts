@@ -3,13 +3,18 @@ import { cookies } from "next/headers";
 import { NextRequest } from "next/server";
 
 const SECRET = new TextEncoder().encode(
-  process.env.NEXTAUTH_SECRET || "fallback-secret-change-me"
+  process.env.SESSION_SECRET || process.env.NEXTAUTH_SECRET || "fallback-secret-change-me"
 );
 
 const COOKIE_NAME = "masunori-session";
 
-export async function createSession(username: string): Promise<string> {
-  const token = await new SignJWT({ username })
+export interface SessionPayload {
+  email: string;
+  name: string;
+}
+
+export async function createSession(email: string, name: string): Promise<string> {
+  const token = await new SignJWT({ email, name })
     .setProtectedHeader({ alg: "HS256" })
     .setExpirationTime("24h")
     .setIssuedAt()
@@ -20,16 +25,16 @@ export async function createSession(username: string): Promise<string> {
 
 export async function verifySession(
   token: string
-): Promise<{ username: string } | null> {
+): Promise<SessionPayload | null> {
   try {
     const { payload } = await jwtVerify(token, SECRET);
-    return { username: payload.username as string };
+    return { email: payload.email as string, name: payload.name as string };
   } catch {
     return null;
   }
 }
 
-export async function getSession(): Promise<{ username: string } | null> {
+export async function getSession(): Promise<SessionPayload | null> {
   const cookieStore = await cookies();
   const token = cookieStore.get(COOKIE_NAME)?.value;
   if (!token) return null;
@@ -40,6 +45,14 @@ export function getSessionFromRequest(
   request: NextRequest
 ): string | undefined {
   return request.cookies.get(COOKIE_NAME)?.value;
+}
+
+export function isEmailAllowed(email: string): boolean {
+  const allowed = (process.env.ALLOWED_EMAILS || "")
+    .split(",")
+    .map((e) => e.trim().toLowerCase())
+    .filter(Boolean);
+  return allowed.includes(email.toLowerCase());
 }
 
 export { COOKIE_NAME };

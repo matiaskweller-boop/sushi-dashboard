@@ -14,8 +14,17 @@ import {
   ProductAnalyticsData,
   CategoryAnalytics,
   TimeSlotAnalytics,
+  ConsumptionData,
+  ConsumptionProduct,
+  CategoryConsumption,
+  LowMovementProduct,
 } from "@/types";
 import { format } from "date-fns";
+import { getCanonicalName, getNormalizedKey, getCanonicalCategory } from "./product-aliases";
+
+// ===== Cache de resultados a nivel dashboard =====
+const dashboardResultCache: Map<string, { data: DashboardData; expiresAt: number }> = new Map();
+const DASHBOARD_CACHE_TTL = 2 * 60 * 1000; // 2 minutos
 
 // Extract Argentina hour/day regardless of server timezone (works on both UTC/Vercel and local)
 const argFormatter = new Intl.DateTimeFormat("es-AR", {
@@ -138,18 +147,19 @@ function calcKPIs(
   currentSales: ParsedSale[],
   prevSales: ParsedSale[]
 ): KPIs {
-  const closedCurrent = currentSales.filter((s) => s.saleState === "CLOSED");
-  const closedPrev = prevSales.filter((s) => s.saleState === "CLOSED");
+  // Include all non-canceled sales (CLOSED + OPEN) to match Fudo totals
+  const validCurrent = currentSales.filter((s) => s.saleState !== "CANCELED");
+  const validPrev = prevSales.filter((s) => s.saleState !== "CANCELED");
 
-  const totalSales = closedCurrent.reduce((sum, s) => sum + (s.total || 0), 0);
-  const totalOrders = closedCurrent.length;
-  const totalPeople = closedCurrent.reduce((sum, s) => sum + (s.people || 1), 0);
+  const totalSales = validCurrent.reduce((sum, s) => sum + (s.total || 0), 0);
+  const totalOrders = validCurrent.length;
+  const totalPeople = validCurrent.reduce((sum, s) => sum + (s.people || 1), 0);
   const avgTicket = totalPeople > 0 ? totalSales / totalPeople : 0;
-  const shiftTickets = calcTicketByShift(closedCurrent);
+  const shiftTickets = calcTicketByShift(validCurrent);
 
-  const prevTotalSales = closedPrev.reduce((sum, s) => sum + (s.total || 0), 0);
-  const prevTotalOrders = closedPrev.length;
-  const prevTotalPeople = closedPrev.reduce((sum, s) => sum + (s.people || 1), 0);
+  const prevTotalSales = validPrev.reduce((sum, s) => sum + (s.total || 0), 0);
+  const prevTotalOrders = validPrev.length;
+  const prevTotalPeople = validPrev.reduce((sum, s) => sum + (s.people || 1), 0);
   const prevAvgTicket = prevTotalPeople > 0 ? prevTotalSales / prevTotalPeople : 0;
 
   return {
@@ -173,16 +183,16 @@ function calcSucursalKPIs(
   color: string,
   error?: string
 ): SucursalKPIs {
-  const closed = sales.filter((s) => s.saleState === "CLOSED");
-  const totalSales = closed.reduce((sum, s) => sum + (s.total || 0), 0);
-  const totalOrders = closed.length;
-  const totalPax = closed.reduce((sum, s) => sum + (s.people || 1), 0);
+  const valid = sales.filter((s) => s.saleState !== "CANCELED");
+  const totalSales = valid.reduce((sum, s) => sum + (s.total || 0), 0);
+  const totalOrders = valid.length;
+  const totalPax = valid.reduce((sum, s) => sum + (s.people || 1), 0);
   const avgTicket = totalPax > 0 ? totalSales / totalPax : 0;
 
   // Calcular desglose de medios de pago
   const paymentAmounts: Record<string, number> = {};
   let totalPayments = 0;
-  closed.forEach((sale) => {
+  valid.forEach((sale) => {
     sale.payments
       .filter((p) => !p.canceled)
       .forEach((p) => {
@@ -203,9 +213,9 @@ function calcSucursalKPIs(
   const mainPaymentMethod = paymentBreakdown[0]?.method || "Sin datos";
 
   // Ticket y % almuerzo/cena
-  const shiftTickets = calcTicketByShift(closed);
-  const lunchSales = closed.filter(isLunch);
-  const dinnerSales = closed.filter((s) => !isLunch(s));
+  const shiftTickets = calcTicketByShift(valid);
+  const lunchSales = valid.filter(isLunch);
+  const dinnerSales = valid.filter((s) => !isLunch(s));
   const lunchRevenue = lunchSales.reduce((sum, s) => sum + (s.total || 0), 0);
   const dinnerRevenue = dinnerSales.reduce((sum, s) => sum + (s.total || 0), 0);
   const lunchPct = totalSales > 0 ? Math.round((lunchRevenue / totalSales) * 100) : 0;
@@ -243,7 +253,7 @@ function calcHourlySales(
 
   for (const [sucursalId, sales] of Object.entries(salesBySucursal)) {
     sales
-      .filter((s) => s.saleState === "CLOSED")
+      .filter((s) => s.saleState !== "CANCELED")
       .forEach((sale) => {
         const dateStr = sale.closedAt || sale.createdAt;
         if (dateStr) {
@@ -263,7 +273,7 @@ function calcPaymentMethods(allSales: ParsedSale[]): PaymentMethodData[] {
   let total = 0;
 
   allSales
-    .filter((s) => s.saleState === "CLOSED")
+    .filter((s) => s.saleState !== "CANCELED")
     .forEach((sale) => {
       sale.payments
         .filter((p) => !p.canceled)
@@ -283,29 +293,33 @@ function calcPaymentMethods(allSales: ParsedSale[]): PaymentMethodData[] {
     .sort((a, b) => b.amount - a.amount);
 }
 
+// Filter out common beverages from product rankings
+const BEVERAGE_FILTER_RE = /agua|gaseosa|soda|coca|sprite|fanta|schweppes/i;
+
 function calcTopProducts(
   sales: ParsedSale[],
   limit: number = 10
 ): TopProduct[] {
-  const products: Record<string, { quantity: number; revenue: number }> = {};
+  const products: Record<string, { quantity: number; revenue: number; displayName: string }> = {};
 
   sales
-    .filter((s) => s.saleState === "CLOSED")
+    .filter((s) => s.saleState !== "CANCELED")
     .forEach((sale) => {
       sale.items
-        .filter((item) => !item.canceled)
+        .filter((item) => !item.canceled && !BEVERAGE_FILTER_RE.test(item.productName))
         .forEach((item) => {
-          const name = item.productName;
-          if (!products[name]) {
-            products[name] = { quantity: 0, revenue: 0 };
+          const key = getNormalizedKey(item.productName);
+          const displayName = getCanonicalName(item.productName);
+          if (!products[key]) {
+            products[key] = { quantity: 0, revenue: 0, displayName };
           }
-          products[name].quantity += item.quantity || 1;
-          products[name].revenue += item.price * item.quantity || 0;
+          products[key].quantity += item.quantity || 1;
+          products[key].revenue += item.price * item.quantity || 0;
         });
     });
 
   return Object.entries(products)
-    .map(([name, data]) => ({ ...data, name, rank: 0 }))
+    .map(([, data]) => ({ quantity: data.quantity, revenue: data.revenue, name: data.displayName, rank: 0 }))
     .sort((a, b) => b.quantity - a.quantity)
     .slice(0, limit)
     .map((p, i) => ({ ...p, rank: i + 1 }));
@@ -322,6 +336,13 @@ export async function getDashboardData(
     customTo
   );
 
+  // Check dashboard-level cache first
+  const cacheKey = `dashboard:${from}:${to}:${prevFrom}:${prevTo}`;
+  const cached = dashboardResultCache.get(cacheKey);
+  if (cached && cached.expiresAt > Date.now()) {
+    return cached.data;
+  }
+
   const errors: string[] = [];
   const salesBySucursal: Record<SucursalId, ParsedSale[]> = {
     palermo: [],
@@ -334,25 +355,20 @@ export async function getDashboardData(
     puerto: [],
   };
 
-  // Consultar sucursales en paralelo (cada una tiene su propio rate limit queue)
-  await Promise.all(
-    SUCURSALES.map(async (sucursal) => {
-      try {
-        const sales = await getSales(sucursal, from, to);
-        salesBySucursal[sucursal.id] = sales;
-      } catch (err: unknown) {
+  // Consultar todas las sucursales y períodos en paralelo
+  // (cada sucursal tiene su propio rate limit queue, y current+prev pueden correr simultáneo)
+  const fetchPromises = SUCURSALES.flatMap((sucursal) => [
+    getSales(sucursal, from, to)
+      .then((sales) => { salesBySucursal[sucursal.id] = sales; })
+      .catch((err: unknown) => {
         const message = err instanceof Error ? err.message : "Error desconocido";
         errors.push(`Error al obtener datos de ${sucursal.name}: ${message}`);
-      }
-
-      try {
-        const prevSales = await getSales(sucursal, prevFrom, prevTo);
-        prevSalesBySucursal[sucursal.id] = prevSales;
-      } catch {
-        // Error en período anterior no es crítico
-      }
-    })
-  );
+      }),
+    getSales(sucursal, prevFrom, prevTo)
+      .then((sales) => { prevSalesBySucursal[sucursal.id] = sales; })
+      .catch(() => { /* Error en período anterior no es crítico */ }),
+  ]);
+  await Promise.all(fetchPromises);
 
   // Consolidar datos
   const allCurrentSales = Object.values(salesBySucursal).flat();
@@ -381,7 +397,7 @@ export async function getDashboardData(
     puerto: calcTopProducts(salesBySucursal.puerto),
   };
 
-  return {
+  const result: DashboardData = {
     kpis,
     sucursalKPIs,
     hourlySales,
@@ -390,6 +406,13 @@ export async function getDashboardData(
     errors,
     lastUpdated: new Date().toISOString(),
   };
+
+  // Cache result for 2 minutes (only if no errors)
+  if (errors.length === 0) {
+    dashboardResultCache.set(cacheKey, { data: result, expiresAt: Date.now() + DASHBOARD_CACHE_TTL });
+  }
+
+  return result;
 }
 
 // ===== Advanced KPIs =====
@@ -410,7 +433,7 @@ function calcAdvancedKPIsForSales(sales: ParsedSale[]): {
   totalItems: number;
   canceledItems: number;
 } {
-  const closed = sales.filter((s) => s.saleState === "CLOSED");
+  const closed = sales.filter((s) => s.saleState !== "CANCELED");
 
   // Average duration
   const durations = closed
@@ -470,7 +493,7 @@ function calcHourlyOrderCounts(
 
   for (const [sucursalId, sales] of Object.entries(salesBySucursal)) {
     sales
-      .filter((s) => s.saleState === "CLOSED")
+      .filter((s) => s.saleState !== "CANCELED")
       .forEach((sale) => {
         const dateStr = sale.createdAt;
         if (dateStr) {
@@ -488,7 +511,7 @@ function calcHourlyOrderCounts(
 function calcPeopleDistribution(
   sales: ParsedSale[]
 ): { people: string; count: number }[] {
-  const closed = sales.filter((s) => s.saleState === "CLOSED");
+  const closed = sales.filter((s) => s.saleState !== "CANCELED");
   const counts: Record<string, number> = {};
 
   closed.forEach((sale) => {
@@ -508,7 +531,7 @@ export async function getAdvancedKPIs(
   customFrom?: string,
   customTo?: string
 ): Promise<AdvancedKPIsData> {
-  const { from, to } = getDateRange(period, customFrom, customTo);
+  const { from, to, prevFrom, prevTo } = getDateRange(period, customFrom, customTo);
 
   const errors: string[] = [];
   const salesBySucursal: Record<SucursalId, ParsedSale[]> = {
@@ -517,16 +540,23 @@ export async function getAdvancedKPIs(
     puerto: [],
   };
 
+  // Fetch current + previous period in parallel for growth comparison
+  const prevSalesBySucursal: Record<SucursalId, ParsedSale[]> = {
+    palermo: [], belgrano: [], puerto: [],
+  };
+
   await Promise.all(
-    SUCURSALES.map(async (sucursal) => {
-      try {
-        const sales = await getSales(sucursal, from, to);
-        salesBySucursal[sucursal.id] = sales;
-      } catch (err: unknown) {
-        const message = err instanceof Error ? err.message : "Error desconocido";
-        errors.push(`Error al obtener datos de ${sucursal.name}: ${message}`);
-      }
-    })
+    SUCURSALES.flatMap((sucursal) => [
+      getSales(sucursal, from, to)
+        .then((sales) => { salesBySucursal[sucursal.id] = sales; })
+        .catch((err: unknown) => {
+          const message = err instanceof Error ? err.message : "Error desconocido";
+          errors.push(`Error al obtener datos de ${sucursal.name}: ${message}`);
+        }),
+      getSales(sucursal, prevFrom, prevTo)
+        .then((sales) => { prevSalesBySucursal[sucursal.id] = sales; })
+        .catch(() => { /* prev period errors are not critical */ }),
+    ])
   );
 
   const allSales = Object.values(salesBySucursal).flat();
@@ -563,7 +593,7 @@ export async function getAdvancedKPIs(
   const peopleDistribution = calcPeopleDistribution(allSales);
 
   // New KPIs
-  const closedAll = allSales.filter((s) => s.saleState === "CLOSED");
+  const closedAll = allSales.filter((s) => s.saleState !== "CANCELED");
   const totalPeople = closedAll.reduce((sum, s) => sum + (s.people || 1), 0);
   const itemsPerPerson = totalPeople > 0 ? globalMetrics.totalItems / totalPeople : 0;
 
@@ -578,18 +608,34 @@ export async function getAdvancedKPIs(
   const totalDurationMinutes = allDurations.reduce((a, b) => a + b, 0);
   const revenuePerMinute = totalDurationMinutes > 0 ? globalMetrics.totalRevenue / totalDurationMinutes : 0;
 
-  // Top product concentration (top 5 by revenue)
-  const productRevenues: Record<string, number> = {};
+  // Top product concentration (top 5/10 by revenue, excluding beverages)
+  const productRevenues: Record<string, { revenue: number; quantity: number; displayName: string }> = {};
   closedAll.forEach((sale) => {
     sale.items.filter((i) => !i.canceled).forEach((item) => {
-      const name = item.productName;
-      productRevenues[name] = (productRevenues[name] || 0) + item.price * item.quantity;
+      const key = getNormalizedKey(item.productName);
+      const displayName = getCanonicalName(item.productName);
+      if (!productRevenues[key]) productRevenues[key] = { revenue: 0, quantity: 0, displayName };
+      productRevenues[key].revenue += item.price * item.quantity;
+      productRevenues[key].quantity += item.quantity || 1;
     });
   });
-  const sortedRevenues = Object.values(productRevenues).sort((a, b) => b - a);
-  const top5Revenue = sortedRevenues.slice(0, 5).reduce((a, b) => a + b, 0);
-  const totalProductRevenue = sortedRevenues.reduce((a, b) => a + b, 0);
+
+  // Filter out beverages for top products
+  const filteredProducts = Object.entries(productRevenues)
+    .filter(([name]) => !BEVERAGE_FILTER_RE.test(name));
+  const sortedProducts = filteredProducts
+    .sort((a, b) => b[1].revenue - a[1].revenue);
+  const totalProductRevenue = filteredProducts.reduce((sum, [, d]) => sum + d.revenue, 0);
+  const top5Revenue = sortedProducts.slice(0, 5).reduce((sum, [, d]) => sum + d.revenue, 0);
   const topProductConcentration = totalProductRevenue > 0 ? (top5Revenue / totalProductRevenue) * 100 : 0;
+
+  // Top 10 products with details (for expandable card)
+  const topProducts = sortedProducts.slice(0, 10).map(([, data]) => ({
+    name: data.displayName,
+    revenue: data.revenue,
+    quantity: data.quantity,
+    percentage: totalProductRevenue > 0 ? (data.revenue / totalProductRevenue) * 100 : 0,
+  }));
 
   // Lunch vs Dinner
   let lunchRevenue = 0, dinnerRevenue = 0, lunchOrders = 0, dinnerOrders = 0;
@@ -632,6 +678,33 @@ export async function getAdvancedKPIs(
     return { dayOfWeek: dow, hour: h, revenue };
   });
 
+  // === NEW GROWTH KPIs ===
+
+  // 1. Growth vs same weekday previous period
+  const allPrevSales = Object.values(prevSalesBySucursal).flat();
+  const prevClosedAll = allPrevSales.filter((s) => s.saleState !== "CANCELED");
+  const currentRevenue = closedAll.reduce((sum, s) => sum + (s.total || 0), 0);
+  const prevRevenue = prevClosedAll.reduce((sum, s) => sum + (s.total || 0), 0);
+  const growthVsSameWeekday = prevRevenue > 0 ? ((currentRevenue - prevRevenue) / prevRevenue) * 100 : null;
+
+  // 2. Revenue per person
+  const revenuePerPerson = totalPeople > 0 ? currentRevenue / totalPeople : 0;
+
+  // 3. Estimated occupancy rate
+  // (total people served) / (total seats × hours open × days in range)
+  const fromDate = new Date(from + "T12:00:00Z");
+  const toDate = new Date(to + "T12:00:00Z");
+  const daysInRange = Math.max(1, Math.round((toDate.getTime() - fromDate.getTime()) / (1000 * 60 * 60 * 24)) + 1);
+  const totalSeatsCapacity = totalSeats * HOURS_OPEN * daysInRange; // seat-hours available
+  const totalSeatHoursUsed = closedAll.reduce((sum, s) => {
+    const dur = s.closedAt && s.createdAt
+      ? (new Date(s.closedAt).getTime() - new Date(s.createdAt).getTime()) / (1000 * 60 * 60)
+      : 1; // default 1 hour if no duration
+    const people = s.people || 1;
+    return sum + (Math.min(dur, 5) * people); // cap at 5 hours per table
+  }, 0);
+  const estimatedOccupancy = totalSeatsCapacity > 0 ? Math.min(100, (totalSeatHoursUsed / totalSeatsCapacity) * 100) : 0;
+
   return {
     global: {
       avgDurationMinutes: globalMetrics.avgDurationMinutes,
@@ -651,6 +724,10 @@ export async function getAdvancedKPIs(
     itemsPerPerson,
     revenuePerMinute,
     topProductConcentration,
+    topProducts,
+    growthVsSameWeekday,
+    revenuePerPerson,
+    estimatedOccupancy,
     lunchRevenue,
     dinnerRevenue,
     lunchOrders,
@@ -713,7 +790,7 @@ export async function getProductAnalytics(
 
   for (const [sucursalId, sales] of Object.entries(salesBySucursal)) {
     const sid = sucursalId as SucursalId;
-    const closed = sales.filter((s) => s.saleState === "CLOSED");
+    const closed = sales.filter((s) => s.saleState !== "CANCELED");
 
     for (const sale of closed) {
       const hour = getArgentinaHour(new Date(sale.createdAt));
@@ -845,7 +922,7 @@ function buildMonthlySummaries(
     }
   > = {};
 
-  const closed = sales.filter((s) => s.saleState === "CLOSED");
+  const closed = sales.filter((s) => s.saleState !== "CANCELED");
 
   for (const sale of closed) {
     const created = sale.createdAt;
@@ -1004,6 +1081,194 @@ export async function getLiveMonthlySummaries(): Promise<
     data: result,
     expiresAt: Date.now() + 30 * 60 * 1000,
   });
+
+  return result;
+}
+
+// ===== Consumption Tracking =====
+// Uses stored JSON for past months + live Fudo data for current month only
+
+import storedConsumption from "../../data/consumo-mensual.json";
+
+// Stored format: Record<productName, { categoryName, months: Record<"YYYY-MM", { qty, bySucursal }> }>
+interface StoredProductData {
+  categoryName: string;
+  months: Record<string, { qty: number; bySucursal: Record<string, number> }>;
+}
+type StoredConsumptionData = Record<string, StoredProductData>;
+
+const consumptionCache: Map<string, { data: ConsumptionData; expiresAt: number }> = new Map();
+
+export async function getConsumptionData(monthsBack: number = 6): Promise<ConsumptionData> {
+  const cacheKey = `consumption:${monthsBack}`;
+  const cached = consumptionCache.get(cacheKey);
+  if (cached && cached.expiresAt > Date.now()) {
+    return cached.data;
+  }
+
+  const errors: string[] = [];
+  const todayStr = getArgentinaTodayStr();
+  const currentMonthKey = todayStr.substring(0, 7); // "YYYY-MM"
+
+  // Generate list of months we need
+  // Use day=1 to avoid overflow (e.g. March 30 - 1 month = Feb 30 → Mar 2)
+  const months: string[] = [];
+  const [curYear, curMonth] = todayStr.split("-").map(Number);
+  for (let i = monthsBack - 1; i >= 0; i--) {
+    const d = new Date(Date.UTC(curYear, curMonth - 1 - i, 1));
+    const year = d.getUTCFullYear();
+    const month = String(d.getUTCMonth() + 1).padStart(2, "0");
+    months.push(`${year}-${month}`);
+  }
+
+  // Load stored data for past months
+  const stored = storedConsumption as StoredConsumptionData;
+  const productMap: Map<string, {
+    name: string;
+    categoryName: string;
+    monthlyData: Record<string, number>;
+    bySucursal: Record<SucursalId, number>;
+  }> = new Map();
+
+  // Populate from stored JSON (past months only), unifying by canonical name
+  for (const [productName, pData] of Object.entries(stored)) {
+    for (const m of months) {
+      if (m === currentMonthKey) continue; // skip current month, we'll fetch live
+      const monthData = pData.months[m];
+      if (!monthData) continue;
+
+      const canonicalName = getCanonicalName(productName);
+      const key = getNormalizedKey(productName);
+
+      if (!productMap.has(key)) {
+        productMap.set(key, {
+          name: canonicalName,
+          categoryName: getCanonicalCategory(pData.categoryName),
+          monthlyData: {},
+          bySucursal: { palermo: 0, belgrano: 0, puerto: 0 },
+        });
+      }
+      const prod = productMap.get(key)!;
+      prod.monthlyData[m] = (prod.monthlyData[m] || 0) + monthData.qty;
+      for (const [sId, qty] of Object.entries(monthData.bySucursal)) {
+        prod.bySucursal[sId as SucursalId] += qty;
+      }
+    }
+  }
+
+  // Fetch ONLY current month live from Fudo (fast!)
+  const firstDayOfMonth = `${currentMonthKey}-01`;
+  await Promise.all(
+    SUCURSALES.map(async (sucursal) => {
+      try {
+        const sales = await getSales(sucursal, firstDayOfMonth, todayStr);
+        const validSales = sales.filter((s) => s.saleState !== "CANCELED");
+        for (const sale of validSales) {
+          for (const item of sale.items) {
+            if (item.canceled) continue;
+            const canonicalName = getCanonicalName(item.productName);
+            const mapKey = getNormalizedKey(item.productName);
+            if (!productMap.has(mapKey)) {
+              productMap.set(mapKey, {
+                name: canonicalName,
+                categoryName: getCanonicalCategory(item.categoryName || "Sin categoria"),
+                monthlyData: {},
+                bySucursal: { palermo: 0, belgrano: 0, puerto: 0 },
+              });
+            }
+            const prod = productMap.get(mapKey)!;
+            prod.monthlyData[currentMonthKey] = (prod.monthlyData[currentMonthKey] || 0) + (item.quantity || 1);
+            prod.bySucursal[sucursal.id] += (item.quantity || 1);
+          }
+        }
+      } catch (err: unknown) {
+        const message = err instanceof Error ? err.message : "Error desconocido";
+        errors.push(`Error ${sucursal.name}: ${message}`);
+      }
+    })
+  );
+
+  // Build products array with totals and trends
+  const products: ConsumptionProduct[] = Array.from(productMap.values()).map((p) => {
+    const totalQuantity = Object.values(p.monthlyData).reduce((a, b) => a + b, 0);
+
+    const lastMonth = months[months.length - 1];
+    const lastMonthQty = p.monthlyData[lastMonth] || 0;
+    const prevMonths = months.slice(0, -1);
+    const prevAvg = prevMonths.length > 0
+      ? prevMonths.reduce((sum, m) => sum + (p.monthlyData[m] || 0), 0) / prevMonths.length
+      : 0;
+    const trend = prevAvg > 0 ? ((lastMonthQty - prevAvg) / prevAvg) * 100 : 0;
+
+    return {
+      name: p.name,
+      categoryName: p.categoryName,
+      totalQuantity,
+      monthlyData: p.monthlyData,
+      bySucursal: p.bySucursal,
+      trend,
+    };
+  }).sort((a, b) => b.totalQuantity - a.totalQuantity);
+
+  // Build category totals
+  const catMap: Map<string, { totalQuantity: number; monthlyData: Record<string, number> }> = new Map();
+  for (const p of products) {
+    if (!catMap.has(p.categoryName)) {
+      catMap.set(p.categoryName, { totalQuantity: 0, monthlyData: {} });
+    }
+    const cat = catMap.get(p.categoryName)!;
+    cat.totalQuantity += p.totalQuantity;
+    for (const [m, qty] of Object.entries(p.monthlyData)) {
+      cat.monthlyData[m] = (cat.monthlyData[m] || 0) + qty;
+    }
+  }
+  const categories: CategoryConsumption[] = Array.from(catMap.entries())
+    .map(([categoryName, data]) => ({ categoryName, ...data }))
+    .sort((a, b) => b.totalQuantity - a.totalQuantity);
+
+  // Identify low-movement products: had sales before but stopped, or very low
+  const lowMovement: LowMovementProduct[] = products
+    .filter((p) => {
+      // Has at least some history but recent months are zero/very low
+      const lastTwoMonths = months.slice(-2);
+      const recentQty = lastTwoMonths.reduce((s, m) => s + (p.monthlyData[m] || 0), 0);
+      const olderMonths = months.slice(0, -2);
+      const olderQty = olderMonths.reduce((s, m) => s + (p.monthlyData[m] || 0), 0);
+      // Product had sales before but stopped, or very low trend
+      return (olderQty > 0 && recentQty === 0) || (p.totalQuantity > 0 && p.trend < -50);
+    })
+    .map((p) => {
+      // Find last month with sales
+      let lastSoldMonth: string | null = null;
+      let monthsWithoutSales = 0;
+      for (let i = months.length - 1; i >= 0; i--) {
+        if ((p.monthlyData[months[i]] || 0) > 0) {
+          lastSoldMonth = months[i];
+          monthsWithoutSales = months.length - 1 - i;
+          break;
+        }
+      }
+      return {
+        name: p.name,
+        categoryName: p.categoryName,
+        totalQuantity: p.totalQuantity,
+        lastSoldMonth,
+        monthsWithoutSales,
+      };
+    })
+    .sort((a, b) => b.monthsWithoutSales - a.monthsWithoutSales || b.totalQuantity - a.totalQuantity);
+
+  const result: ConsumptionData = {
+    products,
+    categories,
+    lowMovement,
+    months,
+    errors,
+    lastUpdated: new Date().toISOString(),
+  };
+
+  // Cache for 10 min (only current month is live)
+  consumptionCache.set(cacheKey, { data: result, expiresAt: Date.now() + 10 * 60 * 1000 });
 
   return result;
 }

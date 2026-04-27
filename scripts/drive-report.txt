@@ -1,0 +1,704 @@
+◇ injected env (38) from .env.prod.gcp // tip: ⌘ multiple files { path: ['.env.local', '.env'] }
+
+══════════════════════════════════
+📊  MADERO ADMINISTRACION MASUNORI - 2025
+══════════════════════════════════
+
+  📄 Tab: "EGRESOS" (4471 filas x 31 cols)
+     [0] Fecha ingreso | Fecha FC | Fecha Pago | PROVEEDOR | Tipo de Comprobante | N COMPROBANTE  | Rubro |   INSUMOS  | Total | 
+     [1] 10/2/2025 | 10/2/2025 | 9/6/2025 | EXPENSAS | FAC A | 00006601  FEBRERO 20 |  Alquiler + EXP  | EXPENSAS |  $ 669.342,72  | 1,00
+     [2] 10/2/2025 | 10/2/2025 | 9/6/2025 | EXPENSAS | FAC A | 00006600   ABL FEBRE |  Alquiler + EXP  | EXPENSAS |  $ 125.121,31  | 1,00
+     [3] 10/3/2025 | 10/3/2025 | 9/6/2025 | EXPENSAS | FAC A | 0006703  MARZO 2025 |  Alquiler + EXP  | EXPENSAS |  $ 740.070,40  | 1,00
+     [4] 9/5/2025 | 9/5/2025 | 2/6/2025 | DP HIGIENE | FAC A | 00027037 |  Limpieza  | DILUYENTE ALCOHOLICO |  $ 10.911,88  | 5,00
+
+  📄 Tab: "DEUDA AL DIA" (1029 filas x 27 cols)
+     [0] CTA SANTANDER  | 217-008023-7
+     [1] PROVEEDOR | DEUDA PENDIENTE | ALIAS | NOMBRE O R SOCIAL | BANCO | CBU | AGENDADO | PRODUCTO | PLAZOS DE PAGO
+     [2] NUNOS | $0,00 | ALA.GORRA.PILETA | NUNOS S.A | BANCO GALICIA | 00703657000000028538 | NUNOS | Langostinos | 15 dias
+     [3] BUENOS MARES | $0,00 | DATIL.GENTE.FLAUTA | BUENOS MARES S.A | BANCO CIUDAD | 02900667000000000127 | BUENOS MARES | Pesca blanca | 7 dias
+     [4] DELFIN | $0,00 | NO TIENE | RAFAEL CIOFFI E HIJO | BANCO GALICIA | 00700160200000030195 | DELFIN | Pesca blanca | 10 dias
+
+  📄 Tab: "SERVICIOS" (997 filas x 31 cols)
+     [0] Fecha ingreso | Fecha FC | Fecha Pago | PROVEEDOR | Tipo de Comprobante | N COMPROBANTE  | Rubro |   INSUMOS  | Total | 
+     [1] SEPTIEMBRE
+     [2]  | 8/8/2025 | 10/09/2025 | EXPENSAS | FAC A | 00007326 |  Alquiler + EXP  | EXPENSAS |  $ 645.724,16  | 
+     [3]  | 2/9/2025 | 18/9/2025 | ALQUILER | RECIBO | 00007387 |  Alquiler + EXP  | ALQUILER B |  $ 9.431.475,84  | 
+     [4]  | 4/9/2025 | 8/9/2025 | VERISURE | FAC A | 00976269 |  Servicios  | SERVICIO DE SEGURIDA |  $ 83.587,08  | 
+
+  📄 Tab: "cmv" (1606 filas x 54 cols)
+     [0] SUM de Total | Rubro
+     [1] MES ingreso |  Almacen  |  Alquiler + EXP  |  Bazar  |  Bebidas c/Alcohol  |  Bebidas s/Alcohol  |  Cargas Sociales  |  Carniceria  |  Descartables  |  Envios 
+     [2] 5,25 |  $ 796.198,08  |  $ 613.688,32  |  $ 30.312,00  |  $ 1.877.701,01  |  $ 506.645,20  |  |  $ 144.440,00  |  $ 494.875,88  |  $ 53.526,69 
+     [3] 6,25 |  $ 662.898,17  |  $ 688.460,80  |  |  $ 5.482.820,28  |  $ 577.456,25  |  $ 310.903,44  |  $ 221.760,00  |  $ 92.395,69  |  $ 12.049,12 
+     [4] 7,25 |  $ 1.020.381,44  |  $ 704.125,44  |  |  $ 1.566.556,85  |  $ 693.435,50  |  $ 1.537.670,33  |  $ 219.120,00  |  $ 482.779,95  |  $ 31.124,64 
+
+  📄 Tab: "EGRESOS EFECTIVO" (8590 filas x 26 cols)
+     [0] Fecha ingreso | Fecha FC | Fecha Pago | PROVEEDORES |  | N COMPROBANTE  | Rubro |  Insumos  | Precio UN | CUÁNTO ENTRÓ kg/lt/u
+     [1] 3/6/2025 | 3/6/2025 | 3/6/0205 | CARREFOUR | FAC B | aceite 1l |  Almacen  | ACEITE GIRASOL | $2.603,00 | 1
+     [2] 18/5/2025 | 18/5/2025 | 18/5/2025 | Cambio a dolares | RECIBO | TC 1145 |  Cambio a dolares  |  Cambio a dolares  | $1.145,00 | 200
+     [3] 19/5/2025 | 19/5/2025 | 19/5/2025 | RETIRO | RECIBO | RETIRA GABY EN MANO  |  RETIRO  |  RETIRO  | $1.000.000,00 | 1
+     [4] 19/5/2025 | 19/5/2025 | 19/5/2025 | HIELO   | RECIBO | que paso aca |  Hielo  |  HIELO    | $7.000,00 | 2
+
+  📄 Tab: "CTA CTE" (1000 filas x 26 cols)
+     [0] PROVEEDOR | NOTA | IMAGEN | VISTO 
+     [1] CHEAP STORE | SE RECHAZO (AXEL) PE |  | OK
+
+  📄 Tab: "DATOSSS" (1000 filas x 31 cols)
+     [0]  | RUBROS |  | INSUMOS |  |  |  |  | PROVEEDOR | PLAZO
+     [1] 1 | Acuerdos |  | ABL | UNIDAD | Servicios | ACTIVO |  | ADELANTO | 1
+     [2] 2 | Aguinaldos |  | ACEITE DE OLIVA | LT | Almacen | ACTIVO |  | AFIP | 1
+     [3] 3 | Almacen |  | ACEITE DE SESAMO 2,2 | UNIDAD | Productos Orientales | ACTIVO |  | AGIP ABL | 5
+     [4] 4 | Alquiler + EXP |  | ACEITE DE TRUFA BLAN | LT | Productos Orientales | ACTIVO |  | AGUINALDO | 1
+
+  📄 Tab: "INGRESOS" (1000 filas x 26 cols)
+     [0]  Fecha  |  Dia  |  INGRESO
+VARIO  |  INGRESO
+CC  |  INICIAL  |  EFECTIVO  |  |  CRED CLOVER  |  DEB CLOVER  | 
+     [1] 01/05 | jueves |  $ -    |  $ -    |  RESTO REAL  |  $ 104.050,00  |  |  $ 628.000,00  |  $ -    | 
+     [2] 02/05 | viernes |  $ -    |  $ -    |  |  $ 327.090,00  |  |  $ 692.400,00  |  $ -    | 
+     [3] 03/05 | sábado |  $ -    |  $ -    |  |  $ 153.420,00  |  |  $ 233.000,00  |  $ -    | 
+     [4] 04/05 | domingo |  $ -    |  $ -    |  |  $ -    |  |  $ -    |  $ -    | 
+
+  📄 Tab: "Extr MP" (230 filas x 26 cols)
+     [0] Fecha de Pago | Tipo de Operación | Número de Movimiento | Operación Relacionad | Importe |  |  | Form | Dif
+     [1]  |  |  |  |  |  |  | 0 | 0
+     [2]  |  |  |  |  |  |  | 0 | 0
+     [3]  |  |  |  |  |  |  | 0 | 0
+     [4]  |  |  |  |  |  |  | 0 | 0
+
+  📄 Tab: "Mercado Pago" (682 filas x 25 cols)
+     [0] Fecha | Cargado
+Compras | Pagado
+MP | Diferencia
+     [1] 
+     [2] 
+     [3] AÑO 2025
+     [4] 1/5/2025 | 0 | 0 | 0
+
+  📄 Tab: "EXTR SANTANDER" (2831 filas x 37 cols)
+     [0] fecha |  | Comprobante | Transacción |  | Det | importe |  |  | 
+     [1] 5/31/2025 | 30/12/1899 0:00:00 | Casa Central | 1253 | 23441142 | Credito Transf Onlin | 34.798,15 | 3.974.198,71
+     [2] 5/31/2025 | 30/12/1899 0:00:00 | Casa Central | 1253 | 23442790 | Credito Transf Onlin | 109.791,31 | 3.939.400,56
+     [3] 5/31/2025 | 30/12/1899 0:00:00 | Casa Central | 1253 | 22492141 | Credito Transf Onlin | 109.190,42 | 3.829.609,25
+     [4] 5/31/2025 | 30/12/1899 0:00:00 | Casa Central | 1253 | 22375984 | Credito Transf Onlin | 110.606,81 | 3.720.418,83
+
+  📄 Tab: "ARQUEO SANTANDER" (965 filas x 49 cols)
+     [0] Fecha | Cargado
+Compras | Pagado
+Banco (s extr | Diferencia |  | BANCO SANTANDER
+     [1]  |  |  |  |  | Creditos |  |  |  | Débitos
+     [2]  |  |  |  |  | Credito Transf Onlin | Transf Recibida Cvu  |  |  | Compra Con Tarjeta D
+     [3] AÑO 2025
+     [4] 1/1/2025 | 0 | 0 | 0 |  | 0 | 0 | 0 | 0 | 0
+
+  📄 Tab: "RETIROS" (937 filas x 27 cols)
+     [0]   | Fecha Ingreso | Fecha FC | Fecha Pago | PROVEEDORES | Tipo de Comprobante |  CONCEPTO  | Rubro |  Insumos  | Precio UN
+     [1] 1 | #N/A
+     [2] 2
+     [3] 3
+     [4] 4
+
+  📄 Tab: "SOCIOS/SOCIEDADES" (467 filas x 50 cols)
+     [0] Fecha |  |  | ENRICH |  |  |  |  |  | 
+     [1] Fecha | Dia |  | Ingreso
+$ | TC | Ingreso
+u$s |  | Ingreso
+u$s |  | Egresos a
+ganancias
+     [2] 01/05 | Lunes |  | 0 |  | 0 |  | 0 |  | 
+     [3] 02/05 | Martes |  | 0 |  | 0 |  | 0 |  | 
+     [4] 03/05 | Miércoles |  | 0 |  | 0 |  | 0 |  | 
+
+  📄 Tab: "DOLARES" (868 filas x 26 cols)
+     [0]  |  |  |  |  |  | MOVIMIENTOS A MANO
+     [1]  Fecha  |  Dia  |  Ingreso
+$  |  TC  |  Ingreso
+u$s  |  |  Ingreso
+u$s  |  |  Egresos
+u$s  | 
+     [2]  | INICIAL |  | 1 | 0 |  | 100 |  | 50 | 
+     [3] 19/05 |  | 0 | 1.145 | 0 |  | 200 |  | 250 | 
+     [4] 20/05 |  | 0 |  | 0 |  |  |  |  | 
+
+  📄 Tab: "P&L" (1001 filas x 26 cols)
+     [0]  | 1/3/2025 | 31/3/2025
+     [1]  | DICIEMBRE | Incid
+     [2] 
+     [3] Tarjeta |  $0,00 | #DIV/0!
+     [4] Efectivo |  $0,00 | #DIV/0!
+
+  📄 Tab: "EERR" (2690 filas x 31 cols)
+     [0] MES | Fecha ingreso | Fecha FC | Fecha Pago | PROVEEDOR | Tipo de Comprobante | N COMPROBANTE  | Rubro |   INSUMOS  | Total
+     [1]  |  | 16/5/2025 | 16/5/2025 | SLAKE | FAC A | 00150209 |  Servicios  | ALQUILER DISPENSER |  $ 13.992,00 
+     [2]  |  | 16/5/2025 | 16/5/2025 | SLAKE | FAC A | 00150209 |  Equipamiento  | INSTALACION |  $ 24.990,00 
+     [3]  |  | 16/5/2025 | 16/5/2025 | SLAKE | FAC A | 00150209 |  IVA 21%  | IVA 21% |  $ 8.186,22 
+     [4]  | 16/5/2025 | 16/5/2025 | 16/5/2025 | COCA COLA | FAC A | 03045558 |  Bebidas s/Alcohol  | COCA ZERO  |  $ 135.289,05 
+
+  📄 Tab: "Tabla dinámica 5" (1000 filas x 43 cols)
+     [0] SUM de Total | Rubro
+     [1] MES |  |  Almacen  |  Alquiler + EXP  |  Bazar  |  Bebidas c/Alcohol  |  Bebidas s/Alcohol  |  Carniceria  |  Descartables  |  Descuentos 
+     [2]  |  |  $ 1.315.275,58  |  $ 2.148.222,75  |  $ 30.312,00  |  $ 3.458.276,76  |  $ 1.051.932,04  |  $ 366.200,00  |  $ 563.202,09  | 
+     [3] AGOSTO |  |  $ 777.371,44  |  |  |  $ 2.525.574,32  |  $ 791.838,81  |  $ 360.372,00  |  $ 184.395,12  |  $ 909,09 
+     [4] JULIO |  $ (414.884,53) |  $ 705.619,41  |  $ 1.392.586,24  |  |  $ 3.756.928,67  |  $ 114.670,84  |  $ 219.120,00  |  $ 354.780,53  |  $ (8.839,50)
+
+══════════════════════════════════
+📊  PALERMO ADMINISTRACION MASUNORI - 2026
+══════════════════════════════════
+
+  📄 Tab: "EGRESOS" (2720 filas x 37 cols)
+     [0] 1 | Fecha ingreso | Fecha FC | Fecha Pago | PROVEEDOR | Tipo comprobante | Nro comprobante | Rubro |   INSUMOS  | Total
+     [1]  | 4/11/2025 | 16/1/2026 | 16/1/2026 | IVA ACUERDO 3 | RECIBO | 16 |  Acuerdos  | IVA ACUERDO 3 |  $ 38.847,79 
+     [2]  | 4/11/2025 | 16/1/2026 | 16/1/2026 | IVA ACUERDO 4 |  | 18 |  Acuerdos  | IVA ACUERDO 4 |  $ 755.497,71 
+     [3]  | 16/1/2026 | 16/1/2026 | 16/1/2026 | IVA ACUERDO 1 | RECIBO | 11 |  Acuerdos  | IVA ACUERDO 1 |  $ 582.044,09 
+     [4]  | 16/1/2026 | 16/1/2026 | 16/1/2026 | IVA ACUERDO 5 | RECIBO | 2 |  Acuerdos  | IVA ACUERDO 5 |  $ 777.892,72 
+
+  📄 Tab: "DEUDA AL DIA" (1040 filas x 30 cols)
+     [0] CTA SANTANDER  | 57/3
+     [1] PROVEEDOR | 2026 | 2025 | TOTAL | ACLARACION | ALIAS | NOMBRE O R SOCIAL | BANCO | CBU | AGENDADO
+     [2] NUNOS | $598.390,98 | #REF! | #REF! |  | ALA.GORRA.PILETA | NUNOS S.A | BANCO GALICIA | 00703657000000028538 | NUNOS
+     [3] BUENOS MARES | $0,00 |  | $0,00 |  | DATIL.GENTE.FLAUTA | BUENOS MARES S.A | BANCO CIUDAD | 02900667000000000127 | BUENOS MARES
+     [4] DELFIN | $357.120,00 |  | $357.120,00 |  | NO TIENE | RAFAEL CIOFFI E HIJO | BANCO GALICIA | 00700160200000030195 | DELFIN
+
+  📄 Tab: "SERVICIOS" (942 filas x 37 cols)
+     [0] 1 | Fecha ingreso | Fecha FC | Fecha Pago | PROVEEDOR | Tipo de Comprobante | N COMPROBANTE  | Rubro |   INSUMOS  | Total
+     [1] ENERO
+     [2] 1 | 2/1/2026 | 2/1/2026 | 12/1/2026 | SLAKE | FAC A | 11-161165 |  Servicios  | ALQUILER DISPENSER |  $ 23.193,00 
+     [3] 1 | 2/1/2026 | 2/1/2026 | 9/1/2026 | AGIP ABL | RECIBO | 01/2026 |  Servicios  | ABL |  $ 172.026,13 
+     [4] 1 | 2/1/2026 | 2/1/2026 | 12/1/2026 | ALQUILER | FAC A | 3-129 |  Alquiler  | ALQUILER A |  $ 3.637.500,00 
+
+  📄 Tab: "Hoja 19" (1000 filas x 26 cols)
+     [0] 
+     [1]  | #REF!
+
+  📄 Tab: "Tabla dinámica 12" (1000 filas x 26 cols)
+     [0] Rubro | SUM de Total
+     [1]  Acuerdos  |  $ 35.262.805,80 
+     [2]  Bebidas c/Alcohol  |  $ 480.000,00 
+     [3]  Bebidas s/Alcohol  |  $ 22.940,20 
+     [4]  Descartables  |  $ 1.141.811,00 
+
+  📄 Tab: "gastos febrero" (1000 filas x 26 cols)
+     [0] SUM de Total | Metodo de Pago
+     [1] Rubro | Bco ST PALERMO | Efectivo Local | Efectivo Retiro | Mercado Pago | Otro | Sin pagar | Suma total
+     [2]  Acuerdos  |  $ 2.147.211,72  |  |  |  |  |  $ 2.663.668,80  |  $ 4.810.880,52 
+     [3]  Almacen  |  $ 626.652,39  |  $ 107.400,00  |  |  $ 536.614,72  |  |  |  $ 1.270.667,11 
+     [4]  Alquiler  |  |  |  $ 3.627.500,00  |  |  |  |  $ 3.627.500,00 
+
+  📄 Tab: "RETIROS" (937 filas x 27 cols)
+     [0]   | Fecha Ingreso | Fecha FC | Fecha Pago | PROVEEDORES | Tipo de Comprobante |  CONCEPTO  | Rubro |  Insumos  | Precio UN
+     [1] 1 | #N/A
+     [2] 2
+     [3] 3
+     [4] 4
+
+  📄 Tab: "INGRESOS Y EGRESOS EFECTIVO" (8590 filas x 26 cols)
+
+  📄 Tab: "CTA CTE" (1000 filas x 26 cols)
+
+  📄 Tab: "DATOSSS" (1000 filas x 31 cols)
+     [0] MADRE | RUBROS |  | INSUMOS | UNIDAD MEDIDA | RELACION0 | AC/INA |  | PROVEEDORES | PLAZO
+     [1] 1 | Acuerdos |  | ABL | UNIDAD | Servicios | ACTIVO |  | AADI CAPIF | 1
+     [2] 2 | Aguinaldos |  | ACEITE DE OLIVA | LT | Almacen | ACTIVO |  | ADELANTO | 1
+     [3] 3 | Almacen |  | ACEITE DE SESAMO 2,2 | UNIDAD | Productos Orientales | ACTIVO |  | ADMINISTRACION | 7
+     [4] 4 | Alquiler |  | ACEITE DE TRUFA BLAN | LT | Productos Orientales | ACTIVO |  | AFIP | 1
+
+  📄 Tab: "Extr MP" (230 filas x 26 cols)
+     [0] Fecha de Pago | Tipo de Operación | Número de Movimiento | Operación Relacionad | Importe |  |  | Form | Dif
+     [1]  |  |  |  |  |  |  | 0 | 0
+     [2]  |  |  |  |  |  |  | 0 | 0
+     [3]  |  |  |  |  |  |  | 0 | 0
+     [4]  |  |  |  |  |  |  | 0 | 0
+
+  📄 Tab: "Mercado Pago" (682 filas x 25 cols)
+     [0] Fecha | Cargado
+Compras | Pagado
+MP | Diferencia
+     [1] 
+     [2] 
+     [3] AÑO 2025
+     [4] 1/5/2025 | 0 | 0 | 0
+
+  📄 Tab: "EXTR SANTANDER" (2512 filas x 37 cols)
+     [0] fecha |  | Comprobante | Transacción |  | Det | importe |  |  | 
+
+  📄 Tab: "ARQUEO SANTANDER" (965 filas x 49 cols)
+     [0] Fecha | Cargado
+Compras | Pagado
+Banco (s extr | Diferencia |  | BANCO SANTANDER
+     [1]  |  |  |  |  | Creditos |  |  |  | Débitos
+     [2]  |  |  |  |  | Credito Transf Onlin | Transf Recibida Cvu  |  |  | Compra Con Tarjeta D
+     [3] AÑO 2026
+     [4] 1/1/2026 | 0 | 0 | 0 |  | 0 | 0 | 0 | 0 | 0
+
+  📄 Tab: "SOCIOS/SOCIEDADES" (467 filas x 50 cols)
+     [0] Fecha |  |  | ENRICH |  |  |  |  |  | 
+     [1] Fecha | Dia |  | Ingreso
+$ | TC | Ingreso
+u$s |  | Ingreso
+u$s |  | Egresos a
+ganancias
+     [2] 01/05 | Lunes |  | 0 |  | 0 |  | #N/A |  | 
+     [3] 02/05 | Martes |  | 0 |  | 0 |  | #N/A |  | 
+     [4] 03/05 | Miércoles |  | 0 |  | 0 |  | #N/A |  | 
+
+  📄 Tab: "P&L" (1001 filas x 26 cols)
+     [0]  | 1/3/2025 | 31/3/2025
+     [1]  | DICIEMBRE | Incid
+     [2] 
+     [3] Tarjeta | #N/A | #N/A
+     [4] efectivo local | #N/A | #N/A
+
+══════════════════════════════════
+📊 BELGRANO ADMINISTRACION MASUNORI - 2025
+══════════════════════════════════
+
+  📄 Tab: "EGRESOS" (6538 filas x 42 cols)
+     [0] fecha ingreso | Fecha FC | Fecha Pago | PROVEEDORES | Tipo de Comprobante | N COMPROBANTE  | Rubro | Insumos | Total | CUÁNTO ENTRÓ kg/lt/u
+     [1] 1/12/2025 | 1/12/2025 | 10/12/2025 | SINDICATO | RECIBO | Ex Pro Vegan pago a  |  Sindicato  | SINDICATO UTHGRA |  $ 777.008,00  | 1,00
+     [2] 13/3/2025 | 13/3/2025 | 13/3/2025 | RETIRO | RECIBO | RETIRO GABY OCAMPO + |  RETIRO  |  RETIRO  |  $ 2.400.000,00  | 1,000
+     [3] 1/7/2025 | 30/6/2025 | 15/7/20 | BLANCA LUNA | FAC A | 00407246 |  Almacen  | AZUCAR SOBRES |  $ 11.733,68  | 800,00
+     [4] 1/7/2025 | 30/6/2025 | 15/7/20 | BLANCA LUNA | FAC A | 00407246 |  Almacen  | EDULCORANTE SOBRE x  |  $ 7.699,42  | 500,00
+
+  📄 Tab: "DEUDA AL DIA" (1040 filas x 27 cols)
+     [0] PROVEEDOR | DEUDA  | ALIAS | NOMBRE  | ABONO  | CVU | PROVEEDOR | PRODUCTOO | PLAZO 
+     [1] 
+     [2] NUNOS | $0,00 | ALA.GORRA.PILETA | NUNOS S.A | BANCO GALICIA | 00703657000000028538 | NUNOS | Langostinos | 15 dias
+     [3] BUENOS MARES | $0,00 | DATIL.GENTE.FLAUTA | BUENOS MARES S.A | BANCO CIUDAD | 02900667000000000127 | BUENOS MARES | Pesca blanca | 7 dias
+     [4] DELFIN | $0,00 | NO TIENE | RAFAEL CIOFFI E HIJO | BANCO GALICIA | 00700160200000030195 | DELFIN | Pesca blanca | 10 dias
+
+  📄 Tab: "Tabla dinámica 7" (1000 filas x 99 cols)
+     [0] MES INGRESO
+     [1] /3/2025 | /6/2025 | /6/2025 | /6/2025 | /6/2025 | /6/2025 | /6/2025 | /6/2025 | /7/2025 | /7/2025
+
+  📄 Tab: "SERVICIOS" (988 filas x 30 cols)
+     [0] fecha ingreso | Fecha FC | Fecha Pago | PROVEEDOR | Tipo de Comprobante | N COMPROBANTE  | Rubro |  Insumos  | Total | 
+     [1]          SEPTIEMPBRE
+     [2]  | 4/9/2025 | 1/9/2025 | FUDO | FAC A | 00095617 |  Servicios  | FUDO |  $ 75.334,56  | 
+     [3]  | 2/9/2025 | 8/9/2025 | EXPENSAS | FAC A | SEPTIEMBRE |  Alquiler + EXP  | EXPENSAS |  $ 728.577,10  | 
+     [4]  | 2/9/2025 | 02/09/2025 | WOKI | FAC A | 00004511 |  Servicios  | WOKI |  $ 139.150,00  | 
+
+  📄 Tab: "TOTALES DE GASTOS" (1000 filas x 178 cols)
+     [0]  | SUM de Total | MES INGRESO
+     [1]  | Rubro | Suma total
+     [2] 1 | Suma total |  |  |  |  | ESTOS ACUERDOS HAY Q
+     [3] 2
+     [4]  |  |  |  |  |  | ESTO ESTA RARO
+
+  📄 Tab: "DatosSS" (997 filas x 31 cols)
+     [0]  | RUBROS |  | INSUMOS |  |  |  |  | PROVEEDOR | PLAZO
+     [1] 1 | Acuerdos |  | ABL | UNIDAD | Servicios | ACTIVO |  | ADELANTO | 1
+     [2] 2 | Aguinaldos |  | ACEITE DE OLIVA | LT | Almacen | ACTIVO |  | AFIP | 1
+     [3] 3 | Almacen |  | ACEITE DE SESAMO 2,2 | UNIDAD | Productos Orientales | ACTIVO |  | AGIP ABL | 5
+     [4] 4 | Alquiler + EXP |  | ACEITE DE TRUFA BLAN | LT | Productos Orientales | ACTIVO |  | AGUINALDO | 1
+
+  📄 Tab: "CTA CTE" (1000 filas x 26 cols)
+     [0] PROVEEDOR | NOTA | IMAGEN | VISTO
+     [1] EXPENSAS | ES UN MONTO ALTO, SE | https://drive.google | OK
+     [2] MORGADE | NO ENTIENDO SI SE PA |  | OK
+     [3] JMS  | FALTA NC Nro 8454
+
+  📄 Tab: "Hoja 13" (983 filas x 26 cols)
+     [0]  |  |  |  |  | alquiler |  |  |  | 
+     [1]  |  |  |  |  | honorarios de servic |  |  |  | 
+     [2]  |  |  |  |  | sueldos |  |  |  | 
+     [3] 12/4/2025 | 12/4/2025 | 12/4/2025 | RETIRO | RECIBO | RETIRO PREPARADO PAR |  RETIRO  | RETIRO | $3.000.000,00 | 1,00
+     [4] 15/04/2025 | 15/04/2025 | 15/04/2025 | RETIRO | RECIBO | RETIRO PREPARADO PAR |  RETIRO  | RETIRO | $2.000.000,00 | 1,00
+
+  📄 Tab: "SOCIOS/SOCIEDADES" (223 filas x 50 cols)
+     [0] Fecha |  |  | ENRICH |  |  |  |  |  | 
+     [1] Fecha | Dia |  | Ingreso
+$ | TC | Ingreso
+u$s |  | Ingreso
+u$s |  | Egresos a
+ganancias
+     [2] 04/02 | MARTES |  |  |  | 0 |  | 4.000 |  | 
+     [3]  |  |  |  |  | 0 |  |  |  | 2520
+     [4]  |  |  |  |  | 0
+
+  📄 Tab: "RETIROS" (1001 filas x 26 cols)
+     [0] Fecha Ingreso | Fecha FC | Fecha Pago | PROVEEDORES | Tipo de Comprobante |  CONCEPTO  | Rubro |  Insumos  | Precio UN | CUÁNTO ENTRÓ kg/lt/u
+     [1] 1/5/2025 | 1/5/2025 | 1/5/2025 | RETIRO | RECIBO | DEVOLUCION MP MESA 1 | RETIRO | RETIRO | $22.100,00 | 1,00
+     [2] 3/5/2025 | 3/5/2025 | 3/5/2025 | RETIRO | RECIBO | RETIRO DE EFECTIVO G | RETIRO | RETIRO | $3.000.000,00 | 1,00
+     [3] 3/5/2025 | 3/5/2025 | 3/5/2025 | RETIRO | RECIBO | RETIRO DE EFECTIVO G | RETIRO | RETIRO | $1.000.000,00 | 1,00
+     [4] 6/5/2025 | 6/5/2025 | 6/5/2025 | RETIRO | RECIBO | RETIRO PREPARADO GAB | RETIRO | RETIRO | $3.000.000,00 | 1,00
+
+  📄 Tab: "EGRESOS EFECTIVO" (2582 filas x 26 cols)
+     [0]  | Fecha FC | Fecha Pago | PROVEEDORES | Tipo de Comprobante | N COMPROBANTE  | Rubro |  Insumos  | Precio UN | Unidad de medida
+     [1] 1/5/2025 | 1/5/2025 | 1/5/2025 | RETIRO | RECIBO | DEVOLUCION MP MESA 1 |  RETIRO  | RETIRO | $22.100,00 | 1,00
+     [2] 1/5/2025 | 1/5/2025 | 1/5/2025 | CARREFOUR | CONSUMIDOR FINAL | 1/2 docena  |  Verduleria  | HUEVO | $316,67 | 6,00
+     [3] 2/5/2025 | 2/5/2025 | 2/5/2025 | CARREFOUR | RECIBO | CÁPSULAS CAFE |  Postres y Café  | CAPSULAS CAFE | $37.500,00 | 1,00
+     [4] 2/5/2025 | 2/5/2025 | 2/5/2025 | CARREFOUR | RECIBO | CÁPSULAS CAFE PALERM |  Postres y Café  | CAPSULAS CAFE | $37.500,00 | 1,00
+
+  📄 Tab: "DOLARES" (1000 filas x 26 cols)
+     [0]  |  |  |  |  |  | MOVIMIENTOS A MANO
+     [1]  Fecha  |  Dia  |  Ingreso
+$  |  TC  |  Ingreso
+u$s  |  |  Ingreso
+u$s  |  |  Egresos
+u$s  | 
+     [2] 01/05 | jueves |  |  | 0 |  | 1.800 |  |  | 
+     [3] 02/05 | viernes | 0 |  | 0 |  |  |  |  | 
+     [4] 03/05 | sábado | 0 |  | 0 |  |  |  | 1.300 | 
+
+  📄 Tab: "Ingresos" (1000 filas x 26 cols)
+     [0]  Fecha  |  Dia  |  INGRESO
+VARIO  |  INGRESO
+CC  |  INICIAL  |  EFECTIVO  |  |  CRED CLOVER  |  DEB CLOVER  | 
+     [1] 01/05 | jueves |  $ -    |  $ -    |  $ 1.677.100,00  |  $ 1.051.120,00  |  |  $ 1.126.850,00  |  $ 102.200,00  | 
+     [2] 02/05 | viernes |  $ -    |  $ -    |  $ 2.705.000,00  |  $ 1.390.010,00  |  |  $ 549.600,00  |  $ -    | 
+     [3] 03/05 | sábado |  $ -    |  $ -    |  $ 3.945.250,00  |  $ 1.362.190,00  |  |  $ 893.000,00  |  $ 39.600,00  | 
+     [4] 04/05 | domingo |  $ -    |  $ -    |  $ 1.297.650,00  |  $ 943.200,00  |  |  $ 501.500,00  |  $ 33.500,00  | 
+
+  📄 Tab: "Mercado Pago" (712 filas x 25 cols)
+     [0] Fecha | Cargado
+Compras | Pagado
+MP | Control
+     [1] 
+     [2] 
+     [3] AÑO 2025
+     [4] 1/4/2025 | 227.140 | 97.650 | 129.490
+
+  📄 Tab: "Resumen MP" (663 filas x 26 cols)
+     [0] Fecha de Pago | Tipo de Operación | Número de Movimiento | Operación Relacionad | Importe
+     [1] 2025-02-07T16:24:43Z | Movimiento General | 473954303108 | 101248352231 | -127234,56 | metrogas |  | 45695 | -127234,56
+     [2] 2025-02-18T10:31:35Z | Pago | 481273791486 | 102329543099 | -55348 |  |  | 45706 | -55348
+     [3] 2025-02-22T00:32:39Z | Pago | 483970366928 | 102717999435 | -5000 |  |  | 45710 | -5000
+     [4] 2025-02-23T10:24:48Z | Retiro de dinero | 484614846494 | 102824996459 | -26230 |  |  | 45711 | -26230
+
+  📄 Tab: "brubank" (965 filas x 66 cols)
+     [0] Fecha | Cargado
+Compras | Pagado
+Banco | Control |  | BRUBANK
+     [1]  |  |  |  |  | Creditos |  |  |  | Débitos
+     [2]  |  |  |  |  | Acreditación de tus  | Datanet Creditos CC  | Orden de Acred. por  |  | Proveedor - KUARZO A
+     [3] AÑO 2025
+     [4] 1/1/2025 | 0 | 0 | 0 |  | 0 | 0 | 0 | 0 | 0
+
+  📄 Tab: "Extr BRUBANK" (525 filas x 37 cols)
+     [0] FECHA | FECHA | Comprobante | Transacción |  | Importe | Saldo |  |  | 
+     [1] 04-02-25 | 04-02-25 | 1095825142 | Acreditación de tus  |  | -530884,94 | 530884,94 |  | $ -530.884,94
+     [2] 04-02-25 | 04-02-25 | 1095825160 | Acreditación de tus  |  | 93,92 | 530978,86 |  | $ 93,92
+     [3] 04-02-25 | 04-02-25 | 1095825182 | Acreditación de tus  |  | 87335,49 | 618314,35 |  | $ 87.335,49
+     [4] 04-02-25 | 04-02-25 | 1096330624 | Proveedor - KUARZO A |  | -21780 | 4226534,35 |  | $ -21.780,00
+
+  📄 Tab: "Hoja 11" (997 filas x 27 cols)
+     [0] 
+     [1] 
+     [2] UMAMI -PRO VEGAN
+     [3] FECHA | NRO FAC | DEBE | HABER | SALDO
+
+  📄 Tab: "SANTANDER" (1000 filas x 49 cols)
+     [0] Fecha | Cargado
+Compras | Pagado
+Banco | Control |  | BANCO SANTANDER
+     [1]  |  |  |  |  | Creditos |  |  |  | Débitos
+     [2]  |  |  |  |  | Credito Transf Onlin | Transf Recibida Cvu  |  |  | Compra Con Tarjeta D
+     [3] AÑO 2025
+     [4] 1/1/2025 | 0 | 0 | 0 |  | 0 | 0 | 0 | 0 | 0
+
+  📄 Tab: "Extr SANTANDER" (1000 filas x 26 cols)
+
+══════════════════════════════════
+📊 BELGRANO ADMINISTRACION MASUNORI - 2026
+══════════════════════════════════
+
+  📄 Tab: "Egresos" (2638 filas x 37 cols)
+     [0] 1 | Fecha ingreso | Fecha FC | Fecha Pago | PROVEEDOR | Tipo de Comprobante | N COMPROBANTE  | Rubro |   INSUMOS  | Total
+     [1] 1 | 2/1/2026 | 2/1/2026 | 26/1/2025 | METROGAS | FAC A | 64-516590 |  Servicios  | METROGAS consumo |  $ 35.933,77 
+     [2] 0 | 2/1/2026 | 2/1/2026 | 26/1/2025 | METROGAS | FAC A | 64-516590 |  Servicios  | METROGAS consumo |  $ 8.739,12 
+     [3] 1 | 2/1/2026 | 2/1/2026 | 2/1/2026 | SUELDOS - B | RECIBO | Sueldos 12/2025 |  Sueldos - B  | SUELDOS - B  |  $ 8.561.700,00 
+     [4] 1 | 2/1/2026 | 2/1/2026 | 2/1/2026 | SUELDOS - A  | RECIBO | Sueldos 12/2025 |  Sueldos - A  | SUELDOS - A  |  $ 3.639.522,07 
+
+  📄 Tab: "DEUDA AL DIA" (1038 filas x 30 cols)
+     [0] CTA SANTANDER  | 69/2
+     [1] PROVEEDOR | 2026 | 2025 | TOTAL | ACLARACION  | ALIAS | NOMBRE O R SOCIAL | BANCO | CBU | AGENDADO
+     [2] NUNOS | $619.991,90 | $0,00 | $619.991,90 |  | ALA.GORRA.PILETA | NUNOS S.A | BANCO GALICIA | 00703657000000028538 | NUNOS
+     [3] BUENOS MARES | $0,00 | $0,00 | $0,00 |  | DATIL.GENTE.FLAUTA | BUENOS MARES S.A | BANCO CIUDAD | 02900667000000000127 | BUENOS MARES
+     [4] DELFIN | $103.168,00 | $0,00 | $103.168,00 |  | NO TIENE | RAFAEL CIOFFI E HIJO | BANCO GALICIA | 00700160200000030195 | DELFIN
+
+  📄 Tab: "Tabla dinámica 13" (1000 filas x 26 cols)
+     [0] Rubro | SUM de Total
+     [1] Suma total
+
+  📄 Tab: "Tabla dinámica 12" (1000 filas x 26 cols)
+     [0] SUM de Total | Metodo de Pago
+     [1] Rubro | BBVA | Bco ST BELGRANO | Efectivo Local | Mercado Pago | Otro | Suma total
+     [2]  Acuerdos  |  |  $ 1.242.247,92  |  |  |  |  $ 1.242.247,92 
+     [3]  Almacen  |  $ 143.622,12  |  |  $ 133.750,00  |  $ 877.449,41  |  |  $ 1.154.821,53 
+     [4]  Bebidas c/Alcohol  |  $ 211.983,48  |  |  |  $ 113.919,20  |  |  $ 325.902,68 
+
+  📄 Tab: "SERVICIOS" (946 filas x 37 cols)
+     [0] 1 | Fecha ingreso | Fecha FC | Fecha Pago | PROVEEDOR | Tipo de Comprobante | N COMPROBANTE  | Rubro |   INSUMOS  | Total
+     [1] ENERO
+     [2] 1 | 2/1/2026 | 2/1/2026 | 2/1/2026 | SLAKE | FAC A | 11-161224 |  Servicios  | ALQUILER DISPENSER |  $ 23.193,00 
+     [3] 1 | 12/1/2026 | 12/1/2026 | 19/1/2026 | EXPENSAS | RECIBO | 12/2025 |  Expensas  | EXPENSAS |  $ 733.555,01 
+     [4] 1 | 2/1/2026 | 2/1/2026 | 14/1/2026 | ALQUILER | RECIBO | 12/2025 |  Alquiler  | ALQUILER B |  $ 5.910.000,00 
+
+  📄 Tab: "RETIROS" (937 filas x 27 cols)
+     [0]   | Fecha Ingreso | Fecha FC | Fecha Pago | PROVEEDORES | Tipo de Comprobante |  CONCEPTO  | Rubro |  Insumos  | Precio UN
+     [1] 1 | #N/A
+     [2] 2
+     [3] 3
+     [4] 4
+
+  📄 Tab: "INGRESOS Y EGRESOS EFECTIVO" (8590 filas x 26 cols)
+
+  📄 Tab: "CTA CTE" (1000 filas x 26 cols)
+
+  📄 Tab: "DATOSSS" (999 filas x 31 cols)
+     ⚠️  Can't read: Quota exceeded for quota metric 'Read requests' and limit 'Read requests per min
+
+  📄 Tab: "Extr MP" (230 filas x 26 cols)
+     ⚠️  Can't read: Quota exceeded for quota metric 'Read requests' and limit 'Read requests per min
+
+  📄 Tab: "Mercado Pago" (682 filas x 25 cols)
+     ⚠️  Can't read: Quota exceeded for quota metric 'Read requests' and limit 'Read requests per min
+
+  📄 Tab: "EXTR SANTANDER" (2512 filas x 37 cols)
+     ⚠️  Can't read: Quota exceeded for quota metric 'Read requests' and limit 'Read requests per min
+
+  📄 Tab: "ARQUEO SANTANDER" (965 filas x 49 cols)
+     ⚠️  Can't read: Quota exceeded for quota metric 'Read requests' and limit 'Read requests per min
+
+  📄 Tab: "SOCIOS/SOCIEDADES" (467 filas x 50 cols)
+     ⚠️  Can't read: Quota exceeded for quota metric 'Read requests' and limit 'Read requests per min
+
+  📄 Tab: "P&L" (1001 filas x 26 cols)
+     ⚠️  Can't read: Quota exceeded for quota metric 'Read requests' and limit 'Read requests per min
+
+══════════════════════════════════
+📊 MADERO ADMINISTRACION MASUNORI - 2026
+══════════════════════════════════
+
+  📄 Tab: "EGRESOS" (2771 filas x 37 cols)
+     [0] 1 | Fecha ingreso | Fecha FC | Fecha Pago | PROVEEDOR | Tipo de Comprobante | N COMPROBANTE  |  Rubro  |   INSUMOS  | Total
+     [1] 3 | 01/01/26 | 01/01/26 | 01/01/26 | ENVIOS | RECIBO | PAGO POR GASTO HECHO |  Envios  | UBER  |  $ 11.000,00 
+     [2]  | 1/1/2026 | 1/1/2026 | 1/1/2026 |  | RECIBO | BELGRANO A MADERO |  PAGO POR GASTO HECH | TRUCHA |  $ 11.000,00 
+     [3] 1 | 2/1/2026 | 2/1/2026 | 2/1/2026 | WOKI | FAC A | 1420462 |  Servicios  | WOKI |  $ 129.999,00 
+     [4]  | 2/1/2026 | 2/1/2026 | 2/1/2026 | WOKI | FAC A | 2-5789 |  IVA 21%  | IVA 21% |  $ 27.299,79 
+
+  📄 Tab: "DEUDA AL DIA" (1045 filas x 30 cols)
+     [0] CTA SANTANDER  | 217-008023-7
+     [1] PROVEEDOR | 2026 | 2025 | TOTAL | ACLARACION  | ALIAS | NOMBRE O R SOCIAL | BANCO | CBU | AGENDADO
+     [2] NUNOS | $626.259,70 | 0 | $626.259,70 | 1 fac | ALA.GORRA.PILETA | NUNOS S.A | BANCO GALICIA | 00703657000000028538 | NUNOS
+     [3] BUENOS MARES | $0,00 |  | $0,00 |  | DATIL.GENTE.FLAUTA | BUENOS MARES S.A | BANCO CIUDAD | 02900667000000000127 | BUENOS MARES
+     [4] DELFIN | $365.056,00 |  | $365.056,00 |  | NO TIENE | RAFAEL CIOFFI E HIJO | BANCO GALICIA | 00700160200000030195 | DELFIN
+
+  📄 Tab: "ALQUILER" (1003 filas x 26 cols)
+
+  📄 Tab: "SERVICIOS" (943 filas x 37 cols)
+     [0] 1 | Fecha ingreso | Fecha FC | Fecha Pago | PROVEEDOR | Tipo de Comprobante | N COMPROBANTE  | Rubro |   INSUMOS  | Total
+     [1] ENERO
+     [2] 1 | 2/1/2026 | 2/1/2026 | 12/1/2026 | SLAKE | FAC A | 11-161265 |  Servicios  | ALQUILER DISPENSER |  $ 23.193,00 
+     [3] 1 | 13/1/2026 | 13/1/2026 | 16/1/2026 | EXPENSAS | FAC A | 8-7967 |  Expensas  | EXPENSAS |  $ 750.894,08 
+     [4] 1 | 2/1/2026 | 2/1/2026 | 13/1/2026 | ALQUILER | FAC A | 12/2025 |  Alquiler  | ALQUILER A |  $ 1.700.490,24 
+
+  📄 Tab: "RETIROS" (937 filas x 27 cols)
+     [0]   | Fecha Ingreso | Fecha FC | Fecha Pago | PROVEEDORES | Tipo de Comprobante |  CONCEPTO  | Rubro |  Insumos  | Precio UN
+     [1] 1 | #N/A
+     [2] 2
+     [3] 3
+     [4] 4
+
+  📄 Tab: "INGRESOS Y EGRESOS EFECTIVO" (8590 filas x 26 cols)
+
+  📄 Tab: "CTA CTE" (1000 filas x 26 cols)
+
+  📄 Tab: "DATOSSS" (995 filas x 31 cols)
+     [0] MADRE | RUBROS |  | INSUMOS | UNIDAD MEDIDA | RELACION0 | AC/INA |  | PROVEEDORES | PLAZO
+     [1] 1 | Acuerdos |  | ABL | UNIDAD | Servicios | ACTIVO |  | AADI CAPIF | 1
+     [2] 2 | Aguinaldos |  | ACEITE DE OLIVA | LT | Almacen | ACTIVO |  | ADELANTO | 1
+     [3] 3 | Almacen |  | ACEITE DE SESAMO 2,2 | UNIDAD | Productos Orientales | ACTIVO |  | ADMINISTRACION | 7
+     [4] 4 | Alquiler |  | ACEITE DE TRUFA BLAN | LT | Productos Orientales | ACTIVO |  | AFIP | 1
+
+  📄 Tab: "Extr MP" (230 filas x 26 cols)
+     [0] Fecha de Pago | Tipo de Operación | Número de Movimiento | Operación Relacionad | Importe |  |  | Form | Dif
+     [1]  |  |  |  |  |  |  | 0 | 0
+     [2]  |  |  |  |  |  |  | 0 | 0
+     [3]  |  |  |  |  |  |  | 0 | 0
+     [4]  |  |  |  |  |  |  | 0 | 0
+
+  📄 Tab: "Mercado Pago" (682 filas x 25 cols)
+     [0] Fecha | Cargado
+Compras | Pagado
+MP | Diferencia
+     [1] 
+     [2] 
+     [3] AÑO 2025
+     [4] 1/5/2025 | 0 | 0 | 0
+
+  📄 Tab: "EXTR SANTANDER" (2512 filas x 37 cols)
+     [0] fecha |  | Comprobante | Transacción |  | Det | importe |  |  | 
+
+  📄 Tab: "ARQUEO SANTANDER" (965 filas x 49 cols)
+     [0] Fecha | Cargado
+Compras | Pagado
+Banco (s extr | Diferencia |  | BANCO SANTANDER
+     [1]  |  |  |  |  | Creditos |  |  |  | Débitos
+     [2]  |  |  |  |  | Credito Transf Onlin | Transf Recibida Cvu  |  |  | Compra Con Tarjeta D
+     [3] AÑO 2026
+     [4] 1/1/2026 | 0 | 0 | 0 |  | 0 | 0 | 0 | 0 | 0
+
+  📄 Tab: "SOCIOS/SOCIEDADES" (467 filas x 50 cols)
+     [0] Fecha |  |  | ENRICH |  |  |  |  |  | 
+     [1] Fecha | Dia |  | Ingreso
+$ | TC | Ingreso
+u$s |  | Ingreso
+u$s |  | Egresos a
+ganancias
+     [2] 01/05 | Lunes |  | 0 |  | 0 |  | #N/A |  | 
+     [3] 02/05 | Martes |  | 0 |  | 0 |  | #N/A |  | 
+     [4] 03/05 | Miércoles |  | 0 |  | 0 |  | #N/A |  | 
+
+  📄 Tab: "P&L" (1001 filas x 26 cols)
+     [0]  | 1/3/2025 | 31/3/2025
+     [1]  | DICIEMBRE | Incid
+     [2] 
+     [3] Tarjeta | #N/A | #N/A
+     [4] Efectivo | #N/A | #N/A
+
+══════════════════════════════════
+📊 PALERMO ADMINISTRACION MASUNORI - 2025
+══════════════════════════════════
+
+  📄 Tab: "EGRESOS" (7558 filas x 34 cols)
+     [0] Fecha ingreso | Fecha FC | Fecha Pago | PROVEEDOR | Tipo comp | Nro comp | Rubro |  producto  |  Total  | CUÁNTO ENTRÓ kg/lt/u
+     [1] 30/6/2025 | 30/6/2025 | 1/7/0205 | SUELDOS | CONSUMIDOR FINAL | SUELDOS - 06-2025 |  Sueldos - B  | SUELDOS - B  |  $ 10.630.000,00  | 1,00
+     [2] 30/6/2025 | 30/6/2025 | 1/7/0205 | SUELDOS | CONSUMIDOR FINAL | SUELDOS - 06-2025 |  Sueldos - A  | SUELDOS - A  |  $ 5.194.295,00  | 1,00
+     [3] 16/8/0225 | 16/8/0225 | 16/8/0225 | IVA ACUERDO 4 | RECIBO | 8 |  Acuerdos  |  IVA ACUERDO 4  |  $ 925.101,72  | 1,00
+     [4] 16/9/0225 | 16/9/0225 | 16/9/0225 | IVA ACUERDO 4 | RECIBO | 9 |  Acuerdos  |  IVA ACUERDO 4  |  $ 916.482,95  | 1,00
+
+  📄 Tab: "DEUDA AL DIA" (1048 filas x 27 cols)
+     [0] PROVEEDOR | DEUDA PENDIENTE | ALIAS | NOMBRE O R SOCIAL | BANCO | CBU | AGENDADO | PRODUCTO | PLAZOS DE PAGO
+     [1] 
+     [2] NUNOS | $0,00 | ALA.GORRA.PILETA | NUNOS S.A | BANCO GALICIA | 00703657000000028538 | NUNOS | Langostinos | 15 dias
+     [3] BUENOS MARES | $0,00 | DATIL.GENTE.FLAUTA | BUENOS MARES S.A | BANCO CIUDAD | 02900667000000000127 | BUENOS MARES | Pesca blanca | 7 dias
+     [4] DELFIN | $0,00 | NO TIENE | RAFAEL CIOFFI E HIJO | BANCO GALICIA | 00700160200000030195 | DELFIN | Pesca blanca | 10 dias
+
+  📄 Tab: "STATUCUO 20/12/2025" (1000 filas x 26 cols)
+
+  📄 Tab: "SERVICIOS" (992 filas x 37 cols)
+     [0] Fecha ingreso | Fecha FC | Fecha Pago | PROVEEDORES | Tipo de Comprobante | N COMPROBANTE  | Rubro |  Insumos  | Total | 
+     [1]          SEPTIEMPBRE
+     [2]  | 14/9/2025 | 14/9/2025 | AGIP ABL | RECIBO | SEPTIEMBRE |  Servicios  | ABL |  $ 162.686,54  | 
+     [3]  | 1/9/2025 | 16/9/2025 | ALQUILER | FAC A | 00000125 |  Alquiler + EXP  | ALQUILER A |  $ 4.483.050,00  | 
+     [4]  | 1/9/2025 | 31/10/2025 | WTC GROUP (CONTADORE | FAC A | 00004268 |  Honorarios Y Abonos | WTC GROUP (CONTADORE |  $ 435.600,00  | 
+
+  📄 Tab: "EGRESOS EFECTIVO" (8590 filas x 26 cols)
+     [0]  | f | Fecha FC | Fecha Pago | PROVEEDORES | Tipo de Comprobante | N COMPROBANTE  | Rubro |  Insumos  | Precio UN
+     [1]  | 16/4/2025 | 16/4/2025 | 16/04/0202 |  |  |  | #N/A |  | 
+     [2]  | 19/4/2025 | 19/4/2025 | 27/04/2005 | DELFIN | FAC A | 00021063 |  Regimenes Especiale | Regimenes Especiales | 5366,25
+     [3]  | 10/3/2025 | 10/3/2025 | 21/4/2024 | DELFIN | FAC A | 00019947 |  Pescaderia  | LISA | 5500
+     [4]  | 10/3/2025 | 10/3/2025 | 21/4/2024 | DELFIN | FAC A | 00019947 |  IVA 21%  | IVA 21% | 36382,5
+
+  📄 Tab: "GASTOS FUDO SETIEMBRE 2025 palermo" (944 filas x 26 cols)
+     [0] 25 | - | DIA TRABAJADO | SUELDOS | TERCER DIA DE PRUEBA | Pagado | $20.000,00
+     [1] 02/10/25 | - | DIA TRABAJADO | SUELDOS | SEGUNDO DIA DE PRUEB | Pagado | $33.000,00
+     [2] 02/10/25 | - | DIA TRABAJADO | SUELDOS | 2do DIA DE PRUEBA RU | Pagado | $20.000,00
+     [3] /09/25 | - | DIA TRABAJADO | SUELDOS | DIA DE PRUEBA RUNNER | Pagado | $20.000,00
+     [4] 30/09/25 | - | IKIGAI | PRODUCTOS ORIENTALES | INGRESO DE PRODUCTOS | Pagado | $273.200,00
+
+  📄 Tab: "DatosSS" (1002 filas x 26 cols)
+     [0]  |  RUBROS  |  |  INSUMOS  |  |  |  |  |  PROVEEDOR  |  PLAZO 
+     [1] 1 | Acuerdos |  | ABL | UNIDAD | Servicios | ACTIVO |  | ADELANTO | 1
+     [2] 2 | Aguinaldos |  | ACEITE DE OLIVA | LT | Almacen | ACTIVO |  | AFIP | 1
+     [3] 3 | Almacen |  | ACEITE DE SESAMO 2,2 | UNIDAD | Productos Orientales | ACTIVO |  | AGIP ABL | 5
+     [4] 4 | Alquiler + EXP |  | ACEITE DE TRUFA BLAN | LT | Productos Orientales | ACTIVO |  | AGUINALDO | 1
+
+  📄 Tab: "INGRESOS" (1000 filas x 26 cols)
+     [0]  Fecha  |  Dia  |  INGRESO
+VARIO  |  INGRESO
+CC  |  INICIAL  |  EFECTIVO  |  |  CRED CLOVER  |  DEB CLOVER  | 
+     [1] 01/05 | jueves |  $ -    |  $ -    |  RESTO REAL  |  $ 104.050,00  |  |  $ 628.000,00  |  $ -    | 
+     [2] 02/05 | viernes |  $ -    |  $ -    |  |  $ 327.090,00  |  |  $ 692.400,00  |  $ -    | 
+     [3] 03/05 | sábado |  $ -    |  $ -    |  |  $ 153.420,00  |  |  $ 233.000,00  |  $ -    | 
+     [4] 04/05 | domingo |  $ -    |  $ -    |  |  $ -    |  |  $ -    |  $ -    | 
+
+  📄 Tab: "EGRESOSTOBET" (8590 filas x 26 cols)
+     [0]  | f | Fecha FC | Fecha Pago | PROVEEDORES | Tipo de Comprobante | N COMPROBANTE  |  Rubro  | Insumos | Precio UN
+     [1]  | 16/04/2025 | 16/04/2025 | 16/04/0202 |  |  |  | #N/A |  | 
+     [2]  | 19/04/2025 | 19/04/2025 | 27/04/2005 | DELFIN | FAC A |  00021063  |  Regimenes Especiale | Regimenes Especiales | $5.366,25
+     [3]  | 10/3/2025 | 10/3/2025 | 21/4/2024 | DELFIN | FAC A |  00019947  |  Pescaderia  | LISA | $5.500,00
+     [4]  | 10/3/2025 | 10/3/2025 | 21/4/2024 | DELFIN | FAC A |  00019947  |  IVA 21%  | IVA 21% | $36.382,50
+
+  📄 Tab: "Mercado Pago" (802 filas x 25 cols)
+     [0] Fecha | Cargado
+Compras | Pagado
+MP | Diferencia
+     [1] 
+     [2] 
+     [3] AÑO 2025
+     [4] 27/12/2024 | 0 | 0 | 0
+
+  📄 Tab: "Extr MP" (406 filas x 26 cols)
+     [0] Fecha de Pago | Tipo de Operación | Número de Movimiento | Operación Relacionad | Importe
+     [1] 2025-01-02T13:47:20Z | Retiro de dinero | 450498718690 | 97789160991 | -111705 |  |  | 45659 | -111705
+     [2] 2025-01-02T17:00:42Z | Pago | 450602087110 | 98162281190 | -43225 |  |  | 45659 | -43225
+     [3] 2025-01-03T12:19:02Z | Retiro de dinero | 451109183045 | 97877786389 | -130390 | x |  | 45660 | -130390
+     [4] 2025-01-03T14:51:05Z | Pago | 451227787737 | 97485661795 | -2920 |  |  | 45660 | -2920
+
+  📄 Tab: "Arqueo Bica" (965 filas x 49 cols)
+     [0] Fecha | Cargado
+Compras | Pagado
+Banco (s extr | Diferencia |  | BANCO BICA
+     [1]  |  |  |  |  | Creditos |  |  |  | Débitos
+     [2]  |  |  |  |  | Liquidación a Comerc | Datanet Creditos CC  | Orden de Acred. por  |  | Debito por transfere
+     [3] AÑO 2025
+     [4] 1/1/2025 | 0 | 0 | 0 |  | 0 | 0 | 0 | 0 | 0
+
+  📄 Tab: "Extr BICA" (2831 filas x 37 cols)
+     [0] x| |  | Comprobante | Transacción | Signo | Importe | Saldo |  |  | 
+     [1] 2/1/2025 | 31/12/2024 6:44:49 | 30018680 | Liquidación a Comerc | $ | 474961,72 | 414197.13 |  | $ 474.961,72
+     [2] 2/1/2025 | 31/12/2024 6:44:49 | 30018680 | SIRCREB - CUENTA COR | $ | -23748,09 | 390449.04 |  | $ -23.748,09
+     [3] 02/01/2025 | 31/12/2024 6:44:49 | 30018680 | Impuesto Débito | $ | -142,49 | 390306.55 |  | $ -142,49
+     [4] 02/01/2025 | 31/12/2024 6:44:49 | 30018680 | Impuesto Crédito | $ | -2849,77 | 387456.78 |  | $ -2.849,77
+
+  📄 Tab: "retiros gaby" (943 filas x 42 cols)
+     [0] 10 DE MARZO 2025 |  | DEBE |  |  |  |  |  |  | 
+     [1] 
+     [2] 
+     [3]  |  |  |  |  |  |  |  |  | 
+     [4]  |  |  | 1 |  |  | CAPSULAS |  |  | 
+
+  📄 Tab: "RETIROS" (937 filas x 27 cols)
+     [0]   | Fecha Ingreso | Fecha FC | Fecha Pago | PROVEEDORES | Tipo de Comprobante |  CONCEPTO  | Rubro |  Insumos  | Precio UN
+     [1] 1 | 4/4/2025 | 4/4/2025 | 4/4/2025 | RETIRO | RECIBO | retiro gaby | RETIRO | RETIRO |  $ 6.500.000,00 
+     [2] 2 | 7/4/2025 | 7/4/2025 | 7/4/2025 | RETIRO | RECIBO | retiro gaby | RETIRO | RETIRO |  $ 2.900.000,00 
+     [3] 3 | 7/4/2025 | 7/4/2025 | 7/4/2025 | RETIRO | RECIBO | tarjeta de credito m | RETIRO | RETIRO |  $ 1.032.100,88 
+     [4] 4 | 9/4/2025 | 9/4/2025 | 9/4/2025 | RETIRO |  | RETIRO MATI ENRICH | RETIRO | RETIRO |  $ 2.800.000,00 
+
+  📄 Tab: "SOCIOS/SOCIEDADES" (587 filas x 50 cols)
+     [0] Fecha |  |  | ENRICH |  |  |  |  |  | 
+     [1] Fecha | Dia |  | Ingreso
+$ | TC | Ingreso
+u$s |  | Ingreso
+u$s |  | Egresos a
+ganancias
+     [2] 01/01 | Domingo |  | 0 |  | 0 |  | 0 |  | 
+     [3] 02/01 | Lunes |  | 0 |  | 0 |  | 0 |  | 
+     [4] 03/01 | Martes |  | 0 |  | 0 |  | 0 |  | 
+
+  📄 Tab: "DOLARES" (1000 filas x 26 cols)
+     [0]  |  |  |  |  |  | MOVIMIENTOS A MANO
+     [1]  Fecha  |  Dia  |  Ingreso
+$  |  TC  |  Ingreso
+u$s  |  |  Ingreso
+u$s  |  |  Egresos
+u$s  | 
+     [2] 01/05 | jueves | 0 |  | 0 |  |  |  |  | 
+     [3] 02/05 | viernes | 0 |  | 0 |  |  |  |  | 
+     [4] 03/05 | sábado | 0 |  | 0 |  |  |  |  | 
+
+  📄 Tab: "P&L" (1001 filas x 26 cols)
+     [0]  | 1/3/2025 | 31/3/2025
+     [1]  | DICIEMBRE | Incid
+     [2] 
+     [3] Tarjeta |  $0,00 | #DIV/0!
+     [4] Efectivo |  $0,00 | #DIV/0!
+
+  📄 Tab: "ESTADO DE RESULTADOS" (2944 filas x 241 cols)
+     [0] mes |  |  | fecha pago |  |  |  | rubro |  | 
+     [1] julio | 01/07/2025 | 01/07/2025 | 01/07/2025 | CHALIN | RECIBO | CARNE PICADA 5KG | Carniceria | CARNE PICADA | $46.119,00
+     [2] julio | 01/07/2025 | 01/07/2025 | 01/07/2025 | HIELO DIAMANTE | RECIBO | HIELO | Bebidas s/Alcohol | HIELO  x KG | $3.200,00
+     [3] julio | 01/07/2025 | 01/07/2025 | 01/07/2025 | RETIRO | RECIBO | retiro gaby | RETIRO | RETIRO | $3.200.000,00
+     [4] julio | 01/07/2025 | 01/07/2025 | 01/07/2025 | SUELDOS | RECIBO | horas de prueba caja | Sueldos | CAJERO | $15.000,00
