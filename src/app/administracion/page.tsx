@@ -27,9 +27,9 @@ const MODULES = [
   {
     icon: "💵",
     title: "Caja diaria",
-    desc: "Ingresos y egresos de efectivo consolidados",
+    desc: "Ingresos y egresos diarios por método de pago",
     href: "/administracion/caja",
-    status: "pronto",
+    status: "activo",
   },
   {
     icon: "📸",
