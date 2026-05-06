@@ -54,20 +54,98 @@ export async function readSheetAsObjects(
 
 /**
  * Append rows to a sheet (detects next empty row automatically).
+ * Devuelve el rango actualizado, ej "EGRESOS!A2451:U2455" o null si no se devolvió.
  */
 export async function appendToSheet(
   spreadsheetId: string,
   range: string,
   values: (string | number)[][]
-): Promise<void> {
+): Promise<string | null> {
   const sheets = getSheets();
-  await sheets.spreadsheets.values.append({
+  const res = await sheets.spreadsheets.values.append({
     spreadsheetId,
     range,
     valueInputOption: "USER_ENTERED",
     insertDataOption: "INSERT_ROWS",
     requestBody: { values },
   });
+  return res.data.updates?.updatedRange || null;
+}
+
+/**
+ * Aplica formato de background color a un rango específico.
+ * @param backgroundColor RGB en floats 0-1, ej {red: 0.96, green: 0.80, blue: 0.80}
+ */
+export async function applyBackgroundColor(
+  spreadsheetId: string,
+  tabName: string,
+  startRowIdx: number, // 0-indexed
+  endRowIdx: number,   // exclusive
+  startColIdx: number, // 0-indexed
+  endColIdx: number,   // exclusive
+  backgroundColor: { red: number; green: number; blue: number }
+): Promise<void> {
+  const sheets = getSheets();
+  // Buscar el sheetId numérico de la tab
+  const meta = await sheets.spreadsheets.get({
+    spreadsheetId,
+    fields: "sheets(properties(title,sheetId))",
+  });
+  const sheetId = meta.data.sheets?.find((s) => s.properties?.title === tabName)?.properties?.sheetId;
+  if (sheetId === undefined || sheetId === null) {
+    console.warn(`[applyBackgroundColor] No se encontró sheet con title=${tabName}`);
+    return;
+  }
+  await sheets.spreadsheets.batchUpdate({
+    spreadsheetId,
+    requestBody: {
+      requests: [
+        {
+          repeatCell: {
+            range: {
+              sheetId,
+              startRowIndex: startRowIdx,
+              endRowIndex: endRowIdx,
+              startColumnIndex: startColIdx,
+              endColumnIndex: endColIdx,
+            },
+            cell: { userEnteredFormat: { backgroundColor } },
+            fields: "userEnteredFormat.backgroundColor",
+          },
+        },
+      ],
+    },
+  });
+}
+
+/**
+ * Parsea un rango como "EGRESOS!A2451:U2455" → { startRow: 2451, endRow: 2455, startCol: 0, endCol: 21 }
+ * Filas son 1-indexed en el string, las devolvemos 0-indexed.
+ */
+export function parseA1Range(rangeStr: string): {
+  tabName: string;
+  startRow: number;
+  endRow: number;
+  startCol: number;
+  endCol: number;
+} | null {
+  const match = rangeStr.match(/^(.+?)!([A-Z]+)(\d+):([A-Z]+)(\d+)$/);
+  if (!match) return null;
+  const tabName = match[1].replace(/^['"]|['"]$/g, "");
+  const colToIdx = (col: string): number => {
+    let n = 0;
+    for (let i = 0; i < col.length; i++) {
+      n = n * 26 + (col.charCodeAt(i) - 64);
+    }
+    return n - 1; // 0-indexed
+  };
+  return {
+    tabName,
+    startRow: parseInt(match[3]) - 1,
+    endRow: parseInt(match[5]),
+    startCol: colToIdx(match[2]),
+    endCol: colToIdx(match[4]) + 1,
+  };
 }
 
 /**
