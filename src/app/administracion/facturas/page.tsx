@@ -6,10 +6,17 @@ import Link from "next/link";
 interface OCRItem {
   descripcion: string;
   cantidad: number;
+  unidad: string;
   precioUnitario: number;
   subtotal: number;
   alicuotaIva?: number;
   montoIva?: number;
+}
+
+interface ImpuestoLine {
+  tipo: string;
+  monto: number;
+  alicuota?: number;
 }
 
 interface OCRResult {
@@ -28,6 +35,7 @@ interface OCRResult {
   rubro: string;
   insumo: string;
   detalleItems: OCRItem[];
+  impuestos: ImpuestoLine[];
   confianza: number;
   notas: string;
 }
@@ -62,6 +70,7 @@ interface Factura {
   reviewedAt: string;
   notasReview: string;
   items: OCRItem[];
+  impuestos: ImpuestoLine[];
 }
 
 interface ListResponse {
@@ -252,6 +261,7 @@ export default function FacturasPage() {
           confianza: editing.confianza,
           notasOCR: editing.notas,
           items: editing.detalleItems,
+          impuestos: editing.impuestos || [],
         }),
       });
       const data = await res.json();
@@ -559,23 +569,166 @@ export default function FacturasPage() {
                     </div>
                   </div>
 
-                  {/* Items */}
+                  {/* Items con edicion de unidad */}
                   {editing.detalleItems && editing.detalleItems.length > 0 && (
-                    <details className="border border-gray-100 rounded-lg p-2">
-                      <summary className="text-xs text-gray-500 uppercase cursor-pointer">Items detectados ({editing.detalleItems.length})</summary>
-                      <div className="mt-2 space-y-1 text-xs">
+                    <details className="border border-gray-100 rounded-lg p-2" open>
+                      <summary className="text-xs font-semibold text-gray-700 uppercase cursor-pointer">
+                        Items ({editing.detalleItems.length}) — editá unidad/cantidad/precio
+                      </summary>
+                      <div className="mt-2 space-y-2 text-xs">
                         {editing.detalleItems.map((item, i) => (
-                          <div key={i} className="flex justify-between text-gray-600 pb-1 border-b border-gray-50">
-                            <span className="truncate flex-1 mr-2">{item.cantidad}× {item.descripcion}</span>
-                            <span className="font-mono">{fmt(item.subtotal)}</span>
-                            {(item.alicuotaIva ?? 0) > 0 && (
-                              <span className="text-gray-400 ml-2 text-[10px]">+IVA {item.alicuotaIva}%</span>
-                            )}
+                          <div key={i} className="bg-gray-50 rounded p-2 space-y-1.5">
+                            <input
+                              type="text"
+                              value={item.descripcion}
+                              onChange={(e) => {
+                                const next = [...editing.detalleItems];
+                                next[i] = { ...next[i], descripcion: e.target.value };
+                                updateEditField("detalleItems", next);
+                              }}
+                              className="w-full border border-gray-200 rounded px-2 py-1 text-xs"
+                            />
+                            <div className="grid grid-cols-4 gap-1.5">
+                              <div>
+                                <label className="text-[10px] text-gray-500">Cantidad</label>
+                                <input
+                                  type="number"
+                                  step="0.01"
+                                  value={item.cantidad}
+                                  onChange={(e) => {
+                                    const next = [...editing.detalleItems];
+                                    next[i] = { ...next[i], cantidad: parseFloat(e.target.value) || 0 };
+                                    updateEditField("detalleItems", next);
+                                  }}
+                                  className="w-full border border-gray-200 rounded px-1.5 py-0.5 text-xs font-mono text-right"
+                                />
+                              </div>
+                              <div>
+                                <label className="text-[10px] text-gray-500">Unidad</label>
+                                <input
+                                  type="text"
+                                  value={item.unidad}
+                                  onChange={(e) => {
+                                    const next = [...editing.detalleItems];
+                                    next[i] = { ...next[i], unidad: e.target.value };
+                                    updateEditField("detalleItems", next);
+                                  }}
+                                  placeholder="kg, lt, ud"
+                                  className="w-full border border-gray-200 rounded px-1.5 py-0.5 text-xs"
+                                />
+                              </div>
+                              <div>
+                                <label className="text-[10px] text-gray-500">Precio Un.</label>
+                                <input
+                                  type="number"
+                                  step="0.01"
+                                  value={item.precioUnitario}
+                                  onChange={(e) => {
+                                    const next = [...editing.detalleItems];
+                                    const pu = parseFloat(e.target.value) || 0;
+                                    next[i] = { ...next[i], precioUnitario: pu, subtotal: pu * (next[i].cantidad || 0) };
+                                    updateEditField("detalleItems", next);
+                                  }}
+                                  className="w-full border border-gray-200 rounded px-1.5 py-0.5 text-xs font-mono text-right"
+                                />
+                              </div>
+                              <div>
+                                <label className="text-[10px] text-gray-500">Subtotal</label>
+                                <input
+                                  type="number"
+                                  step="0.01"
+                                  value={item.subtotal}
+                                  onChange={(e) => {
+                                    const next = [...editing.detalleItems];
+                                    next[i] = { ...next[i], subtotal: parseFloat(e.target.value) || 0 };
+                                    updateEditField("detalleItems", next);
+                                  }}
+                                  className="w-full border border-gray-200 rounded px-1.5 py-0.5 text-xs font-mono text-right"
+                                />
+                              </div>
+                            </div>
                           </div>
                         ))}
+                        <button
+                          type="button"
+                          onClick={() => {
+                            const next = [...editing.detalleItems, { descripcion: "", cantidad: 1, unidad: "unidad", precioUnitario: 0, subtotal: 0 }];
+                            updateEditField("detalleItems", next);
+                          }}
+                          className="text-xs text-blue-accent hover:underline"
+                        >
+                          + Agregar item
+                        </button>
                       </div>
                     </details>
                   )}
+
+                  {/* Impuestos editables */}
+                  <details className="border border-gray-100 rounded-lg p-2" open>
+                    <summary className="text-xs font-semibold text-gray-700 uppercase cursor-pointer">
+                      Impuestos ({editing.impuestos?.length || 0}) — IVA, IIBB, percepciones
+                    </summary>
+                    <div className="mt-2 space-y-1.5 text-xs">
+                      {(editing.impuestos || []).map((imp, i) => (
+                        <div key={i} className="grid grid-cols-12 gap-1.5 items-end">
+                          <input
+                            type="text"
+                            value={imp.tipo}
+                            onChange={(e) => {
+                              const next = [...(editing.impuestos || [])];
+                              next[i] = { ...next[i], tipo: e.target.value };
+                              updateEditField("impuestos", next);
+                            }}
+                            placeholder="IVA 21%"
+                            className="col-span-6 border border-gray-200 rounded px-2 py-1 text-xs"
+                          />
+                          <input
+                            type="number"
+                            step="0.01"
+                            value={imp.alicuota || 0}
+                            onChange={(e) => {
+                              const next = [...(editing.impuestos || [])];
+                              next[i] = { ...next[i], alicuota: parseFloat(e.target.value) || 0 };
+                              updateEditField("impuestos", next);
+                            }}
+                            placeholder="%"
+                            className="col-span-2 border border-gray-200 rounded px-1.5 py-1 text-xs font-mono text-right"
+                          />
+                          <input
+                            type="number"
+                            step="0.01"
+                            value={imp.monto}
+                            onChange={(e) => {
+                              const next = [...(editing.impuestos || [])];
+                              next[i] = { ...next[i], monto: parseFloat(e.target.value) || 0 };
+                              updateEditField("impuestos", next);
+                            }}
+                            className="col-span-3 border border-gray-200 rounded px-1.5 py-1 text-xs font-mono text-right font-semibold"
+                          />
+                          <button
+                            type="button"
+                            onClick={() => {
+                              const next = (editing.impuestos || []).filter((_, idx) => idx !== i);
+                              updateEditField("impuestos", next);
+                            }}
+                            className="col-span-1 text-red-500 hover:text-red-700"
+                          >
+                            ✕
+                          </button>
+                        </div>
+                      ))}
+                      <button
+                        type="button"
+                        onClick={() => {
+                          const next = [...(editing.impuestos || []), { tipo: "", monto: 0, alicuota: 0 }];
+                          updateEditField("impuestos", next);
+                        }}
+                        className="text-xs text-blue-accent hover:underline"
+                      >
+                        + Agregar impuesto (IVA / IIBB / Percep / etc.)
+                      </button>
+                    </div>
+                  </details>
 
                   <button onClick={submitToQueue} disabled={submitting || !editing.proveedor || !editing.total}
                     className="w-full bg-navy text-white px-4 py-3 rounded-lg text-sm font-semibold hover:opacity-90 disabled:opacity-50"
