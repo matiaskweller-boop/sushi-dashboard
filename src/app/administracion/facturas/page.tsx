@@ -70,6 +70,17 @@ export default function FacturasPage() {
   const fileInputRef = useRef<HTMLInputElement>(null);
 
   const handleFile = (selectedFile: File) => {
+    // Validar tipo
+    const validTypes = ["image/jpeg", "image/jpg", "image/png", "image/webp", "image/heic", "image/heif", "application/pdf"];
+    if (!validTypes.includes(selectedFile.type) && !selectedFile.name.match(/\.(jpe?g|png|webp|heic|heif|pdf)$/i)) {
+      setError(`Tipo no soportado: ${selectedFile.type || "desconocido"}. Usá JPG, PNG, WebP, HEIC o PDF.`);
+      return;
+    }
+    // Validar tamaño (max 20MB para inline en Gemini)
+    if (selectedFile.size > 20 * 1024 * 1024) {
+      setError(`Archivo muy grande (${(selectedFile.size / 1024 / 1024).toFixed(1)} MB). Máximo 20 MB.`);
+      return;
+    }
     setFile(selectedFile);
     setError(null);
     setSuccess(null);
@@ -246,22 +257,28 @@ export default function FacturasPage() {
               onClick={() => fileInputRef.current?.click()}
               className="border-2 border-dashed border-gray-300 rounded-lg p-8 text-center cursor-pointer hover:border-blue-accent hover:bg-blue-50/30 transition-all"
             >
-              <div className="text-4xl mb-2">📸</div>
-              <div className="text-sm text-gray-600 mb-1">Click o arrastrá una foto de la factura</div>
-              <div className="text-xs text-gray-400">JPG, PNG, WEBP · max 20MB</div>
+              <div className="text-4xl mb-2">📸 📄</div>
+              <div className="text-sm text-gray-600 mb-1">Click o arrastrá foto / PDF de la factura</div>
+              <div className="text-xs text-gray-400">JPG, PNG, WEBP, HEIC, PDF · max 20MB</div>
               <input
                 ref={fileInputRef}
                 type="file"
-                accept="image/*"
-                capture="environment"
+                accept="image/jpeg,image/png,image/webp,image/heic,image/heif,application/pdf,image/*"
                 onChange={onFileChange}
                 className="hidden"
               />
             </div>
           ) : (
             <div>
-              {/* eslint-disable-next-line @next/next/no-img-element */}
-              <img src={previewUrl} alt="Factura" className="max-h-[500px] w-full object-contain rounded-lg border border-gray-200" />
+              {file?.type === "application/pdf" ? (
+                <div className="rounded-lg border border-gray-200 overflow-hidden bg-gray-50" style={{ height: "500px" }}>
+                  <embed src={previewUrl} type="application/pdf" className="w-full h-full" />
+                </div>
+              ) : (
+                /* eslint-disable-next-line @next/next/no-img-element */
+                <img src={previewUrl} alt="Factura" className="max-h-[500px] w-full object-contain rounded-lg border border-gray-200" />
+              )}
+              <div className="text-xs text-gray-400 mt-1 truncate">{file?.name} · {((file?.size || 0) / 1024 / 1024).toFixed(2)} MB · {file?.type || "?"}</div>
               <div className="flex gap-2 mt-3">
                 <button
                   onClick={processOCR}

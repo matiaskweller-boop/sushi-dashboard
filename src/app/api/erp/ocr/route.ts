@@ -6,7 +6,9 @@ export const runtime = "nodejs";
 export const maxDuration = 60;
 
 const SYSTEM_PROMPT = `Sos un asistente que lee facturas/comprobantes de proveedores de un restaurante en Argentina.
-Te paso una foto. Tenés que extraer los siguientes datos en JSON.
+Te paso una foto, imagen escaneada o PDF (puede tener varias páginas).
+Si es un PDF con varias páginas, considerá toda la información del documento como una sola factura.
+Tenés que extraer los siguientes datos en JSON.
 
 CAMPOS A EXTRAER:
 - proveedor: nombre del proveedor/emisor (string corto, en mayúsculas si es razón social)
@@ -70,25 +72,57 @@ export async function POST(request: NextRequest) {
     if (!imageBase64) return NextResponse.json({ error: "Falta imageBase64" }, { status: 400 });
 
     const genAI = new GoogleGenerativeAI(apiKey);
-    const model = genAI.getGenerativeModel({
-      model: "gemini-2.0-flash-exp",
-      generationConfig: {
-        temperature: 0.1,
-        responseMimeType: "application/json",
-      },
-    });
 
-    const result = await model.generateContent([
-      { text: SYSTEM_PROMPT },
-      {
-        inlineData: {
-          data: imageBase64,
-          mimeType: mimeType || "image/jpeg",
-        },
-      },
-    ]);
+    // Probar varios modelos en orden hasta que uno responda OK.
+    // Gemini cambia los modelos disponibles cada tanto, asi que con
+    // fallback nos cubrimos.
+    const MODELS_TO_TRY = [
+      "gemini-2.5-flash",
+      "gemini-2.0-flash",
+      "gemini-1.5-flash",
+      "gemini-1.5-pro",
+    ];
 
-    const text = result.response.text();
+    let text: string | null = null;
+    let lastErr: Error | null = null;
+    let usedModel = "";
+
+    for (const modelName of MODELS_TO_TRY) {
+      try {
+        const model = genAI.getGenerativeModel({
+          model: modelName,
+          generationConfig: {
+            temperature: 0.1,
+            responseMimeType: "application/json",
+          },
+        });
+
+        const result = await model.generateContent([
+          { text: SYSTEM_PROMPT },
+          {
+            inlineData: {
+              data: imageBase64,
+              mimeType: mimeType || "image/jpeg",
+            },
+          },
+        ]);
+
+        text = result.response.text();
+        usedModel = modelName;
+        break;
+      } catch (e) {
+        lastErr = e instanceof Error ? e : new Error(String(e));
+        console.warn(`[OCR] Modelo ${modelName} fallo:`, lastErr.message.substring(0, 200));
+        continue;
+      }
+    }
+
+    if (!text) {
+      const msg = lastErr ? lastErr.message : "Ningun modelo Gemini respondio";
+      return NextResponse.json({ error: `Gemini: ${msg}` }, { status: 500 });
+    }
+
+    console.log(`[OCR] Usado modelo: ${usedModel}`);
     let parsed: OCRResult;
     try {
       parsed = JSON.parse(text);
