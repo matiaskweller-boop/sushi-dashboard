@@ -7,6 +7,7 @@ import { readSheetRaw, getSheets } from "@/lib/google";
 export const OWNER_EMAIL = "matiaskweller@gmail.com";
 
 export const ALL_PERMISSIONS = [
+  "ventas",        // Dashboard, KPIs, Histórico (la barra "Ventas")
   "pnl",
   "egresos",
   "proveedores",
@@ -34,9 +35,10 @@ export interface UserAccess {
 const ERP_CONFIG_SHEET = process.env.ERP_CONFIG_SHEET_ID || "1YMIE_t1O5RBfXGwFQf7xzh-TeuPUV6SfIl4Smj2mk1g";
 const TAB = "Usuarios";
 
-// In-memory cache (5 min) — se reinicia con cada deploy
+// In-memory cache (30 segundos) — se reinicia con cada deploy
+// 30s para que cambios de permisos en la UI tarden poco en propagar.
 const cache = new Map<string, { user: UserAccess | null; expiresAt: number }>();
-const CACHE_TTL = 5 * 60 * 1000;
+const CACHE_TTL = 30 * 1000;
 
 /**
  * Asegurar que la tab Usuarios existe con headers v2 (incluye Permisos).
@@ -154,6 +156,23 @@ export async function getAllUsers(): Promise<UserAccess[]> {
         createdAt: "",
       });
     }
+
+    // Mergear con ALLOWED_EMAILS — emails que pueden loguearse pero no tienen
+    // perms asignados aún. Aparecen en la UI con perms=[] para que el owner
+    // pueda configurarlos.
+    const allowedRaw = (process.env.ALLOWED_EMAILS || "").split(",").map((e) => e.trim().toLowerCase()).filter(Boolean);
+    for (const allowedEmail of allowedRaw) {
+      if (users.some((u) => u.email === allowedEmail)) continue;
+      users.push({
+        email: allowedEmail,
+        name: "(sin nombre, agregar)",
+        active: true,
+        perms: [],
+        isOwner: false,
+        createdAt: "",
+      });
+    }
+
     return users;
   } catch (e) {
     console.error("getAllUsers error:", e);
@@ -199,11 +218,17 @@ export function invalidateUserCache(email?: string) {
 
 /**
  * Chequear si un user tiene un permiso específico.
+ * - "_users": solo owner
+ * - "logged_in": cualquier user activo (sirve para landing /administracion)
+ * - "any": al menos un permiso explícito
+ * - "*": acceso total
+ * - cualquier otro string: ese permiso específico
  */
-export function userHasPermission(user: UserAccess | null, permission: string | "any" | "_users"): boolean {
+export function userHasPermission(user: UserAccess | null, permission: string | "any" | "_users" | "logged_in"): boolean {
   if (!user || !user.active) return false;
   if (user.isOwner) return true;
   if (permission === "_users") return user.isOwner;
+  if (permission === "logged_in") return true; // cualquier user activo
   if (user.perms.includes("*")) return true;
   if (permission === "any") return user.perms.length > 0;
   return user.perms.includes(permission);
@@ -212,8 +237,12 @@ export function userHasPermission(user: UserAccess | null, permission: string | 
 /**
  * Server-side: requiere session activa + permiso. Si no, redirige.
  * Para usar en server components / layouts.
+ *
+ * Si la falla es por falta de permiso específico, redirige a /administracion
+ * (landing accesible para cualquier user logueado activo).
+ * Si el user no existe o está inactivo, redirige a /login.
  */
-export async function requirePermission(permission: string | "any" | "_users"): Promise<UserAccess> {
+export async function requirePermission(permission: string | "any" | "_users" | "logged_in"): Promise<UserAccess> {
   const cookieStore = await cookies();
   const token = cookieStore.get(COOKIE_NAME)?.value;
   if (!token) redirect("/login");
@@ -221,10 +250,10 @@ export async function requirePermission(permission: string | "any" | "_users"): 
   if (!session) redirect("/login");
 
   const user = await getUserAccess(session.email);
-  if (!user || !user.active) redirect("/?error=admin_only");
+  if (!user || !user.active) redirect("/login?error=inactive");
   if (!userHasPermission(user, permission)) {
     if (permission === "_users") redirect("/administracion?error=owner_only");
-    redirect("/administracion?error=perm_denied");
+    redirect("/administracion?error=perm_denied&need=" + encodeURIComponent(String(permission)));
   }
   return user;
 }

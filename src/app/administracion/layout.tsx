@@ -2,7 +2,7 @@ import { headers } from "next/headers";
 import { requirePermission } from "@/lib/admin-permissions";
 
 // Mapping de path → permiso requerido
-const PATH_PERMS: Array<{ prefix: string; perm: string | "any" | "_users" }> = [
+const PATH_PERMS: Array<{ prefix: string; perm: string | "any" | "_users" | "logged_in" }> = [
   { prefix: "/administracion/pnl", perm: "pnl" },
   { prefix: "/administracion/egresos", perm: "egresos" },
   { prefix: "/administracion/proveedores", perm: "proveedores" },
@@ -11,14 +11,16 @@ const PATH_PERMS: Array<{ prefix: string; perm: string | "any" | "_users" }> = [
   { prefix: "/administracion/alertas", perm: "alertas" },
   { prefix: "/administracion/facturas", perm: "facturas" },
   { prefix: "/administracion/usuarios", perm: "_users" },
-  { prefix: "/administracion", perm: "any" }, // index — cualquier permiso
+  // /administracion landing — accesible para cualquier user activo logueado.
+  // Las cards filtrarán client-side qué puede ver.
+  { prefix: "/administracion", perm: "logged_in" },
 ];
 
-function findPerm(pathname: string): string | "any" | "_users" {
+function findPerm(pathname: string): string | "any" | "_users" | "logged_in" {
   for (const { prefix, perm } of PATH_PERMS) {
     if (pathname === prefix || pathname.startsWith(prefix + "/")) return perm;
   }
-  return "any";
+  return "logged_in";
 }
 
 export default async function AdminLayout({ children }: { children: React.ReactNode }) {
