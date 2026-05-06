@@ -1,9 +1,70 @@
 import { NextRequest, NextResponse } from "next/server";
 import { requirePermissionApi, userHasPermission } from "@/lib/admin-permissions";
 import { getFactura, updateFactura, FacturaQueue } from "@/lib/facturas-queue";
-import { appendToSheet } from "@/lib/google";
+import { appendToSheet, readSheetRaw } from "@/lib/google";
 
 export const runtime = "nodejs";
+
+const MES_NOMBRES = [
+  "", "enero", "febrero", "marzo", "abril", "mayo", "junio",
+  "julio", "agosto", "septiembre", "octubre", "noviembre", "diciembre",
+];
+
+function mesNombreFromIso(iso: string): string {
+  if (!iso) return "";
+  const m = iso.match(/^\d{4}-(\d{2})-\d{2}/);
+  if (!m) return "";
+  const idx = parseInt(m[1]);
+  return MES_NOMBRES[idx] || "";
+}
+
+/**
+ * Parsea "10 dias", "15 DIAS", "30 días", "7" → number of days, o "" si no se puede.
+ */
+function parsePlazo(plazoStr: string): string {
+  if (!plazoStr) return "";
+  const m = plazoStr.match(/(\d+)/);
+  if (!m) return "";
+  return m[1];
+}
+
+interface ProveedorPlazo {
+  proveedor: string;
+  plazo: string; // dias parsed
+}
+
+/**
+ * Cargar plazos por proveedor desde DEUDA AL DIA, cache 10 min server-side.
+ */
+let plazoCache: { map: Map<string, string>; expiresAt: number } | null = null;
+const PLAZO_TTL = 10 * 60 * 1000;
+
+async function loadPlazos(): Promise<Map<string, string>> {
+  if (plazoCache && plazoCache.expiresAt > Date.now()) return plazoCache.map;
+  const map = new Map<string, string>();
+  const sheets2026: Record<string, string> = {
+    palermo: process.env.SHEET_PALERMO_2026 || "",
+    belgrano: process.env.SHEET_BELGRANO_2026 || "",
+    madero: process.env.SHEET_MADERO_2026 || "",
+  };
+  await Promise.all(Object.values(sheets2026).map(async (sid) => {
+    if (!sid) return;
+    try {
+      const rows = await readSheetRaw(sid, "DEUDA AL DIA!A1:L200");
+      for (const row of rows.slice(2)) {
+        const proveedor = (row[0] || "").toString().trim().toUpperCase();
+        const plazoStr = (row[11] || "").toString().trim();
+        if (!proveedor || !plazoStr) continue;
+        const days = parsePlazo(plazoStr);
+        if (days && !map.has(proveedor)) map.set(proveedor, days);
+      }
+    } catch {
+      // ignore
+    }
+  }));
+  plazoCache = { map, expiresAt: Date.now() + PLAZO_TTL };
+  return map;
+}
 
 const SHEET_IDS: Record<string, Record<string, string>> = {
   "2025": {
@@ -30,51 +91,56 @@ function formatArs(n: number): string {
 }
 
 /**
- * Mapear un tipo de impuesto al rubro correspondiente del sheet.
- * Rubros válidos del sheet (según DATOSSS): IIBB, IMP. INTERNOS, Impuestos, IVA, Acuerdos, etc.
+ * Normalizar la label del impuesto que va en las columnas Rubro / INSUMOS.
+ * En el sheet existente (ver capturas) los impuestos llevan en RUBRO la label
+ * completa del impuesto, ej: "IVA 21%", "PERC. IVA 3%", "IIBB".
+ * No hay que mapear a un rubro genérico — se usa la propia descripción del
+ * impuesto como rubro Y como insumo (idéntico para que el sheet lo agrupe).
  */
-function mapImpuestoToRubro(tipo: string): string {
-  const t = tipo.toLowerCase();
-  if (t.includes("iibb") || t.includes("ingresos brut")) return "IIBB";
-  if (t.includes("percep") && t.includes("iva")) return "IVA";
-  if (t.includes("percep") && (t.includes("iibb") || t.includes("ing"))) return "IIBB";
-  if (t.includes("percep")) return "IIBB";
-  if (t.includes("iva")) return "IVA";
-  if (t.includes("interno")) return "IMP. INTERNOS";
-  return "Impuestos";
+function normalizeImpuestoLabel(tipo: string, alicuota?: number): string {
+  let t = (tipo || "").trim();
+  if (!t) return "Impuesto";
+  // Normalizaciones comunes
+  t = t.replace(/\bpercepción\b/gi, "PERC.");
+  t = t.replace(/\bpercepcion\b/gi, "PERC.");
+  t = t.replace(/\bingresos brutos\b/gi, "IIBB");
+  t = t.replace(/\biibb\b/gi, "IIBB");
+  t = t.replace(/\biva\b/gi, "IVA");
+  t = t.replace(/\bimp\.?\s*internos?\b/gi, "IMP. INTERNOS");
+  // Si la alicuota está y el tipo no la incluye, sumarla al final
+  if (alicuota && alicuota > 0 && !t.includes("%")) {
+    t = `${t} ${alicuota}%`.trim();
+  }
+  return t;
 }
 
 /**
  * Genera las filas a insertar en EGRESOS para una factura.
  *
- * Modelo:
- * - 1 row PRINCIPAL con el subtotal sin IVA de la factura
- *   (insumo = descripción consolidada de los items)
- * - 1 row por cada impuesto (IVA, IIBB, percep, etc.) con su rubro
+ * Patrón (tomado de las facturas existentes — ej PESCE 24/4/2026):
+ *  - 1 row POR CADA ITEM con su rubro, descripción, cantidad, unidad, precio unit
+ *    Ej: PESCE | Pescaderia | TRUCHA   | $347.397 | 26,93 | $12.900
+ *        PESCE | Pescaderia | LOMO ATUN | $67.575  | 2,65  | $25.500
+ *  - 1 row POR CADA IMPUESTO con rubro = label del impuesto (ej "IVA 21%")
+ *    Ej: PESCE | IVA 21%      | IVA 21%      | $87.144 | 1,00 | $87.144
+ *        PESCE | PERC. IVA 3% | PERC. IVA 3% | $12.449 | 1,00 | $12.449
+ *        PESCE | IIBB         | IIBB         | $12.449 | 1,00 | $12.449
  *
- * Cantidad/unidad de la row principal:
- * - Si la factura tiene 1 solo item: usa su cantidad real (3.2) y unidad real (kg)
- * - Si la factura tiene varios items: cantidad=1, unidad="unidad"
- *   (la descripción consolida los items, ej "Lavandina, Detergente y 14 más")
- *
- * Estructura columnas EGRESOS (15 cols A-O):
- * A: nro auto
- * B: Fecha ingreso
- * C: Fecha FC
- * D: Fecha Pago
- * E: PROVEEDOR
- * F: Tipo comprobante
- * G: Nro comprobante
- * H: Rubro
- * I: INSUMOS
- * J: Total de la línea
- * K: cantidad (numérica)
- * L: Precio Un.
- * M: Metodo de Pago
- * N: Verif.
- * O: Vto.
+ * Estructura columnas EGRESOS (21 cols A-U según captura del sheet real):
+ * A: nro auto · B: Fecha ingreso · C: Fecha FC · D: Fecha Pago
+ * E: PROVEEDOR · F: Tipo comprobante · G: Nro comprobante
+ * H: Rubro · I: INSUMOS · J: Total de la línea
+ * K: cantidad/unidad de medida · L: Precio Un.
+ * M: Metodo de Pago · N: Verif. · O: Vto.
+ * P: Plazo (días) · Q: MES ingreso · R: MES de pago
+ * S: UM · T: INGRESO SUCURSAL · U: precio Un con IVA (formula del sheet)
  */
-function buildEgresosRows(f: FacturaQueue): string[][] {
+function buildEgresosRows(f: FacturaQueue, plazos: Map<string, string>): string[][] {
+  // Plazo del proveedor desde el master (en dias), si lo tenemos
+  const plazoProv = plazos.get((f.proveedor || "").toUpperCase()) || "";
+  // Mes de ingreso y pago en español
+  const mesIngreso = mesNombreFromIso(f.fechaIngreso || new Date().toISOString().substring(0, 10));
+  const mesPago = mesNombreFromIso(f.fechaPago);
   const rows: string[][] = [];
   const fechaIng = toSheetDate(f.fechaIngreso) || toSheetDate(new Date().toISOString().substring(0, 10));
   const fechaFC = toSheetDate(f.fechaFC);
@@ -85,84 +151,71 @@ function buildEgresosRows(f: FacturaQueue): string[][] {
   const nro = f.nroComprobante || "";
   const proveedor = f.proveedor || "";
 
-  const validItems = (f.items || []).filter((i) => i.descripcion || i.subtotal);
+  const validItems = (f.items || []).filter((i) => i.descripcion && (i.subtotal > 0 || i.cantidad > 0));
 
-  // Construir la descripción del insumo principal
-  let insumoDesc = f.insumo || "";
-  let cantidadMain = 1;
-  let unidadMain = "unidad";
-  let precioUnMain = 0;
-  let totalMain = f.subtotal || 0;
+  // Helper para construir una fila completa con las 21 columnas
+  const makeRow = (
+    rubro: string,
+    insumo: string,
+    total: number,
+    cantidadStr: string,
+    precioUn: number,
+  ): string[] => {
+    const precioConIva = precioUn * 1.21; // formula tipica del sheet
+    return [
+      "",                                 // A
+      fechaIng,                           // B Fecha ingreso
+      fechaFC,                            // C Fecha FC
+      fechaPago,                          // D Fecha Pago
+      proveedor,                          // E PROVEEDOR
+      tipo,                               // F Tipo comprobante
+      nro,                                // G Nro comprobante
+      rubro,                              // H Rubro
+      insumo,                             // I INSUMOS
+      formatArs(total),                   // J Total
+      cantidadStr,                        // K unidad de medida (cantidad numerica)
+      formatArs(precioUn),                // L Precio Un
+      metodoPago,                         // M Metodo de Pago
+      "ok",                               // N Verif
+      fechaVto,                           // O Vto
+      plazoProv,                          // P Plazo (dias del proveedor)
+      mesIngreso,                         // Q MES ingreso
+      mesPago,                            // R MES de pago
+      "$1,00",                            // S UM (constante del sheet)
+      "",                                 // T INGRESO SUCURSAL (vacio, fórmula del sheet)
+      formatArs(precioConIva),            // U precio Un con IVA
+    ];
+  };
 
-  if (validItems.length === 1) {
-    // Factura con un solo item: usar sus datos exactos
-    const it = validItems[0];
-    if (!insumoDesc) insumoDesc = it.descripcion;
-    cantidadMain = it.cantidad || 1;
-    unidadMain = it.unidad || "unidad";
-    precioUnMain = it.precioUnitario || (cantidadMain > 0 ? it.subtotal / cantidadMain : 0);
-    totalMain = it.subtotal || totalMain;
-  } else if (validItems.length > 1) {
-    // Factura multi-item: consolidar
-    if (!insumoDesc) {
-      const list = validItems.map((i) => i.descripcion).filter(Boolean);
-      if (list.length <= 3) {
-        insumoDesc = list.join(", ").substring(0, 100);
-      } else {
-        insumoDesc = `${list[0]}, ${list[1]} y ${list.length - 2} más`.substring(0, 100);
-      }
+  // ─── Filas de ITEMS ───
+  if (validItems.length > 0) {
+    for (const item of validItems) {
+      const cantidad = item.cantidad || 1;
+      const subtotalLinea = item.subtotal || (cantidad * (item.precioUnitario || 0));
+      const precioUn = item.precioUnitario || (cantidad > 0 ? subtotalLinea / cantidad : 0);
+      const cantidadStr = cantidad.toLocaleString("es-AR", {
+        useGrouping: true,
+        minimumFractionDigits: 2,
+        maximumFractionDigits: 2,
+      });
+      rows.push(makeRow(f.rubro || "", item.descripcion, subtotalLinea, cantidadStr, precioUn));
     }
-    cantidadMain = 1;
-    unidadMain = "unidad";
-    // totalMain ya es el subtotal de la factura (suma de items sin IVA)
-    if (totalMain === 0) {
-      totalMain = validItems.reduce((s, i) => s + (i.subtotal || 0), 0);
-    }
-    precioUnMain = totalMain;
-  } else {
-    // Sin items: usar subtotal o total
-    if (totalMain === 0) totalMain = f.total || 0;
-    precioUnMain = totalMain;
+  } else if (f.subtotal > 0) {
+    rows.push(makeRow(f.rubro || "", f.insumo || "Varios", f.subtotal, "1,00", f.subtotal));
   }
 
-  // Fallback final: si no hay subtotal NI items, usar total (puede pasar con
-  // facturas viejas sin desglose)
-  const hasImpuestos = (f.impuestos || []).some((imp) => imp.monto && imp.monto > 0);
-  if (totalMain === 0 && !hasImpuestos) {
-    totalMain = f.total;
-    precioUnMain = f.total;
-  }
-
-  // Row principal de la factura
-  if (totalMain > 0 || !hasImpuestos) {
-    rows.push([
-      "",                            // A
-      fechaIng,                      // B
-      fechaFC,                       // C
-      fechaPago,                     // D
-      proveedor,                     // E
-      tipo,                          // F
-      nro,                           // G
-      f.rubro || "",                 // H Rubro
-      insumoDesc || "",              // I INSUMOS
-      formatArs(totalMain),          // J Total
-      cantidadMain.toLocaleString("es-AR", { useGrouping: false }), // K cantidad
-      formatArs(precioUnMain),       // L Precio Un
-      metodoPago,                    // M
-      "ok",                          // N Verif
-      fechaVto,                      // O Vto
-    ]);
-  }
-
-  // Rows de impuestos (IVA, IIBB, Percep, etc.)
+  // ─── Filas de IMPUESTOS ───
+  // Rubro = label completa del impuesto (ej "IVA 21%", "PERC. IVA 3%", "IIBB").
+  // INSUMOS = igual al rubro (mismo valor).
   for (const imp of f.impuestos || []) {
     if (!imp.monto || imp.monto === 0) continue;
-    const rubro = mapImpuestoToRubro(imp.tipo);
-    rows.push([
-      "", fechaIng, fechaFC, fechaPago, proveedor, tipo, nro,
-      rubro, imp.tipo, formatArs(imp.monto),
-      "1", formatArs(imp.monto), metodoPago, "ok", fechaVto,
-    ]);
+    const label = normalizeImpuestoLabel(imp.tipo, imp.alicuota);
+    rows.push(makeRow(label, label, imp.monto, "1,00", imp.monto));
+  }
+
+  // Edge case: si no hay items NI impuestos, usar total
+  if (rows.length === 0) {
+    rows.push(makeRow(f.rubro || "", f.insumo || "Varios", f.total, "1,00", f.total));
   }
 
   return rows;
@@ -173,11 +226,12 @@ async function exportToEgresos(f: FacturaQueue): Promise<{ rowCount: number }> {
   if (!sheetId) {
     throw new Error(`Sheet no configurado para ${f.sucursal} ${f.year}`);
   }
-  const rows = buildEgresosRows(f);
+  const plazos = await loadPlazos();
+  const rows = buildEgresosRows(f, plazos);
   if (rows.length === 0) {
     throw new Error("No hay datos para exportar (sin items ni impuestos ni total)");
   }
-  await appendToSheet(sheetId, "EGRESOS!A:O", rows);
+  await appendToSheet(sheetId, "EGRESOS!A:U", rows);
   return { rowCount: rows.length };
 }
 
