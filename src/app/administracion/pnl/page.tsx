@@ -1,6 +1,6 @@
 "use client";
 
-import { useState, useEffect, useMemo } from "react";
+import { useState, useEffect, useMemo, Fragment } from "react";
 import Link from "next/link";
 import {
   BarChart, Bar, LineChart, Line, XAxis, YAxis, Tooltip, ResponsiveContainer,
@@ -14,6 +14,7 @@ type Categoria =
   | "operativos"
   | "financieros"
   | "impuestos"
+  | "retiros"
   | "otros";
 
 interface PnLMonth {
@@ -33,6 +34,7 @@ interface PnLMonth {
     otros: number;
     total: number;
   };
+  retiros: number;
   margenBruto: number;
   cmvPct: number;
   ebitda: number;
@@ -47,6 +49,7 @@ interface RubroBreakdown {
   total: number;
   facturas: number;
   byMonth: Record<number, number>;
+  proveedores: Array<{ name: string; total: number; facturas: number }>;
 }
 
 interface PnLResponse {
@@ -65,6 +68,7 @@ interface PnLResponse {
     costosImpuestos: number;
     costosOtros: number;
     costosTotal: number;
+    retiros: number;
     ebitda: number;
     cmvPct: number;
     ebitdaPct: number;
@@ -84,7 +88,7 @@ const SUC_COLORS: Record<string, string> = {
 };
 const MONTH_NAMES = ["Ene", "Feb", "Mar", "Abr", "May", "Jun", "Jul", "Ago", "Sep", "Oct", "Nov", "Dic"];
 
-const CATEGORIAS: Categoria[] = ["insumos", "sueldos", "alquilerServicios", "operativos", "impuestos", "financieros", "otros"];
+const CATEGORIAS: Categoria[] = ["insumos", "sueldos", "alquilerServicios", "operativos", "impuestos", "financieros", "retiros", "otros"];
 
 const CATEGORIA_LABEL: Record<Categoria, string> = {
   insumos: "Insumos / CMV",
@@ -93,6 +97,7 @@ const CATEGORIA_LABEL: Record<Categoria, string> = {
   operativos: "Operativos",
   financieros: "Bancarios / Comisiones",
   impuestos: "Impuestos / Acuerdos",
+  retiros: "Retiros / Ganancia",
   otros: "Otros",
 };
 const CATEGORIA_COLOR: Record<Categoria, string> = {
@@ -102,6 +107,7 @@ const CATEGORIA_COLOR: Record<Categoria, string> = {
   operativos: "#06B6D4",
   financieros: "#EC4899",
   impuestos: "#6366F1",
+  retiros: "#10B981",
   otros: "#64748B",
 };
 
@@ -255,10 +261,11 @@ export default function PnLPage() {
       const rowFin = ["- Bancarios", ...data.months.map((m) => m.costos.financieros > 0 ? fmtK(m.costos.financieros) : "—"), fmtK(data.ytd.costosFinancieros)];
       const rowOtros = ["- Otros", ...data.months.map((m) => m.costos.otros > 0 ? fmtK(m.costos.otros) : "—"), fmtK(data.ytd.costosOtros)];
       const rowEbitda = ["= EBITDA", ...data.months.map((m) => m.ventas > 0 ? fmtK(m.ebitda) : "—"), fmtK(ytdEbitda)];
+      const rowRetiros = ["+ Retiros / Ganancia", ...data.months.map((m) => m.retiros > 0 ? fmtK(m.retiros) : "—"), fmtK(data.ytd.retiros)];
 
       autoTable(doc, {
         head: [headers],
-        body: [rowVentas, rowInsumos, rowMargen, rowSueldos, rowAlq, rowOp, rowImp, rowFin, rowOtros, rowEbitda],
+        body: [rowVentas, rowInsumos, rowMargen, rowSueldos, rowAlq, rowOp, rowImp, rowFin, rowOtros, rowEbitda, rowRetiros],
         startY: 100,
         styles: { fontSize: 8, cellPadding: 3, halign: "right" },
         columnStyles: { 0: { halign: "left", fontStyle: "bold" } },
@@ -278,7 +285,7 @@ export default function PnLPage() {
         // Agrupar por categoría
         const byCat: Record<Categoria, RubroBreakdown[]> = {
           insumos: [], sueldos: [], alquilerServicios: [], operativos: [],
-          financieros: [], impuestos: [], otros: [],
+          financieros: [], impuestos: [], retiros: [], otros: [],
         };
         for (const r of data.byRubro) byCat[r.categoria].push(r);
 
@@ -410,12 +417,10 @@ export default function PnLPage() {
               <div className={`text-xl font-bold ${data.ytd.ebitda >= 0 ? "text-emerald-700" : "text-red-700"}`}>{fmt(data.ytd.ebitda)}</div>
               <div className="text-xs text-gray-400 mt-1">{fmtPct(data.ytd.ebitdaPct)} margen</div>
             </div>
-            <div className="bg-white rounded-xl border border-gray-100 p-4">
-              <div className="text-xs text-gray-500 uppercase tracking-wide mb-1">Comensales</div>
-              <div className="text-xl font-bold text-navy">{data.ytd.comensales.toLocaleString("es-AR")}</div>
-              <div className="text-xs text-gray-400 mt-1">
-                {data.ytd.comensales > 0 ? fmt(data.ytd.ventas / data.ytd.comensales) : "—"} / persona
-              </div>
+            <div className="bg-white rounded-xl border border-emerald-100 p-4">
+              <div className="text-xs text-emerald-600 uppercase tracking-wide mb-1">+ Retiros / Ganancia</div>
+              <div className="text-xl font-bold text-emerald-700">{fmt(data.ytd.retiros)}</div>
+              <div className="text-xs text-gray-400 mt-1">distribución a socios</div>
             </div>
           </div>
 
@@ -511,7 +516,7 @@ export default function PnLPage() {
                     ))}
                     <td className="text-right px-3 py-2 font-mono text-navy bg-gray-100">{fmtK(data.ytd.ventas - data.ytd.costosInsumos)}</td>
                   </tr>
-                  {(["sueldos", "alquilerServicios", "operativos", "impuestos", "financieros", "otros"] as Categoria[]).map((cat) => {
+                  {(["sueldos", "alquilerServicios", "operativos", "impuestos", "financieros", "otros"] as const).map((cat) => {
                     const ytdField = `costos${cat.charAt(0).toUpperCase() + cat.slice(1)}` as keyof typeof data.ytd;
                     const ytdValue = data.ytd[ytdField] as number;
                     return (
@@ -542,6 +547,17 @@ export default function PnLPage() {
                       {fmtK(data.ytd.ebitda)}
                       <span className="text-[10px] block font-normal">{fmtPct(data.ytd.ebitdaPct)}</span>
                     </td>
+                  </tr>
+                  <tr className="border-b border-gray-50 hover:bg-gray-50">
+                    <td className="px-3 py-2 text-emerald-700 sticky left-0 bg-white" title="Retiros: distribución a socios. NO suma a costos.">
+                      + Retiros / Ganancia
+                    </td>
+                    {data.months.map((m) => (
+                      <td key={m.month} className="text-right px-2 py-2 font-mono text-emerald-600">
+                        {m.retiros > 0 ? fmtK(m.retiros) : "—"}
+                      </td>
+                    ))}
+                    <td className="text-right px-3 py-2 font-mono text-emerald-600 bg-gray-100">{fmtK(data.ytd.retiros)}</td>
                   </tr>
                 </tbody>
               </table>
@@ -638,62 +654,92 @@ export default function PnLPage() {
                     const catTotal = data.byRubro.filter((x) => x.categoria === r.categoria).reduce((s, x) => s + x.total, 0);
                     const pctCat = catTotal > 0 ? (r.total / catTotal) * 100 : 0;
                     return (
-                      <tr
-                        key={r.rubro}
-                        className={`border-b border-gray-50 ${isExpanded ? "bg-blue-50/30" : "hover:bg-gray-50"}`}
-                      >
-                        <td className="px-3 py-2">
-                          <button
-                            onClick={() => setExpandedRubro(isExpanded ? null : r.rubro)}
-                            className="text-left font-medium text-navy hover:text-blue-accent flex items-center gap-1"
-                          >
-                            <span className="text-gray-400">{isExpanded ? "▼" : "▶"}</span>
-                            <span>{r.rubro || "(sin rubro)"}</span>
-                            {r.isOverride && (
-                              <span className="text-[10px] bg-blue-50 text-blue-700 px-1 py-0.5 rounded ml-1">★</span>
-                            )}
-                          </button>
-                        </td>
-                        <td className="px-3 py-2">
-                          <div className="flex items-center gap-1.5">
-                            <select
-                              value={r.categoria}
-                              onChange={(e) => reassignRubro(r.rubro, e.target.value as Categoria)}
-                              disabled={savingRubro === r.rubro}
-                              className="text-xs rounded-md px-1.5 py-0.5 font-medium border-0 cursor-pointer"
-                              style={{
-                                backgroundColor: CATEGORIA_COLOR[r.categoria] + "22",
-                                color: CATEGORIA_COLOR[r.categoria],
-                              }}
+                      <Fragment key={r.rubro}>
+                        <tr
+                          key={r.rubro}
+                          className={`border-b border-gray-50 ${isExpanded ? "bg-blue-50/30" : "hover:bg-gray-50"}`}
+                        >
+                          <td className="px-3 py-2">
+                            <button
+                              onClick={() => setExpandedRubro(isExpanded ? null : r.rubro)}
+                              className="text-left font-medium text-navy hover:text-blue-accent flex items-center gap-1"
                             >
-                              {CATEGORIAS.map((c) => (
-                                <option key={c} value={c}>{CATEGORIA_LABEL[c]}</option>
-                              ))}
-                            </select>
-                            {savingRubro === r.rubro && <span className="text-[10px] text-gray-400">...</span>}
-                            {r.isOverride && (
-                              <button
-                                onClick={() => resetRubroOverride(r.rubro)}
-                                title={`Resetear a default (${CATEGORIA_LABEL[r.categoriaDefault]})`}
-                                className="text-[10px] text-gray-400 hover:text-red-500"
+                              <span className="text-gray-400">{isExpanded ? "▼" : "▶"}</span>
+                              <span>{r.rubro || "(sin rubro)"}</span>
+                              {r.isOverride && (
+                                <span className="text-[10px] bg-blue-50 text-blue-700 px-1 py-0.5 rounded ml-1">★</span>
+                              )}
+                            </button>
+                          </td>
+                          <td className="px-3 py-2">
+                            <div className="flex items-center gap-1.5">
+                              <select
+                                value={r.categoria}
+                                onChange={(e) => reassignRubro(r.rubro, e.target.value as Categoria)}
+                                disabled={savingRubro === r.rubro}
+                                className="text-xs rounded-md px-1.5 py-0.5 font-medium border-0 cursor-pointer"
+                                style={{
+                                  backgroundColor: CATEGORIA_COLOR[r.categoria] + "22",
+                                  color: CATEGORIA_COLOR[r.categoria],
+                                }}
                               >
-                                ↺
-                              </button>
-                            )}
-                          </div>
-                        </td>
-                        {MONTH_NAMES.map((_, i) => {
-                          const v = r.byMonth[i + 1] || 0;
-                          return (
-                            <td key={i} className="text-right px-2 py-2 font-mono text-gray-500">
-                              {v > 0 ? fmtK(v) : ""}
+                                {CATEGORIAS.map((c) => (
+                                  <option key={c} value={c}>{CATEGORIA_LABEL[c]}</option>
+                                ))}
+                              </select>
+                              {savingRubro === r.rubro && <span className="text-[10px] text-gray-400">...</span>}
+                              {r.isOverride && (
+                                <button
+                                  onClick={() => resetRubroOverride(r.rubro)}
+                                  title={`Resetear a default (${CATEGORIA_LABEL[r.categoriaDefault]})`}
+                                  className="text-[10px] text-gray-400 hover:text-red-500"
+                                >
+                                  ↺
+                                </button>
+                              )}
+                            </div>
+                          </td>
+                          {MONTH_NAMES.map((_, i) => {
+                            const v = r.byMonth[i + 1] || 0;
+                            return (
+                              <td key={i} className="text-right px-2 py-2 font-mono text-gray-500">
+                                {v > 0 ? fmtK(v) : ""}
+                              </td>
+                            );
+                          })}
+                          <td className="text-right px-3 py-2 font-mono font-semibold text-navy bg-gray-50">{fmtK(r.total)}</td>
+                          <td className="text-right px-2 py-2 text-gray-500">{r.facturas}</td>
+                          <td className="text-right px-2 py-2 text-gray-500">{pctCat.toFixed(1)}%</td>
+                        </tr>
+
+                        {/* Expanded row: lista de proveedores que componen este rubro */}
+                        {isExpanded && (
+                          <tr className="bg-blue-50/20 border-b border-blue-100">
+                            <td colSpan={16} className="px-6 py-3">
+                              <div className="text-xs font-semibold text-gray-600 uppercase mb-2">
+                                Proveedores · {r.proveedores.length} en este rubro
+                              </div>
+                              {r.proveedores.length === 0 ? (
+                                <div className="text-xs text-gray-400 italic">No hay proveedores cargados (rubro vacío)</div>
+                              ) : (
+                                <div className="grid grid-cols-1 lg:grid-cols-2 gap-x-6 gap-y-1">
+                                  {r.proveedores.map((p) => {
+                                    const pct = r.total > 0 ? (p.total / r.total) * 100 : 0;
+                                    return (
+                                      <div key={p.name} className="flex items-baseline justify-between text-xs py-1 border-b border-blue-50">
+                                        <span className="text-navy font-medium truncate flex-1">{p.name}</span>
+                                        <span className="text-gray-400 mx-2 text-[10px]">{p.facturas}f</span>
+                                        <span className="text-gray-400 w-12 text-right text-[10px]">{pct.toFixed(0)}%</span>
+                                        <span className="font-mono text-navy w-24 text-right">{fmt(p.total)}</span>
+                                      </div>
+                                    );
+                                  })}
+                                </div>
+                              )}
                             </td>
-                          );
-                        })}
-                        <td className="text-right px-3 py-2 font-mono font-semibold text-navy bg-gray-50">{fmtK(r.total)}</td>
-                        <td className="text-right px-2 py-2 text-gray-500">{r.facturas}</td>
-                        <td className="text-right px-2 py-2 text-gray-500">{pctCat.toFixed(1)}%</td>
-                      </tr>
+                          </tr>
+                        )}
+                      </Fragment>
                     );
                   })}
                 </tbody>

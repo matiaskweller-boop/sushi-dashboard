@@ -9,7 +9,7 @@ const TAB = "RubroCategorias";
 
 const VALID_CATEGORIAS = [
   "insumos", "sueldos", "alquilerServicios", "operativos",
-  "financieros", "impuestos", "otros",
+  "financieros", "impuestos", "retiros", "otros",
 ];
 
 /**

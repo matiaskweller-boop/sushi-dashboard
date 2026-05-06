@@ -52,6 +52,7 @@ type Categoria =
   | "operativos"
   | "financieros"
   | "impuestos"
+  | "retiros"      // Ganancia distribuida a socios — NO es gasto
   | "otros";
 
 /**
@@ -62,10 +63,13 @@ function classifyRubro(rubro: string): Categoria {
   const r = rubro.trim().toLowerCase();
   if (!r) return "otros";
 
+  // Retiros / Ganancia (NO es gasto, es distribución a socios)
+  if (r.includes("retiro") || r.includes("socio") || r.includes("dividendo")) return "retiros";
+
   // Insumos / CMV
   const insumosKeys = [
     "almacen", "bebida", "postre", "café", "cafe", "carnic", "descart",
-    "oriental", "pescader", "verduler", "envios", "envíos",
+    "oriental", "pescader", "verduler", "envios", "envíos", "polleria", "pollería",
   ];
   if (insumosKeys.some((k) => r.includes(k))) return "insumos";
 
@@ -86,7 +90,8 @@ function classifyRubro(rubro: string): Categoria {
 
   // Impuestos / Acuerdos
   if (r.includes("iva") || r.includes("iibb") || r.includes("impuesto") ||
-      r.includes("retenc") || r.includes("afip") || r.includes("acuerdo")) return "impuestos";
+      r.includes("retenc") || r.includes("afip") || r.includes("acuerdo") ||
+      r.includes("imp.") || r.includes("interno")) return "impuestos";
 
   // Operativos varios (lo demas que no caiga en otros)
   const operativosKeys = [
@@ -116,6 +121,7 @@ interface PnLMonth {
     otros: number;
     total: number;
   };
+  retiros: number; // ganancia distribuida — NO suma a costos
   margenBruto: number;
   cmvPct: number;
   ebitda: number;
@@ -130,6 +136,7 @@ interface RubroBreakdown {
   total: number;
   facturas: number;
   byMonth: Record<number, number>; // mes -> total
+  proveedores: Array<{ name: string; total: number; facturas: number }>;
 }
 
 /**
@@ -148,6 +155,7 @@ function parseCostsByMonth(
     total: number;
     facturas: number;
     byMonth: Record<number, number>;
+    proveedores: Record<string, { total: number; facturas: number }>;
   }> = {};
 
   if (rows.length < 2) return { byMonth, byRubro: [] };
@@ -172,14 +180,15 @@ function parseCostsByMonth(
   const colTotal = findCol("Total");
   const colMetodoPago = findCol("Metodo de Pago", "Método de Pago");
 
-  const validCategorias: Categoria[] = ["insumos", "sueldos", "alquilerServicios", "operativos", "financieros", "impuestos", "otros"];
+  const validCategorias: Categoria[] = ["insumos", "sueldos", "alquilerServicios", "operativos", "financieros", "impuestos", "retiros", "otros"];
 
   for (let i = headerIdx + 1; i < rows.length; i++) {
     const row = rows[i];
     if (!row || row.length === 0) continue;
     const total = colTotal >= 0 ? parseArs(row[colTotal] || "") : 0;
     if (total === 0) continue;
-    if (colProveedor >= 0 && !(row[colProveedor] || "").trim()) continue;
+    const proveedor = colProveedor >= 0 ? (row[colProveedor] || "").trim() : "";
+    if (!proveedor) continue;
 
     const fechaPago = colFechaPago >= 0 ? parseDate(row[colFechaPago] || "") : null;
     const metodoPago = colMetodoPago >= 0 ? (row[colMetodoPago] || "").trim().toLowerCase() : "";
@@ -196,7 +205,7 @@ function parseCostsByMonth(
     const cat = isOverride ? (overrideRaw as Categoria) : catDefault;
 
     if (!byMonth[mes]) {
-      byMonth[mes] = { insumos: 0, sueldos: 0, alquilerServicios: 0, operativos: 0, financieros: 0, impuestos: 0, otros: 0 };
+      byMonth[mes] = { insumos: 0, sueldos: 0, alquilerServicios: 0, operativos: 0, financieros: 0, impuestos: 0, retiros: 0, otros: 0 };
     }
     byMonth[mes][cat] += total;
 
@@ -208,15 +217,34 @@ function parseCostsByMonth(
         total: 0,
         facturas: 0,
         byMonth: {},
+        proveedores: {},
       };
     }
     byRubro[rubro].total += total;
     byRubro[rubro].facturas += 1;
     byRubro[rubro].byMonth[mes] = (byRubro[rubro].byMonth[mes] || 0) + total;
+
+    // Track proveedor stats per rubro
+    if (!byRubro[rubro].proveedores[proveedor]) {
+      byRubro[rubro].proveedores[proveedor] = { total: 0, facturas: 0 };
+    }
+    byRubro[rubro].proveedores[proveedor].total += total;
+    byRubro[rubro].proveedores[proveedor].facturas += 1;
   }
 
-  const rubroBreakdown = Object.entries(byRubro)
-    .map(([rubro, r]) => ({ rubro, ...r }))
+  const rubroBreakdown: RubroBreakdown[] = Object.entries(byRubro)
+    .map(([rubro, r]) => ({
+      rubro,
+      categoria: r.categoria,
+      categoriaDefault: r.categoriaDefault,
+      isOverride: r.isOverride,
+      total: r.total,
+      facturas: r.facturas,
+      byMonth: r.byMonth,
+      proveedores: Object.entries(r.proveedores)
+        .map(([name, p]) => ({ name, ...p }))
+        .sort((a, b) => b.total - a.total),
+    }))
     .sort((a, b) => b.total - a.total);
 
   return { byMonth, byRubro: rubroBreakdown };
@@ -303,7 +331,8 @@ export async function GET(request: NextRequest) {
     const months: PnLMonth[] = [];
     for (let m = 1; m <= 12; m++) {
       const v = ventas[m] || { ventas: 0, ordenes: 0, comensales: 0 };
-      const c = byMonth[m] || { insumos: 0, sueldos: 0, alquilerServicios: 0, operativos: 0, financieros: 0, impuestos: 0, otros: 0 };
+      const c = byMonth[m] || { insumos: 0, sueldos: 0, alquilerServicios: 0, operativos: 0, financieros: 0, impuestos: 0, retiros: 0, otros: 0 };
+      // Retiros NO suman a costos (son distribución a socios, no gasto operativo)
       const totalCostos = c.insumos + c.sueldos + c.alquilerServicios + c.operativos + c.financieros + c.impuestos + c.otros;
       const margenBruto = v.ventas - c.insumos;
       const cmvPct = v.ventas > 0 ? (c.insumos / v.ventas) * 100 : 0;
@@ -317,7 +346,17 @@ export async function GET(request: NextRequest) {
         ordenes: v.ordenes,
         comensales: v.comensales,
         ticketPromedio: v.ordenes > 0 ? v.ventas / v.ordenes : 0,
-        costos: { ...c, total: totalCostos },
+        costos: {
+          insumos: c.insumos,
+          sueldos: c.sueldos,
+          alquilerServicios: c.alquilerServicios,
+          operativos: c.operativos,
+          financieros: c.financieros,
+          impuestos: c.impuestos,
+          otros: c.otros,
+          total: totalCostos,
+        },
+        retiros: c.retiros,
         margenBruto,
         cmvPct,
         ebitda,
@@ -338,13 +377,14 @@ export async function GET(request: NextRequest) {
       acc.costosImpuestos += m.costos.impuestos;
       acc.costosOtros += m.costos.otros;
       acc.costosTotal += m.costos.total;
+      acc.retiros += m.retiros;
       acc.ebitda += m.ebitda;
       return acc;
     }, {
       ventas: 0, ordenes: 0, comensales: 0,
       costosInsumos: 0, costosSueldos: 0, costosAlquilerServicios: 0,
       costosOperativos: 0, costosFinancieros: 0, costosImpuestos: 0, costosOtros: 0,
-      costosTotal: 0, ebitda: 0,
+      costosTotal: 0, retiros: 0, ebitda: 0,
     });
     const cmvPctYtd = ytd.ventas > 0 ? (ytd.costosInsumos / ytd.ventas) * 100 : 0;
     const ebitdaPctYtd = ytd.ventas > 0 ? (ytd.ebitda / ytd.ventas) * 100 : 0;

@@ -133,6 +133,66 @@ FUDO_PUERTO_API_SECRET=xxx
 - **Sucursales**: Palermo (22 asientos), Belgrano (32), Puerto Madero (46). Seats configurados en sucursales.ts.
 - **Fudo API Proxy**: Las requests a Fudo pasan por un Cloudflare Worker (`fudo-test.matiaskweller.workers.dev`) porque Fudo bloquea IPs de datacenter (AWS/Vercel). Proxy code en `/Users/matiaskw/Desktop/fudo-cf-test/`.
 
+## ⚠️ Convenciones del P&L (críticas — leer antes de editar `/administracion/pnl`)
+
+El P&L se construye desde **EGRESOS pagados** (cash real, no devengado) + ventas Fudo. Reglas:
+
+### Categorías de costo (afectan EBITDA)
+1. **Insumos / CMV** — Almacen, Bebidas c/Alcohol, Bebidas s/Alcohol, Postres y Café, Carnicería, Descartables, Productos Orientales, Pescadería, Verdulería, Envíos, Pollería
+2. **Sueldos / RRHH** — Sueldos, RRHH, Comida personal, Reemplazos, Extra eventos, Sindicato, Aguinaldos, Cargas Sociales, Liquidaciones, Despidos, Previsiones
+3. **Alquiler + Servicios** — Alquiler, Expensas, Servicios
+4. **Operativos** — Bazar, Equipamiento, Farmacia, Honorarios, Inversiones, Librería, Limpieza, Mantenimiento, Redes, Varios
+5. **Impuestos / Acuerdos** — IVA, IIBB, Impuestos, Retenciones, AFIP, Acuerdos, IMP. INTERNOS
+6. **Bancarios / Comisiones** — Gastos Bancarios, Comisiones, Intereses, Financieros
+7. **Otros** — fallback para rubros sin clasificar
+
+### Categoría especial — NO suma a costos
+8. **Retiros / Ganancia** — Retiros, distribuciones a socios, dividendos. Se muestran como línea separada **debajo de EBITDA con signo +** (es ganancia distribuida, NO gasto operativo).
+
+### Estructura del P&L mensual
+```
+Ventas (de Fudo)
+- Insumos (CMV)
+= Margen Bruto
+- Sueldos / RRHH
+- Alquiler + Servicios
+- Operativos
+- Impuestos / Acuerdos
+- Bancarios / Comisiones
+- Otros
+= EBITDA
++ Retiros / Ganancia    ← NO afecta EBITDA, info aparte
+```
+
+### Re-asignación de rubros
+- Los rubros se clasifican por keyword en `classifyRubro()` (`src/app/api/erp/pnl/route.ts`)
+- Las re-asignaciones del usuario se persisten en la tab **`RubroCategorias`** del workbook **MASUNORI_ERP_CONFIG** (`1YMIE_t1O5RBfXGwFQf7xzh-TeuPUV6SfIl4Smj2mk1g`)
+- Columnas: `Rubro | Categoria | ActualizadoPor | ActualizadoEn`
+- **Las re-asignaciones aplican a las 3 sucursales** (Palermo, Belgrano, Madero) automáticamente — son globales, no por sucursal
+- API: `/api/erp/rubro-categorias` (GET / POST / DELETE)
+
+### Identificación de "pagado"
+Una factura cuenta como pagada (suma a costos del mes) cuando:
+- Tiene `Fecha Pago` cargada en EGRESOS, **Y**
+- `Metodo de Pago` no es vacío, "Sin pagar", ni "pendiente"
+
+Las pendientes/vencidas se manejan en módulos Egresos y Alertas, NO en P&L.
+
+### Archivos involucrados
+- `src/app/api/erp/pnl/route.ts` — endpoint y `classifyRubro()` con keywords default
+- `src/app/api/erp/rubro-categorias/route.ts` — overrides persistentes
+- `src/app/administracion/pnl/page.tsx` — UI con tabla + dropdown reasignar + PDFs
+
+### PDFs
+- **Resumido**: P&L mensual con totales por categoría (1 página A4 horizontal)
+- **Detallado**: resumido + 1 página por categoría con todos los rubros desglosados mes a mes
+- Generación con `jspdf` + `jspdf-autotable` client-side
+
+### Reglas para futuras modificaciones
+- **Nuevas categorías**: agregar en `Categoria` type en `pnl/route.ts` Y en `VALID_CATEGORIAS` de `rubro-categorias/route.ts` Y en page CATEGORIAS / CATEGORIA_LABEL / CATEGORIA_COLOR
+- **Una categoría que NO suma a costos** (como retiros): excluir de `totalCostos = ...` en el endpoint y agregarle un campo top-level (no dentro de `costos`)
+- **Mover keyword auto-classify**: editar `classifyRubro()` solamente. Los overrides manuales del usuario NO se afectan, ya que aplican encima del default.
+
 ## ⚠️ REGLAS CRÍTICAS — Productos Fudo
 
 **PROHIBIDO crear productos masivamente.** En abril 2026, la creación masiva de productos SIN CATEGORÍA crasheó la app de Fudo POS para TODOS los usuarios durante UNA SEMANA. Reglas irrompibles:
