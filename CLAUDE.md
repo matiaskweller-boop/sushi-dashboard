@@ -72,10 +72,43 @@ Schema de la tab Usuarios:
 - **Owner único**: `matiaskweller@gmail.com` (constante `OWNER_EMAIL` en `src/lib/admin-permissions.ts`). Tiene acceso a TODO siempre, incluso si no está en la tab. Es el único que puede modificar usuarios.
 
 Permisos válidos (`ALL_PERMISSIONS` en admin-permissions.ts):
-`pnl, egresos, proveedores, caja, descuentos, alertas, facturas, consumo, stock, menu, competencia`
+`ventas, pnl, egresos, proveedores, caja, descuentos, alertas, facturas, facturas_aprobar, consumo, stock, menu, competencia`
 
-Permiso especial:
+Permisos especiales:
 - `_users` = puede gestionar usuarios — **solo el owner** lo tiene.
+- `logged_in` = cualquier usuario activo (sirve para landings)
+- `facturas` vs `facturas_aprobar`:
+  - `facturas` puede subir facturas (van a cola pendiente, NO a EGRESOS directo)
+  - `facturas_aprobar` puede aprobar facturas pendientes (las exporta a EGRESOS)
+  - Owner y admin (`*`) tienen ambos implícitamente.
+
+### Flujo de carga de facturas (cola con aprobación)
+
+1. **Lourdes** (user con `facturas`) sube foto/PDF → OCR extrae → revisa datos → submit
+2. La factura va a la tab **`Facturas`** del workbook MASUNORI_ERP_CONFIG con `Estado=pendiente`
+3. **Daniela / matias** (con `facturas_aprobar` o `*`) entra a `/administracion/facturas`, ve la cola pendiente
+4. Revisa cada factura, edita campos si es necesario, click "Aprobar"
+5. Al aprobar: estado pasa a `aprobada` + se exporta una fila a la tab `EGRESOS` de la sucursal correspondiente
+6. Si rechaza: estado pasa a `rechazada` con motivo (NO va a EGRESOS)
+
+Schema tab `Facturas` (29 cols A-AC):
+ID | SubmittedAt | SubmittedBy | Sucursal | Año | TipoComprobante | NroComprobante | Proveedor | RazonSocial | CUIT | FechaIngreso | FechaFC | FechaVto | FechaPago | Rubro | Insumo | Subtotal | IVA | OtrosImpuestos | Total | MetodoPago | FotoURL | Confianza | NotasOCR | Estado | ReviewedBy | ReviewedAt | NotasReview | ItemsJSON
+
+APIs:
+- `POST /api/erp/ocr` — extrae datos de imagen/PDF con Gemini
+- `POST /api/erp/facturas/submit` — guarda como pendiente
+- `GET /api/erp/facturas?estado=&scope=` — lista facturas
+- `POST /api/erp/facturas/approve` — aprueba + exporta a EGRESOS
+- `POST /api/erp/facturas/reject` — rechaza con motivo
+- `PATCH /api/erp/facturas/update` — edita campos (mientras esté pendiente)
+
+OCR (Gemini) extrae además:
+- subtotal SIN impuestos
+- iva (suma de alícuotas)
+- otros impuestos (IIBB, percepciones, etc.)
+- total
+- por item: descripcion, cantidad, precioUnitario (sin IVA), subtotal (sin IVA), alicuotaIva, montoIva
+- fechaVto si aparece
 
 Implementación:
 - **Middleware** (`src/middleware.ts`): verifica sesión + inyecta header `x-pathname`. NO hace check de permisos (Edge no puede leer Sheets fácilmente).

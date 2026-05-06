@@ -14,7 +14,8 @@ export const ALL_PERMISSIONS = [
   "caja",
   "descuentos",
   "alertas",
-  "facturas",
+  "facturas",          // puede subir facturas (van a cola pendiente)
+  "facturas_aprobar",  // puede aprobar facturas pendientes (las exporta a EGRESOS)
   "consumo",
   "stock",
   "menu",

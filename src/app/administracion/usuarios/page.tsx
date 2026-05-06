@@ -19,13 +19,15 @@ interface ApiResponse {
 }
 
 const PERM_LABELS: Record<string, string> = {
+  ventas: "📊 Ventas (Dashboard, KPIs, Histórico)",
   pnl: "📈 P&L",
   egresos: "💰 Egresos",
   proveedores: "🏢 Proveedores",
   caja: "💵 Caja diaria",
   descuentos: "💸 Descuentos",
   alertas: "🔔 Alertas",
-  facturas: "📸 Carga de facturas",
+  facturas: "📸 Subir facturas",
+  facturas_aprobar: "✅ Aprobar facturas (admin)",
   consumo: "📊 Consumo",
   stock: "📦 Stock",
   menu: "🍣 Menú",

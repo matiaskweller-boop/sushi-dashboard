@@ -1,82 +1,155 @@
 "use client";
 
-import { useState, useRef } from "react";
+import { useState, useEffect, useRef, useMemo, Fragment } from "react";
 import Link from "next/link";
+
+interface OCRItem {
+  descripcion: string;
+  cantidad: number;
+  precioUnitario: number;
+  subtotal: number;
+  alicuotaIva?: number;
+  montoIva?: number;
+}
 
 interface OCRResult {
   proveedor: string;
   razonSocial: string;
   cuit: string;
   fechaFC: string;
+  fechaVto: string;
   nroComprobante: string;
   tipoComprobante: string;
   subtotal: number;
   iva: number;
+  otrosImpuestos: number;
   total: number;
   moneda: string;
   rubro: string;
   insumo: string;
-  detalleItems: Array<{ descripcion: string; cantidad: number; precioUnitario: number; subtotal: number }>;
+  detalleItems: OCRItem[];
   confianza: number;
   notas: string;
 }
 
-const SUC_NAMES: Record<string, string> = {
-  palermo: "Palermo",
-  belgrano: "Belgrano",
-  madero: "Madero",
-};
-const SUC_COLORS: Record<string, string> = {
-  palermo: "#2E6DA4",
-  belgrano: "#10B981",
-  madero: "#8B5CF6",
-};
+interface Factura {
+  id: string;
+  submittedAt: string;
+  submittedBy: string;
+  sucursal: string;
+  year: string;
+  tipoComprobante: string;
+  nroComprobante: string;
+  proveedor: string;
+  razonSocial: string;
+  cuit: string;
+  fechaIngreso: string;
+  fechaFC: string;
+  fechaVto: string;
+  fechaPago: string;
+  rubro: string;
+  insumo: string;
+  subtotal: number;
+  iva: number;
+  otrosImpuestos: number;
+  total: number;
+  metodoPago: string;
+  fotoUrl: string;
+  confianza: number;
+  notasOCR: string;
+  estado: "pendiente" | "aprobada" | "rechazada";
+  reviewedBy: string;
+  reviewedAt: string;
+  notasReview: string;
+  items: OCRItem[];
+}
+
+interface ListResponse {
+  facturas: Factura[];
+  currentUser: { email: string; perms: string[]; isOwner: boolean };
+  isApprover: boolean;
+  stats: { pendiente: number; aprobada: number; rechazada: number; misPendientes: number };
+}
+
+const SUC_NAMES: Record<string, string> = { palermo: "Palermo", belgrano: "Belgrano", madero: "Madero" };
+const SUC_COLORS: Record<string, string> = { palermo: "#2E6DA4", belgrano: "#10B981", madero: "#8B5CF6" };
 
 const RUBROS = [
   "Almacen", "Bebidas c/Alcohol", "Bebidas s/Alcohol", "Postres y Café",
-  "Carniceria", "Descartables", "Productos Orientales", "Pescaderia",
+  "Carniceria", "Descartables", "Productos Orientales", "Pescaderia", "Polleria",
   "Verduleria", "Envios", "Alquiler", "Bazar", "Equipamiento", "Farmacia",
   "Honorarios Y Abonos", "Limpieza", "Mantenimiento", "Servicios", "Sueldos",
-  "Varios", "Acuerdos", "IIBB", "IVA", "Otros",
+  "Varios", "Acuerdos", "IIBB", "IMP. INTERNOS", "Otros",
 ];
-
 const TIPOS = ["FAC A", "FAC B", "FAC C", "RECIBO", "NOTA DE CREDITO", "REMITO", "TICKET", "OTRO"];
-
 const METODOS_PAGO = [
   "Sin pagar", "Efectivo Local", "Tarjeta", "Mercado Pago",
   "Bco ST PALERMO", "Bco ST BELGRANO", "Bco ST MADERO", "BBVA",
   "E-CHEQ", "Efectivo Retiro", "Otro",
 ];
 
-function fmt(n: number): string {
-  return "$" + Math.round(n).toLocaleString("es-AR");
-}
+function fmt(n: number): string { return "$" + Math.round(n).toLocaleString("es-AR"); }
 
 export default function FacturasPage() {
+  const [tab, setTab] = useState<"upload" | "queue" | "history">("upload");
+
+  // Upload state
   const [file, setFile] = useState<File | null>(null);
   const [previewUrl, setPreviewUrl] = useState<string | null>(null);
   const [ocrResult, setOcrResult] = useState<OCRResult | null>(null);
   const [editing, setEditing] = useState<OCRResult | null>(null);
-  const [loading, setLoading] = useState(false);
-  const [saving, setSaving] = useState(false);
+  const [loadingOcr, setLoadingOcr] = useState(false);
+  const [submitting, setSubmitting] = useState(false);
   const [error, setError] = useState<string | null>(null);
   const [success, setSuccess] = useState<string | null>(null);
-
   const [sucursal, setSucursal] = useState<string>("palermo");
   const [year, setYear] = useState<"2025" | "2026">("2026");
   const [metodoPago, setMetodoPago] = useState<string>("Sin pagar");
   const [fechaPago, setFechaPago] = useState<string>("");
-  const [fechaVto, setFechaVto] = useState<string>("");
   const fileInputRef = useRef<HTMLInputElement>(null);
 
+  // List/queue state
+  const [listData, setListData] = useState<ListResponse | null>(null);
+  const [loadingList, setLoadingList] = useState(false);
+  const [scope, setScope] = useState<"todas" | "mias">("todas");
+  const [estadoFilter, setEstadoFilter] = useState<"pendiente" | "aprobada" | "rechazada" | "">("pendiente");
+  const [expandedId, setExpandedId] = useState<string | null>(null);
+  const [editingFactura, setEditingFactura] = useState<Factura | null>(null);
+  const [reviewingId, setReviewingId] = useState<string | null>(null);
+
+  const fetchList = async () => {
+    setLoadingList(true);
+    try {
+      const params = new URLSearchParams();
+      if (estadoFilter) params.set("estado", estadoFilter);
+      params.set("scope", scope);
+      const res = await fetch(`/api/erp/facturas?${params}`);
+      const d = await res.json();
+      if (!res.ok) throw new Error(d.error || "Error");
+      setListData(d);
+    } catch (e) {
+      console.error(e);
+    } finally {
+      setLoadingList(false);
+    }
+  };
+
+  // Cargar lista la primera vez
+  useEffect(() => {
+    fetchList(); /* eslint-disable-next-line react-hooks/exhaustive-deps */
+  }, [scope, estadoFilter]);
+
+  // Auto-default scope basado en si es approver
+  useEffect(() => {
+    if (listData && !listData.isApprover && scope === "todas") setScope("mias");
+  }, [listData, scope]);
+
   const handleFile = (selectedFile: File) => {
-    // Validar tipo
     const validTypes = ["image/jpeg", "image/jpg", "image/png", "image/webp", "image/heic", "image/heif", "application/pdf"];
     if (!validTypes.includes(selectedFile.type) && !selectedFile.name.match(/\.(jpe?g|png|webp|heic|heif|pdf)$/i)) {
       setError(`Tipo no soportado: ${selectedFile.type || "desconocido"}. Usá JPG, PNG, WebP, HEIC o PDF.`);
       return;
     }
-    // Validar tamaño (max 20MB para inline en Gemini)
     if (selectedFile.size > 20 * 1024 * 1024) {
       setError(`Archivo muy grande (${(selectedFile.size / 1024 / 1024).toFixed(1)} MB). Máximo 20 MB.`);
       return;
@@ -104,21 +177,14 @@ export default function FacturasPage() {
 
   const processOCR = async () => {
     if (!file) return;
-    setLoading(true);
+    setLoadingOcr(true);
     setError(null);
     setOcrResult(null);
     setEditing(null);
-
     try {
-      // Convertir a base64
       const reader = new FileReader();
       const base64Promise = new Promise<string>((resolve, reject) => {
-        reader.onload = () => {
-          const result = reader.result as string;
-          // strip "data:image/...;base64,"
-          const base64 = result.split(",")[1];
-          resolve(base64);
-        };
+        reader.onload = () => resolve((reader.result as string).split(",")[1]);
         reader.onerror = reject;
         reader.readAsDataURL(file);
       });
@@ -133,11 +199,10 @@ export default function FacturasPage() {
       if (!res.ok || data.error) throw new Error(data.error || "Error OCR");
       setOcrResult(data.data);
       setEditing({ ...data.data });
-      // Auto-set fechaVto si tenemos fechaFC y plazo desconocido — usar fechaFC + 7 dias por defecto
     } catch (e) {
       setError(e instanceof Error ? e.message : "Error procesando imagen");
     } finally {
-      setLoading(false);
+      setLoadingOcr(false);
     }
   };
 
@@ -150,56 +215,116 @@ export default function FacturasPage() {
     setSuccess(null);
     setMetodoPago("Sin pagar");
     setFechaPago("");
-    setFechaVto("");
     if (fileInputRef.current) fileInputRef.current.value = "";
   };
 
-  const save = async () => {
+  const submitToQueue = async () => {
     if (!editing) return;
     if (!editing.proveedor || !editing.total) {
       setError("Falta proveedor o total");
       return;
     }
-    setSaving(true);
+    setSubmitting(true);
     setError(null);
-
     try {
-      const res = await fetch("/api/erp/ocr/save", {
+      const res = await fetch("/api/erp/facturas/submit", {
         method: "POST",
         headers: { "Content-Type": "application/json" },
         body: JSON.stringify({
           sucursal,
           year,
-          proveedor: editing.proveedor,
-          fechaFC: editing.fechaFC,
-          fechaPago,
-          nroComprobante: editing.nroComprobante,
           tipoComprobante: editing.tipoComprobante,
+          nroComprobante: editing.nroComprobante,
+          proveedor: editing.proveedor,
+          razonSocial: editing.razonSocial,
+          cuit: editing.cuit,
+          fechaIngreso: new Date().toISOString().substring(0, 10),
+          fechaFC: editing.fechaFC,
+          fechaVto: editing.fechaVto,
+          fechaPago,
           rubro: editing.rubro,
           insumo: editing.insumo,
+          subtotal: editing.subtotal,
+          iva: editing.iva,
+          otrosImpuestos: editing.otrosImpuestos,
           total: editing.total,
           metodoPago,
-          fechaVto,
           confianza: editing.confianza,
-          notas: editing.notas,
+          notasOCR: editing.notas,
+          items: editing.detalleItems,
         }),
       });
       const data = await res.json();
-      if (!res.ok || data.error) throw new Error(data.error || "Error guardando");
-      setSuccess(data.message || "Factura cargada exitosamente");
-      // Reset después de 2 segundos
-      setTimeout(reset, 2500);
+      if (!res.ok || data.error) throw new Error(data.error || "Error");
+      setSuccess(data.message || "Factura enviada a cola pendiente");
+      setTimeout(() => { reset(); fetchList(); setTab("queue"); }, 1500);
     } catch (e) {
-      setError(e instanceof Error ? e.message : "Error guardando");
+      setError(e instanceof Error ? e.message : "Error");
     } finally {
-      setSaving(false);
+      setSubmitting(false);
     }
   };
 
-  const updateField = <K extends keyof OCRResult>(field: K, value: OCRResult[K]) => {
+  const updateEditField = <K extends keyof OCRResult>(field: K, value: OCRResult[K]) => {
     if (!editing) return;
     setEditing({ ...editing, [field]: value });
   };
+
+  const updateFacturaEditField = <K extends keyof Factura>(field: K, value: Factura[K]) => {
+    if (!editingFactura) return;
+    setEditingFactura({ ...editingFactura, [field]: value });
+  };
+
+  const approveFactura = async () => {
+    if (!editingFactura) return;
+    setReviewingId(editingFactura.id);
+    setError(null);
+    try {
+      const res = await fetch("/api/erp/facturas/approve", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ id: editingFactura.id, edits: editingFactura, notas: editingFactura.notasReview }),
+      });
+      const data = await res.json();
+      if (!res.ok || data.error) throw new Error(data.error || "Error");
+      setSuccess(data.message);
+      setEditingFactura(null);
+      setExpandedId(null);
+      fetchList();
+    } catch (e) {
+      setError(e instanceof Error ? e.message : "Error");
+    } finally {
+      setReviewingId(null);
+    }
+  };
+
+  const rejectFactura = async () => {
+    if (!editingFactura) return;
+    const motivo = prompt("Motivo del rechazo:");
+    if (!motivo) return;
+    setReviewingId(editingFactura.id);
+    try {
+      const res = await fetch("/api/erp/facturas/reject", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ id: editingFactura.id, motivo }),
+      });
+      const data = await res.json();
+      if (!res.ok || data.error) throw new Error(data.error || "Error");
+      setEditingFactura(null);
+      setExpandedId(null);
+      fetchList();
+    } catch (e) {
+      setError(e instanceof Error ? e.message : "Error");
+    } finally {
+      setReviewingId(null);
+    }
+  };
+
+  const filteredFacturas = useMemo(() => {
+    if (!listData) return [];
+    return listData.facturas;
+  }, [listData]);
 
   return (
     <div className="max-w-6xl mx-auto px-4 py-6">
@@ -207,284 +332,533 @@ export default function FacturasPage() {
         <Link href="/administracion" className="text-sm text-gray-400 hover:text-blue-accent">
           ← Volver a Administración
         </Link>
-        <h1 className="text-2xl font-bold text-navy mt-2">Carga de facturas con OCR</h1>
+        <h1 className="text-2xl font-bold text-navy mt-2">Carga de facturas</h1>
         <p className="text-xs text-gray-400 mt-1">
-          Sacá foto de la factura, Gemini extrae los datos, revisás y se cargan en EGRESOS de la sucursal
+          Subís → OCR extrae → revisás → enviás a cola pendiente → un aprobador revisa y carga a EGRESOS
         </p>
       </div>
 
-      {/* Sucursal selector arriba */}
-      <div className="flex flex-wrap gap-2 mb-4 items-center bg-white border border-gray-200 rounded-xl p-3">
-        <span className="text-xs text-gray-500 mr-2">Cargar en:</span>
-        <div className="flex gap-1 bg-gray-50 border border-gray-200 rounded-lg p-1">
-          {Object.entries(SUC_NAMES).map(([id, name]) => (
-            <button
-              key={id}
-              onClick={() => setSucursal(id)}
-              className={`px-3 py-1.5 rounded-md text-sm font-medium transition-all ${
-                sucursal === id ? "text-white shadow-sm" : "text-gray-600 hover:bg-gray-100"
-              }`}
-              style={sucursal === id ? { backgroundColor: SUC_COLORS[id] } : {}}
-            >
-              {name}
-            </button>
-          ))}
-        </div>
-        <div className="flex gap-1 bg-gray-50 border border-gray-200 rounded-lg p-1">
-          {(["2026", "2025"] as const).map((y) => (
-            <button
-              key={y}
-              onClick={() => setYear(y)}
-              className={`px-3 py-1.5 rounded-md text-sm font-medium transition-all ${
-                year === y ? "bg-navy text-white shadow-sm" : "text-gray-600 hover:bg-gray-100"
-              }`}
-            >
-              {y}
-            </button>
-          ))}
-        </div>
+      {/* Tabs */}
+      <div className="flex gap-1 bg-white border border-gray-200 rounded-lg p-1 mb-4 inline-flex">
+        <button
+          onClick={() => setTab("upload")}
+          className={`px-4 py-2 rounded-md text-sm font-medium transition-all ${tab === "upload" ? "bg-navy text-white shadow-sm" : "text-gray-600 hover:bg-gray-50"}`}
+        >
+          📸 Subir factura
+        </button>
+        <button
+          onClick={() => { setTab("queue"); setEstadoFilter("pendiente"); }}
+          className={`px-4 py-2 rounded-md text-sm font-medium transition-all ${tab === "queue" ? "bg-navy text-white shadow-sm" : "text-gray-600 hover:bg-gray-50"}`}
+        >
+          📋 Pendientes
+          {listData && listData.stats.pendiente > 0 && (
+            <span className="ml-1.5 inline-block bg-amber-100 text-amber-700 text-xs px-1.5 py-0.5 rounded-full">{listData.stats.pendiente}</span>
+          )}
+        </button>
+        <button
+          onClick={() => { setTab("history"); setEstadoFilter("aprobada"); }}
+          className={`px-4 py-2 rounded-md text-sm font-medium transition-all ${tab === "history" ? "bg-navy text-white shadow-sm" : "text-gray-600 hover:bg-gray-50"}`}
+        >
+          ✓ Historial
+        </button>
       </div>
 
-      <div className="grid grid-cols-1 lg:grid-cols-2 gap-4">
-        {/* IZQUIERDA: upload + preview */}
-        <div className="bg-white border border-gray-200 rounded-xl p-4">
-          <h2 className="text-sm font-semibold text-navy uppercase tracking-wide mb-3">Imagen</h2>
+      {error && <div className="bg-red-50 text-red-700 rounded-lg p-3 mb-4 text-sm">⚠️ {error}</div>}
+      {success && <div className="bg-emerald-50 text-emerald-700 rounded-lg p-3 mb-4 text-sm">✓ {success}</div>}
 
-          {!previewUrl ? (
-            <div
-              onDrop={onDrop}
-              onDragOver={(e) => e.preventDefault()}
-              onClick={() => fileInputRef.current?.click()}
-              className="border-2 border-dashed border-gray-300 rounded-lg p-8 text-center cursor-pointer hover:border-blue-accent hover:bg-blue-50/30 transition-all"
-            >
-              <div className="text-4xl mb-2">📸 📄</div>
-              <div className="text-sm text-gray-600 mb-1">Click o arrastrá foto / PDF de la factura</div>
-              <div className="text-xs text-gray-400">JPG, PNG, WEBP, HEIC, PDF · max 20MB</div>
-              <input
-                ref={fileInputRef}
-                type="file"
-                accept="image/jpeg,image/png,image/webp,image/heic,image/heif,application/pdf,image/*"
-                onChange={onFileChange}
-                className="hidden"
-              />
+      {/* ==================== TAB: UPLOAD ==================== */}
+      {tab === "upload" && (
+        <>
+          <div className="flex flex-wrap gap-2 mb-4 items-center bg-white border border-gray-200 rounded-xl p-3">
+            <span className="text-xs text-gray-500 mr-2">Cargar para:</span>
+            <div className="flex gap-1 bg-gray-50 border border-gray-200 rounded-lg p-1">
+              {Object.entries(SUC_NAMES).map(([id, name]) => (
+                <button key={id} onClick={() => setSucursal(id)}
+                  className={`px-3 py-1.5 rounded-md text-sm font-medium transition-all ${sucursal === id ? "text-white shadow-sm" : "text-gray-600 hover:bg-gray-100"}`}
+                  style={sucursal === id ? { backgroundColor: SUC_COLORS[id] } : {}}>
+                  {name}
+                </button>
+              ))}
             </div>
-          ) : (
-            <div>
-              {file?.type === "application/pdf" ? (
-                <div className="rounded-lg border border-gray-200 overflow-hidden bg-gray-50" style={{ height: "500px" }}>
-                  <embed src={previewUrl} type="application/pdf" className="w-full h-full" />
+            <div className="flex gap-1 bg-gray-50 border border-gray-200 rounded-lg p-1">
+              {(["2026", "2025"] as const).map((y) => (
+                <button key={y} onClick={() => setYear(y)}
+                  className={`px-3 py-1.5 rounded-md text-sm font-medium transition-all ${year === y ? "bg-navy text-white shadow-sm" : "text-gray-600 hover:bg-gray-100"}`}>
+                  {y}
+                </button>
+              ))}
+            </div>
+          </div>
+
+          <div className="grid grid-cols-1 lg:grid-cols-2 gap-4">
+            {/* Imagen / PDF */}
+            <div className="bg-white border border-gray-200 rounded-xl p-4">
+              <h2 className="text-sm font-semibold text-navy uppercase tracking-wide mb-3">Imagen / PDF</h2>
+              {!previewUrl ? (
+                <div onDrop={onDrop} onDragOver={(e) => e.preventDefault()} onClick={() => fileInputRef.current?.click()}
+                  className="border-2 border-dashed border-gray-300 rounded-lg p-8 text-center cursor-pointer hover:border-blue-accent hover:bg-blue-50/30">
+                  <div className="text-4xl mb-2">📸 📄</div>
+                  <div className="text-sm text-gray-600 mb-1">Click o arrastrá foto / PDF</div>
+                  <div className="text-xs text-gray-400">JPG, PNG, WEBP, HEIC, PDF · max 20MB</div>
+                  <input ref={fileInputRef} type="file"
+                    accept="image/jpeg,image/png,image/webp,image/heic,image/heif,application/pdf,image/*"
+                    onChange={onFileChange} className="hidden" />
                 </div>
               ) : (
-                /* eslint-disable-next-line @next/next/no-img-element */
-                <img src={previewUrl} alt="Factura" className="max-h-[500px] w-full object-contain rounded-lg border border-gray-200" />
+                <div>
+                  {file?.type === "application/pdf" ? (
+                    <div className="rounded-lg border border-gray-200 overflow-hidden bg-gray-50" style={{ height: "500px" }}>
+                      <embed src={previewUrl} type="application/pdf" className="w-full h-full" />
+                    </div>
+                  ) : (
+                    /* eslint-disable-next-line @next/next/no-img-element */
+                    <img src={previewUrl} alt="Factura" className="max-h-[500px] w-full object-contain rounded-lg border border-gray-200" />
+                  )}
+                  <div className="text-xs text-gray-400 mt-1 truncate">{file?.name} · {((file?.size || 0) / 1024 / 1024).toFixed(2)} MB</div>
+                  <div className="flex gap-2 mt-3">
+                    <button onClick={processOCR} disabled={loadingOcr}
+                      className="flex-1 bg-navy text-white px-4 py-2 rounded-lg text-sm font-medium hover:opacity-90 disabled:opacity-50">
+                      {loadingOcr ? "Procesando con Gemini..." : ocrResult ? "↻ Re-procesar" : "✨ Extraer datos con IA"}
+                    </button>
+                    <button onClick={reset} className="px-4 py-2 border border-gray-200 rounded-lg text-sm text-gray-600 hover:bg-gray-50">
+                      Cambiar
+                    </button>
+                  </div>
+                </div>
               )}
-              <div className="text-xs text-gray-400 mt-1 truncate">{file?.name} · {((file?.size || 0) / 1024 / 1024).toFixed(2)} MB · {file?.type || "?"}</div>
-              <div className="flex gap-2 mt-3">
-                <button
-                  onClick={processOCR}
-                  disabled={loading}
-                  className="flex-1 bg-navy text-white px-4 py-2 rounded-lg text-sm font-medium hover:bg-blue-accent disabled:opacity-50 transition-all"
-                >
-                  {loading ? "Procesando con Gemini..." : ocrResult ? "↻ Re-procesar" : "✨ Extraer datos"}
-                </button>
-                <button
-                  onClick={reset}
-                  className="px-4 py-2 border border-gray-200 rounded-lg text-sm text-gray-600 hover:bg-gray-50"
-                >
-                  Cambiar
-                </button>
-              </div>
             </div>
-          )}
-        </div>
 
-        {/* DERECHA: datos extraídos editables */}
-        <div className="bg-white border border-gray-200 rounded-xl p-4">
-          <h2 className="text-sm font-semibold text-navy uppercase tracking-wide mb-3">Datos extraídos</h2>
-
-          {!editing && !loading && (
-            <div className="text-center py-12 text-gray-400 text-sm">
-              {file ? "Procesá la imagen para extraer datos" : "Subí una factura primero"}
-            </div>
-          )}
-
-          {loading && (
-            <div className="text-center py-12">
-              <div className="text-4xl mb-2 animate-pulse">🔍</div>
-              <div className="text-sm text-gray-500">Gemini está leyendo la factura...</div>
-              <div className="text-xs text-gray-400 mt-1">Esto puede tardar 5-15 segundos</div>
-            </div>
-          )}
-
-          {editing && !loading && (
-            <div className="space-y-3 text-sm">
-              {/* Confianza */}
-              <div className={`rounded-lg p-2 text-xs flex items-center justify-between ${
-                editing.confianza >= 80 ? "bg-emerald-50 text-emerald-700" :
-                editing.confianza >= 60 ? "bg-amber-50 text-amber-700" :
-                "bg-red-50 text-red-700"
-              }`}>
-                <span>Confianza OCR: <b>{editing.confianza}%</b></span>
-                {editing.notas && <span className="text-xs opacity-75 max-w-[60%] truncate">{editing.notas}</span>}
-              </div>
-
-              <div>
-                <label className="text-xs text-gray-500 uppercase">Proveedor</label>
-                <input
-                  type="text"
-                  value={editing.proveedor}
-                  onChange={(e) => updateField("proveedor", e.target.value)}
-                  className="w-full border border-gray-200 rounded-lg px-3 py-2 text-sm font-medium"
-                />
-                {editing.razonSocial && editing.razonSocial !== editing.proveedor && (
-                  <div className="text-xs text-gray-400 mt-1">{editing.razonSocial} · CUIT {editing.cuit || "—"}</div>
-                )}
-              </div>
-
-              <div className="grid grid-cols-2 gap-2">
-                <div>
-                  <label className="text-xs text-gray-500 uppercase">Fecha FC</label>
-                  <input
-                    type="date"
-                    value={editing.fechaFC}
-                    onChange={(e) => updateField("fechaFC", e.target.value)}
-                    className="w-full border border-gray-200 rounded-lg px-3 py-2 text-sm"
-                  />
+            {/* Datos extraídos */}
+            <div className="bg-white border border-gray-200 rounded-xl p-4">
+              <h2 className="text-sm font-semibold text-navy uppercase tracking-wide mb-3">Datos extraídos</h2>
+              {!editing && !loadingOcr && (
+                <div className="text-center py-12 text-gray-400 text-sm">
+                  {file ? "Procesá la imagen para extraer datos" : "Subí una factura primero"}
                 </div>
-                <div>
-                  <label className="text-xs text-gray-500 uppercase">Tipo</label>
-                  <select
-                    value={editing.tipoComprobante}
-                    onChange={(e) => updateField("tipoComprobante", e.target.value)}
-                    className="w-full border border-gray-200 rounded-lg px-3 py-2 text-sm bg-white"
-                  >
-                    {TIPOS.map((t) => <option key={t} value={t}>{t}</option>)}
-                  </select>
+              )}
+              {loadingOcr && (
+                <div className="text-center py-12">
+                  <div className="text-4xl mb-2 animate-pulse">🔍</div>
+                  <div className="text-sm text-gray-500">Gemini leyendo la factura...</div>
                 </div>
-              </div>
-
-              <div>
-                <label className="text-xs text-gray-500 uppercase">Nro comprobante</label>
-                <input
-                  type="text"
-                  value={editing.nroComprobante}
-                  onChange={(e) => updateField("nroComprobante", e.target.value)}
-                  className="w-full border border-gray-200 rounded-lg px-3 py-2 text-sm font-mono"
-                />
-              </div>
-
-              <div className="grid grid-cols-2 gap-2">
-                <div>
-                  <label className="text-xs text-gray-500 uppercase">Rubro</label>
-                  <select
-                    value={editing.rubro}
-                    onChange={(e) => updateField("rubro", e.target.value)}
-                    className="w-full border border-gray-200 rounded-lg px-3 py-2 text-sm bg-white"
-                  >
-                    <option value="">— Seleccionar —</option>
-                    {RUBROS.map((r) => <option key={r} value={r}>{r}</option>)}
-                  </select>
-                </div>
-                <div>
-                  <label className="text-xs text-gray-500 uppercase">Total</label>
-                  <input
-                    type="number"
-                    step="0.01"
-                    value={editing.total}
-                    onChange={(e) => updateField("total", parseFloat(e.target.value) || 0)}
-                    className="w-full border border-gray-200 rounded-lg px-3 py-2 text-sm font-mono font-semibold text-right"
-                  />
-                </div>
-              </div>
-
-              <div>
-                <label className="text-xs text-gray-500 uppercase">Insumo / Detalle</label>
-                <textarea
-                  value={editing.insumo}
-                  onChange={(e) => updateField("insumo", e.target.value)}
-                  rows={2}
-                  className="w-full border border-gray-200 rounded-lg px-3 py-2 text-sm"
-                />
-              </div>
-
-              {/* Datos de pago */}
-              <div className="border-t border-gray-100 pt-3 mt-3">
-                <div className="text-xs text-gray-500 uppercase mb-2">Datos de pago</div>
-                <div className="grid grid-cols-2 gap-2 mb-2">
-                  <div>
-                    <label className="text-xs text-gray-500">Vencimiento</label>
-                    <input
-                      type="date"
-                      value={fechaVto}
-                      onChange={(e) => setFechaVto(e.target.value)}
-                      className="w-full border border-gray-200 rounded-lg px-3 py-2 text-sm"
-                    />
+              )}
+              {editing && !loadingOcr && (
+                <div className="space-y-3 text-sm">
+                  <div className={`rounded-lg p-2 text-xs flex items-center justify-between ${
+                    editing.confianza >= 80 ? "bg-emerald-50 text-emerald-700" :
+                    editing.confianza >= 60 ? "bg-amber-50 text-amber-700" : "bg-red-50 text-red-700"
+                  }`}>
+                    <span>Confianza OCR: <b>{editing.confianza}%</b></span>
+                    {editing.notas && <span className="opacity-75 max-w-[60%] truncate">{editing.notas}</span>}
                   </div>
-                  <div>
-                    <label className="text-xs text-gray-500">Fecha pago</label>
-                    <input
-                      type="date"
-                      value={fechaPago}
-                      onChange={(e) => setFechaPago(e.target.value)}
-                      className="w-full border border-gray-200 rounded-lg px-3 py-2 text-sm"
-                      placeholder="Sin pagar"
-                    />
-                  </div>
-                </div>
-                <div>
-                  <label className="text-xs text-gray-500">Método de pago</label>
-                  <select
-                    value={metodoPago}
-                    onChange={(e) => setMetodoPago(e.target.value)}
-                    className="w-full border border-gray-200 rounded-lg px-3 py-2 text-sm bg-white"
-                  >
-                    {METODOS_PAGO.map((m) => <option key={m} value={m}>{m}</option>)}
-                  </select>
-                </div>
-              </div>
 
-              {/* Items extraídos (solo lectura) */}
-              {editing.detalleItems && editing.detalleItems.length > 0 && (
-                <details className="border border-gray-100 rounded-lg p-2">
-                  <summary className="text-xs text-gray-500 uppercase cursor-pointer">Items detectados ({editing.detalleItems.length})</summary>
-                  <div className="mt-2 space-y-1">
-                    {editing.detalleItems.map((item, i) => (
-                      <div key={i} className="text-xs flex justify-between text-gray-600">
-                        <span>{item.cantidad}× {item.descripcion}</span>
-                        <span className="font-mono">{fmt(item.subtotal)}</span>
+                  <div>
+                    <label className="text-xs text-gray-500 uppercase">Proveedor *</label>
+                    <input type="text" value={editing.proveedor} onChange={(e) => updateEditField("proveedor", e.target.value)}
+                      className="w-full border border-gray-200 rounded-lg px-3 py-2 text-sm font-medium" />
+                    {editing.razonSocial && (
+                      <div className="text-xs text-gray-400 mt-1">{editing.razonSocial} · CUIT {editing.cuit || "—"}</div>
+                    )}
+                  </div>
+
+                  <div className="grid grid-cols-2 gap-2">
+                    <div>
+                      <label className="text-xs text-gray-500 uppercase">Tipo *</label>
+                      <select value={editing.tipoComprobante} onChange={(e) => updateEditField("tipoComprobante", e.target.value)}
+                        className="w-full border border-gray-200 rounded-lg px-3 py-2 text-sm bg-white">
+                        {TIPOS.map((t) => <option key={t} value={t}>{t}</option>)}
+                      </select>
+                    </div>
+                    <div>
+                      <label className="text-xs text-gray-500 uppercase">Nro</label>
+                      <input type="text" value={editing.nroComprobante} onChange={(e) => updateEditField("nroComprobante", e.target.value)}
+                        className="w-full border border-gray-200 rounded-lg px-3 py-2 text-sm font-mono" />
+                    </div>
+                  </div>
+
+                  <div className="grid grid-cols-2 gap-2">
+                    <div>
+                      <label className="text-xs text-gray-500 uppercase">Fecha FC *</label>
+                      <input type="date" value={editing.fechaFC} onChange={(e) => updateEditField("fechaFC", e.target.value)}
+                        className="w-full border border-gray-200 rounded-lg px-3 py-2 text-sm" />
+                    </div>
+                    <div>
+                      <label className="text-xs text-gray-500 uppercase">Vencimiento</label>
+                      <input type="date" value={editing.fechaVto} onChange={(e) => updateEditField("fechaVto", e.target.value)}
+                        className="w-full border border-gray-200 rounded-lg px-3 py-2 text-sm" />
+                    </div>
+                  </div>
+
+                  <div>
+                    <label className="text-xs text-gray-500 uppercase">Rubro *</label>
+                    <select value={editing.rubro} onChange={(e) => updateEditField("rubro", e.target.value)}
+                      className="w-full border border-gray-200 rounded-lg px-3 py-2 text-sm bg-white">
+                      <option value="">— Seleccionar —</option>
+                      {RUBROS.map((r) => <option key={r} value={r}>{r}</option>)}
+                    </select>
+                  </div>
+
+                  <div>
+                    <label className="text-xs text-gray-500 uppercase">Insumo / Detalle</label>
+                    <textarea value={editing.insumo} onChange={(e) => updateEditField("insumo", e.target.value)}
+                      rows={2} className="w-full border border-gray-200 rounded-lg px-3 py-2 text-sm" />
+                  </div>
+
+                  {/* Desglose de impuestos */}
+                  <div className="bg-gray-50 rounded-lg p-3">
+                    <div className="text-xs font-semibold text-gray-600 uppercase mb-2">Desglose</div>
+                    <div className="grid grid-cols-2 gap-2 text-xs">
+                      <div>
+                        <label className="text-gray-500">Subtotal sin IVA</label>
+                        <input type="number" step="0.01" value={editing.subtotal}
+                          onChange={(e) => updateEditField("subtotal", parseFloat(e.target.value) || 0)}
+                          className="w-full border border-gray-200 rounded-lg px-2 py-1.5 font-mono text-right" />
                       </div>
-                    ))}
+                      <div>
+                        <label className="text-gray-500">IVA</label>
+                        <input type="number" step="0.01" value={editing.iva}
+                          onChange={(e) => updateEditField("iva", parseFloat(e.target.value) || 0)}
+                          className="w-full border border-gray-200 rounded-lg px-2 py-1.5 font-mono text-right" />
+                      </div>
+                      <div>
+                        <label className="text-gray-500">Otros impuestos</label>
+                        <input type="number" step="0.01" value={editing.otrosImpuestos}
+                          onChange={(e) => updateEditField("otrosImpuestos", parseFloat(e.target.value) || 0)}
+                          className="w-full border border-gray-200 rounded-lg px-2 py-1.5 font-mono text-right" />
+                      </div>
+                      <div>
+                        <label className="text-gray-500 font-semibold">Total *</label>
+                        <input type="number" step="0.01" value={editing.total}
+                          onChange={(e) => updateEditField("total", parseFloat(e.target.value) || 0)}
+                          className="w-full border border-gray-200 rounded-lg px-2 py-1.5 font-mono text-right font-semibold" />
+                      </div>
+                    </div>
+                    {Math.abs((editing.subtotal + editing.iva + editing.otrosImpuestos) - editing.total) > 1 && (
+                      <div className="text-[11px] text-amber-600 mt-2">
+                        ⚠️ Subtotal + IVA + Otros = {fmt(editing.subtotal + editing.iva + editing.otrosImpuestos)} no coincide con total {fmt(editing.total)}
+                      </div>
+                    )}
                   </div>
-                </details>
-              )}
 
-              {/* Errores y éxitos */}
-              {error && (
-                <div className="bg-red-50 text-red-700 rounded-lg p-3 text-xs">⚠️ {error}</div>
-              )}
-              {success && (
-                <div className="bg-emerald-50 text-emerald-700 rounded-lg p-3 text-xs flex items-center gap-2">
-                  <span className="text-lg">✓</span>
-                  <span>{success}</span>
+                  {/* Pago */}
+                  <div className="border-t border-gray-100 pt-3">
+                    <div className="text-xs text-gray-500 uppercase mb-2">Pago</div>
+                    <div className="grid grid-cols-2 gap-2">
+                      <div>
+                        <label className="text-xs text-gray-500">Fecha pago</label>
+                        <input type="date" value={fechaPago} onChange={(e) => setFechaPago(e.target.value)}
+                          className="w-full border border-gray-200 rounded-lg px-3 py-2 text-sm" />
+                      </div>
+                      <div>
+                        <label className="text-xs text-gray-500">Método</label>
+                        <select value={metodoPago} onChange={(e) => setMetodoPago(e.target.value)}
+                          className="w-full border border-gray-200 rounded-lg px-3 py-2 text-sm bg-white">
+                          {METODOS_PAGO.map((m) => <option key={m} value={m}>{m}</option>)}
+                        </select>
+                      </div>
+                    </div>
+                  </div>
+
+                  {/* Items */}
+                  {editing.detalleItems && editing.detalleItems.length > 0 && (
+                    <details className="border border-gray-100 rounded-lg p-2">
+                      <summary className="text-xs text-gray-500 uppercase cursor-pointer">Items detectados ({editing.detalleItems.length})</summary>
+                      <div className="mt-2 space-y-1 text-xs">
+                        {editing.detalleItems.map((item, i) => (
+                          <div key={i} className="flex justify-between text-gray-600 pb-1 border-b border-gray-50">
+                            <span className="truncate flex-1 mr-2">{item.cantidad}× {item.descripcion}</span>
+                            <span className="font-mono">{fmt(item.subtotal)}</span>
+                            {(item.alicuotaIva ?? 0) > 0 && (
+                              <span className="text-gray-400 ml-2 text-[10px]">+IVA {item.alicuotaIva}%</span>
+                            )}
+                          </div>
+                        ))}
+                      </div>
+                    </details>
+                  )}
+
+                  <button onClick={submitToQueue} disabled={submitting || !editing.proveedor || !editing.total}
+                    className="w-full bg-navy text-white px-4 py-3 rounded-lg text-sm font-semibold hover:opacity-90 disabled:opacity-50"
+                    style={{ backgroundColor: SUC_COLORS[sucursal] }}>
+                    {submitting ? "Enviando..." : `Enviar a cola pendiente · ${SUC_NAMES[sucursal]} ${year}`}
+                  </button>
                 </div>
               )}
+            </div>
+          </div>
+        </>
+      )}
 
-              {/* Save button */}
-              <button
-                onClick={save}
-                disabled={saving || !editing.proveedor || !editing.total}
-                className="w-full bg-navy text-white px-4 py-3 rounded-lg text-sm font-semibold hover:bg-blue-accent disabled:opacity-50 transition-all"
-                style={{ backgroundColor: SUC_COLORS[sucursal] }}
-              >
-                {saving ? "Guardando..." : `Cargar en EGRESOS · ${SUC_NAMES[sucursal]} ${year}`}
-              </button>
+      {/* ==================== TAB: QUEUE / HISTORY ==================== */}
+      {(tab === "queue" || tab === "history") && (
+        <>
+          <div className="flex flex-wrap gap-2 mb-4 items-center">
+            {listData?.isApprover && (
+              <div className="flex gap-1 bg-white border border-gray-200 rounded-lg p-1">
+                <button onClick={() => setScope("todas")}
+                  className={`px-3 py-1.5 rounded-md text-sm font-medium ${scope === "todas" ? "bg-blue-50 text-blue-accent" : "text-gray-600 hover:bg-gray-50"}`}>
+                  Todas
+                </button>
+                <button onClick={() => setScope("mias")}
+                  className={`px-3 py-1.5 rounded-md text-sm font-medium ${scope === "mias" ? "bg-blue-50 text-blue-accent" : "text-gray-600 hover:bg-gray-50"}`}>
+                  Mías
+                </button>
+              </div>
+            )}
+            <div className="flex gap-1 bg-white border border-gray-200 rounded-lg p-1">
+              {[
+                { id: "pendiente" as const, label: "⏳ Pendientes", color: "bg-amber-50 text-amber-700" },
+                { id: "aprobada" as const, label: "✓ Aprobadas", color: "bg-emerald-50 text-emerald-700" },
+                { id: "rechazada" as const, label: "✕ Rechazadas", color: "bg-red-50 text-red-700" },
+                { id: "" as const, label: "Todas", color: "bg-gray-100 text-gray-700" },
+              ].map((opt) => (
+                <button key={opt.id} onClick={() => setEstadoFilter(opt.id)}
+                  className={`px-3 py-1.5 rounded-md text-sm font-medium ${estadoFilter === opt.id ? opt.color : "text-gray-600 hover:bg-gray-50"}`}>
+                  {opt.label}
+                </button>
+              ))}
+            </div>
+            <button onClick={fetchList} className="text-xs text-blue-accent hover:underline ml-auto">↻ refrescar</button>
+          </div>
+
+          {loadingList && <div className="text-center py-12 text-gray-400">Cargando facturas...</div>}
+
+          {!loadingList && filteredFacturas.length === 0 && (
+            <div className="bg-white rounded-xl border border-gray-100 p-12 text-center text-sm text-gray-400">
+              No hay facturas {estadoFilter || ""}
             </div>
           )}
-        </div>
-      </div>
 
-      {error && !editing && (
-        <div className="bg-red-50 text-red-700 rounded-lg p-4 mt-4">⚠️ {error}</div>
+          {!loadingList && filteredFacturas.length > 0 && (
+            <div className="bg-white rounded-xl border border-gray-100 overflow-hidden">
+              <table className="w-full text-sm">
+                <thead className="bg-gray-50 border-b border-gray-100">
+                  <tr>
+                    <th className="text-left px-3 py-2 text-xs font-semibold text-gray-600 uppercase">Estado</th>
+                    <th className="text-left px-3 py-2 text-xs font-semibold text-gray-600 uppercase">Fecha</th>
+                    <th className="text-left px-3 py-2 text-xs font-semibold text-gray-600 uppercase">Sucursal</th>
+                    <th className="text-left px-3 py-2 text-xs font-semibold text-gray-600 uppercase">Proveedor</th>
+                    <th className="text-left px-3 py-2 text-xs font-semibold text-gray-600 uppercase">Tipo</th>
+                    <th className="text-left px-3 py-2 text-xs font-semibold text-gray-600 uppercase">Subido por</th>
+                    <th className="text-right px-3 py-2 text-xs font-semibold text-gray-600 uppercase">Total</th>
+                    <th className="px-3 py-2"></th>
+                  </tr>
+                </thead>
+                <tbody>
+                  {filteredFacturas.map((f) => {
+                    const isExp = expandedId === f.id;
+                    const isApprover = listData?.isApprover;
+                    const isMine = listData?.currentUser.email.toLowerCase() === f.submittedBy.toLowerCase();
+                    return (
+                      <Fragment key={f.id}>
+                        <tr onClick={() => {
+                          if (isExp) {
+                            setExpandedId(null);
+                            setEditingFactura(null);
+                          } else {
+                            setExpandedId(f.id);
+                            setEditingFactura({ ...f });
+                          }
+                        }} className={`border-b border-gray-50 cursor-pointer hover:bg-gray-50 ${
+                          f.estado === "pendiente" ? "bg-amber-50/20" :
+                          f.estado === "rechazada" ? "bg-red-50/20" : ""
+                        }`}>
+                          <td className="px-3 py-2">
+                            <span className={`px-1.5 py-0.5 text-xs rounded-md font-medium ${
+                              f.estado === "pendiente" ? "bg-amber-100 text-amber-700" :
+                              f.estado === "aprobada" ? "bg-emerald-100 text-emerald-700" :
+                              "bg-red-100 text-red-700"
+                            }`}>
+                              {f.estado === "pendiente" ? "⏳" : f.estado === "aprobada" ? "✓" : "✕"} {f.estado}
+                            </span>
+                          </td>
+                          <td className="px-3 py-2 text-xs text-gray-500">{f.fechaFC || f.submittedAt.substring(0, 10)}</td>
+                          <td className="px-3 py-2 text-xs font-medium" style={{ color: SUC_COLORS[f.sucursal] }}>{SUC_NAMES[f.sucursal] || f.sucursal}</td>
+                          <td className="px-3 py-2 font-medium text-navy">{f.proveedor}</td>
+                          <td className="px-3 py-2 text-xs text-gray-500">{f.tipoComprobante} {f.nroComprobante}</td>
+                          <td className="px-3 py-2 text-xs text-gray-500 truncate max-w-[140px]">{isMine ? "Yo" : f.submittedBy}</td>
+                          <td className="px-3 py-2 text-right font-mono text-navy font-semibold">{fmt(f.total)}</td>
+                          <td className="px-3 py-2 text-xs text-gray-400">{isExp ? "▼" : "▶"}</td>
+                        </tr>
+                        {isExp && editingFactura && editingFactura.id === f.id && (
+                          <tr className="bg-blue-50/30 border-b border-blue-100">
+                            <td colSpan={8} className="px-6 py-4">
+                              {/* Detalle expandido — editable solo si pendiente */}
+                              <div className="grid grid-cols-1 lg:grid-cols-3 gap-4 text-xs">
+                                <div className="space-y-2">
+                                  <div className="text-xs font-semibold text-gray-600 uppercase">Datos comerciales</div>
+                                  <div>
+                                    <label className="text-gray-500 block">Proveedor</label>
+                                    <input value={editingFactura.proveedor} disabled={f.estado !== "pendiente"}
+                                      onChange={(e) => updateFacturaEditField("proveedor", e.target.value)}
+                                      className="w-full border border-gray-200 rounded-md px-2 py-1 text-xs font-medium disabled:bg-gray-50" />
+                                  </div>
+                                  <div>
+                                    <label className="text-gray-500 block">Razón social</label>
+                                    <input value={editingFactura.razonSocial} disabled={f.estado !== "pendiente"}
+                                      onChange={(e) => updateFacturaEditField("razonSocial", e.target.value)}
+                                      className="w-full border border-gray-200 rounded-md px-2 py-1 text-xs disabled:bg-gray-50" />
+                                  </div>
+                                  <div>
+                                    <label className="text-gray-500 block">CUIT</label>
+                                    <input value={editingFactura.cuit} disabled={f.estado !== "pendiente"}
+                                      onChange={(e) => updateFacturaEditField("cuit", e.target.value)}
+                                      className="w-full border border-gray-200 rounded-md px-2 py-1 text-xs font-mono disabled:bg-gray-50" />
+                                  </div>
+                                  <div className="grid grid-cols-2 gap-1.5">
+                                    <div>
+                                      <label className="text-gray-500 block">Tipo</label>
+                                      <select value={editingFactura.tipoComprobante} disabled={f.estado !== "pendiente"}
+                                        onChange={(e) => updateFacturaEditField("tipoComprobante", e.target.value)}
+                                        className="w-full border border-gray-200 rounded-md px-2 py-1 text-xs disabled:bg-gray-50">
+                                        {TIPOS.map((t) => <option key={t}>{t}</option>)}
+                                      </select>
+                                    </div>
+                                    <div>
+                                      <label className="text-gray-500 block">Nro</label>
+                                      <input value={editingFactura.nroComprobante} disabled={f.estado !== "pendiente"}
+                                        onChange={(e) => updateFacturaEditField("nroComprobante", e.target.value)}
+                                        className="w-full border border-gray-200 rounded-md px-2 py-1 text-xs font-mono disabled:bg-gray-50" />
+                                    </div>
+                                  </div>
+                                  <div>
+                                    <label className="text-gray-500 block">Rubro</label>
+                                    <select value={editingFactura.rubro} disabled={f.estado !== "pendiente"}
+                                      onChange={(e) => updateFacturaEditField("rubro", e.target.value)}
+                                      className="w-full border border-gray-200 rounded-md px-2 py-1 text-xs disabled:bg-gray-50">
+                                      {RUBROS.map((r) => <option key={r}>{r}</option>)}
+                                    </select>
+                                  </div>
+                                  <div>
+                                    <label className="text-gray-500 block">Insumo</label>
+                                    <textarea value={editingFactura.insumo} disabled={f.estado !== "pendiente"}
+                                      onChange={(e) => updateFacturaEditField("insumo", e.target.value)} rows={2}
+                                      className="w-full border border-gray-200 rounded-md px-2 py-1 text-xs disabled:bg-gray-50" />
+                                  </div>
+                                </div>
+
+                                <div className="space-y-2">
+                                  <div className="text-xs font-semibold text-gray-600 uppercase">Fechas y pago</div>
+                                  <div className="grid grid-cols-2 gap-1.5">
+                                    <div>
+                                      <label className="text-gray-500 block">Fecha FC</label>
+                                      <input type="date" value={editingFactura.fechaFC} disabled={f.estado !== "pendiente"}
+                                        onChange={(e) => updateFacturaEditField("fechaFC", e.target.value)}
+                                        className="w-full border border-gray-200 rounded-md px-2 py-1 text-xs disabled:bg-gray-50" />
+                                    </div>
+                                    <div>
+                                      <label className="text-gray-500 block">Vencimiento</label>
+                                      <input type="date" value={editingFactura.fechaVto} disabled={f.estado !== "pendiente"}
+                                        onChange={(e) => updateFacturaEditField("fechaVto", e.target.value)}
+                                        className="w-full border border-gray-200 rounded-md px-2 py-1 text-xs disabled:bg-gray-50" />
+                                    </div>
+                                    <div>
+                                      <label className="text-gray-500 block">Fecha pago</label>
+                                      <input type="date" value={editingFactura.fechaPago} disabled={f.estado !== "pendiente"}
+                                        onChange={(e) => updateFacturaEditField("fechaPago", e.target.value)}
+                                        className="w-full border border-gray-200 rounded-md px-2 py-1 text-xs disabled:bg-gray-50" />
+                                    </div>
+                                    <div>
+                                      <label className="text-gray-500 block">F. ingreso</label>
+                                      <input type="date" value={editingFactura.fechaIngreso} disabled={f.estado !== "pendiente"}
+                                        onChange={(e) => updateFacturaEditField("fechaIngreso", e.target.value)}
+                                        className="w-full border border-gray-200 rounded-md px-2 py-1 text-xs disabled:bg-gray-50" />
+                                    </div>
+                                  </div>
+                                  <div>
+                                    <label className="text-gray-500 block">Método de pago</label>
+                                    <select value={editingFactura.metodoPago} disabled={f.estado !== "pendiente"}
+                                      onChange={(e) => updateFacturaEditField("metodoPago", e.target.value)}
+                                      className="w-full border border-gray-200 rounded-md px-2 py-1 text-xs disabled:bg-gray-50">
+                                      {METODOS_PAGO.map((m) => <option key={m}>{m}</option>)}
+                                    </select>
+                                  </div>
+
+                                  <div className="bg-white rounded-lg p-2 mt-2">
+                                    <div className="text-[10px] font-semibold text-gray-500 uppercase mb-1">Desglose</div>
+                                    <div className="grid grid-cols-2 gap-1.5">
+                                      <div>
+                                        <label className="text-[10px] text-gray-500">Subtotal</label>
+                                        <input type="number" step="0.01" value={editingFactura.subtotal} disabled={f.estado !== "pendiente"}
+                                          onChange={(e) => updateFacturaEditField("subtotal", parseFloat(e.target.value) || 0)}
+                                          className="w-full border border-gray-200 rounded-md px-2 py-1 text-xs font-mono text-right disabled:bg-gray-50" />
+                                      </div>
+                                      <div>
+                                        <label className="text-[10px] text-gray-500">IVA</label>
+                                        <input type="number" step="0.01" value={editingFactura.iva} disabled={f.estado !== "pendiente"}
+                                          onChange={(e) => updateFacturaEditField("iva", parseFloat(e.target.value) || 0)}
+                                          className="w-full border border-gray-200 rounded-md px-2 py-1 text-xs font-mono text-right disabled:bg-gray-50" />
+                                      </div>
+                                      <div>
+                                        <label className="text-[10px] text-gray-500">Otros imp.</label>
+                                        <input type="number" step="0.01" value={editingFactura.otrosImpuestos} disabled={f.estado !== "pendiente"}
+                                          onChange={(e) => updateFacturaEditField("otrosImpuestos", parseFloat(e.target.value) || 0)}
+                                          className="w-full border border-gray-200 rounded-md px-2 py-1 text-xs font-mono text-right disabled:bg-gray-50" />
+                                      </div>
+                                      <div>
+                                        <label className="text-[10px] text-gray-500 font-bold">TOTAL</label>
+                                        <input type="number" step="0.01" value={editingFactura.total} disabled={f.estado !== "pendiente"}
+                                          onChange={(e) => updateFacturaEditField("total", parseFloat(e.target.value) || 0)}
+                                          className="w-full border border-gray-200 rounded-md px-2 py-1 text-xs font-mono text-right font-bold disabled:bg-gray-50" />
+                                      </div>
+                                    </div>
+                                  </div>
+                                </div>
+
+                                <div className="space-y-2">
+                                  <div className="text-xs font-semibold text-gray-600 uppercase">Items y meta</div>
+                                  <div className="bg-white rounded-lg p-2 max-h-[180px] overflow-y-auto">
+                                    {editingFactura.items && editingFactura.items.length > 0 ? (
+                                      editingFactura.items.map((it, i) => (
+                                        <div key={i} className="text-[11px] flex justify-between border-b border-gray-50 py-0.5">
+                                          <span className="truncate flex-1 mr-2">{it.cantidad}× {it.descripcion}</span>
+                                          <span className="font-mono">{fmt(it.subtotal)}</span>
+                                        </div>
+                                      ))
+                                    ) : (
+                                      <div className="text-[11px] text-gray-400 italic">Sin items</div>
+                                    )}
+                                  </div>
+                                  <div className="text-[10px] text-gray-400">
+                                    Subido: {f.submittedAt.substring(0, 16).replace("T", " ")}<br/>
+                                    Por: {f.submittedBy}<br/>
+                                    Confianza OCR: {f.confianza}%<br/>
+                                    {f.notasOCR && <>Notas OCR: {f.notasOCR}<br/></>}
+                                    {f.reviewedBy && <>Revisado por: {f.reviewedBy}<br/></>}
+                                    {f.reviewedAt && <>Revisado: {f.reviewedAt.substring(0, 16).replace("T", " ")}<br/></>}
+                                    {f.notasReview && <>Notas review: {f.notasReview}</>}
+                                  </div>
+
+                                  {f.estado === "pendiente" && isApprover && (
+                                    <div className="flex gap-2 pt-2 border-t border-blue-200">
+                                      <button onClick={approveFactura} disabled={!!reviewingId}
+                                        className="flex-1 bg-emerald-600 text-white px-3 py-2 rounded-md text-xs font-semibold hover:bg-emerald-700 disabled:opacity-50">
+                                        ✓ Aprobar y exportar a EGRESOS
+                                      </button>
+                                      <button onClick={rejectFactura} disabled={!!reviewingId}
+                                        className="px-3 py-2 border border-red-300 text-red-700 rounded-md text-xs font-medium hover:bg-red-50 disabled:opacity-50">
+                                        ✕ Rechazar
+                                      </button>
+                                    </div>
+                                  )}
+                                  {f.estado === "pendiente" && !isApprover && (
+                                    <div className="text-[11px] text-amber-700 bg-amber-50 p-2 rounded-md">
+                                      Pendiente de aprobación por un admin.
+                                    </div>
+                                  )}
+                                </div>
+                              </div>
+                            </td>
+                          </tr>
+                        )}
+                      </Fragment>
+                    );
+                  })}
+                </tbody>
+              </table>
+            </div>
+          )}
+        </>
       )}
     </div>
   );
