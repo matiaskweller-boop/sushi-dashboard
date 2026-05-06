@@ -78,6 +78,15 @@ const MODULES: ModuleCard[] = [
     status: "activo",
     group: "Productos",
   },
+  // ERP — gestión de usuarios (solo owner ve la card en realidad, pero la mostramos siempre y el layout protege)
+  {
+    icon: "👥",
+    title: "Usuarios y permisos",
+    desc: "Gestionar quién accede a cada sección (solo owner)",
+    href: "/administracion/usuarios",
+    status: "activo",
+    group: "ERP",
+  },
   // Carta — diseño y referencias
   {
     icon: "🍣",

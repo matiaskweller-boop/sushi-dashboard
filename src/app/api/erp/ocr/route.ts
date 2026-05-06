@@ -1,5 +1,5 @@
 import { NextRequest, NextResponse } from "next/server";
-import { verifySession, getSessionFromRequest } from "@/lib/auth";
+import { requirePermissionApi } from "@/lib/admin-permissions";
 import { GoogleGenerativeAI } from "@google/generative-ai";
 
 export const runtime = "nodejs";
@@ -58,10 +58,8 @@ interface OCRResult {
 }
 
 export async function POST(request: NextRequest) {
-  const token = getSessionFromRequest(request);
-  if (!token) return NextResponse.json({ error: "No autorizado" }, { status: 401 });
-  const session = await verifySession(token);
-  if (!session) return NextResponse.json({ error: "Sesion expirada" }, { status: 401 });
+  const auth = await requirePermissionApi(request, "facturas");
+  if (!auth.ok) return auth.response;
 
   const apiKey = process.env.GEMINI_API_KEY;
   if (!apiKey) return NextResponse.json({ error: "GEMINI_API_KEY no configurada" }, { status: 500 });

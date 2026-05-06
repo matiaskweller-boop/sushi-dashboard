@@ -1,5 +1,5 @@
 import { NextRequest, NextResponse } from "next/server";
-import { verifySession, getSessionFromRequest } from "@/lib/auth";
+import { requirePermissionApi } from "@/lib/admin-permissions";
 import { readSheetRaw, parseArs, parseDate } from "@/lib/google";
 
 const SHEET_IDS: Record<string, Record<string, string>> = {
@@ -120,10 +120,8 @@ function parseEgresosForAlerts(sucursal: string, rows: string[][], hoy: string):
 }
 
 export async function GET(request: NextRequest) {
-  const token = getSessionFromRequest(request);
-  if (!token) return NextResponse.json({ error: "No autorizado" }, { status: 401 });
-  const session = await verifySession(token);
-  if (!session) return NextResponse.json({ error: "Sesion expirada" }, { status: 401 });
+  const auth = await requirePermissionApi(request, "alertas");
+  if (!auth.ok) return auth.response;
 
   try {
     const url = new URL(request.url);

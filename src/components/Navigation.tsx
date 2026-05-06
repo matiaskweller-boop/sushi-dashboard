@@ -31,27 +31,20 @@ const SECTIONS: NavItem[] = [
     href: "/administracion/pnl",
   },
   {
-    type: "dropdown",
+    type: "link",
     label: "Administración",
     icon: "⚙️",
-    items: [
-      { href: "/administracion/egresos", label: "Egresos" },
-      { href: "/administracion/proveedores", label: "Proveedores" },
-      { href: "/administracion/caja", label: "Caja diaria" },
-      { href: "/administracion/descuentos", label: "Descuentos" },
-      { href: "/administracion/alertas", label: "Alertas" },
-      { href: "/administracion/facturas", label: "Carga facturas (OCR)" },
-      { href: "/consumo", label: "Consumo" },
-      { href: "/stock", label: "Stock" },
-      { href: "/menu", label: "Menú" },
-      { href: "/competencia", label: "Competencia" },
-      { href: "/administracion", label: "Vista general" },
-    ],
+    href: "/administracion",
   },
 ];
 
 function isItemActive(href: string, pathname: string): boolean {
   if (href === "/") return pathname === "/";
+  // Caso especial: el link "/administracion" no debe estar activo
+  // cuando estamos en "/administracion/pnl" (P&L es su propio botón).
+  if (href === "/administracion" && pathname.startsWith("/administracion/pnl")) {
+    return false;
+  }
   return pathname.startsWith(href);
 }
 

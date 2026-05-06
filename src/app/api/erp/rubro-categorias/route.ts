@@ -1,5 +1,5 @@
 import { NextRequest, NextResponse } from "next/server";
-import { verifySession, getSessionFromRequest } from "@/lib/auth";
+import { requirePermissionApi } from "@/lib/admin-permissions";
 import { getSheets, readSheetRaw } from "@/lib/google";
 
 export const runtime = "nodejs";
@@ -58,10 +58,8 @@ async function readOverrides(): Promise<Record<string, string>> {
 }
 
 export async function GET(request: NextRequest) {
-  const token = getSessionFromRequest(request);
-  if (!token) return NextResponse.json({ error: "No autorizado" }, { status: 401 });
-  const session = await verifySession(token);
-  if (!session) return NextResponse.json({ error: "Sesion expirada" }, { status: 401 });
+  const auth = await requirePermissionApi(request, "pnl");
+  if (!auth.ok) return auth.response;
 
   try {
     await ensureTab();
@@ -74,10 +72,9 @@ export async function GET(request: NextRequest) {
 }
 
 export async function POST(request: NextRequest) {
-  const token = getSessionFromRequest(request);
-  if (!token) return NextResponse.json({ error: "No autorizado" }, { status: 401 });
-  const session = await verifySession(token);
-  if (!session) return NextResponse.json({ error: "Sesion expirada" }, { status: 401 });
+  const auth = await requirePermissionApi(request, "pnl");
+  if (!auth.ok) return auth.response;
+  const session = auth.user;
 
   try {
     const body = await request.json() as { rubro: string; categoria: string };
@@ -129,10 +126,8 @@ export async function POST(request: NextRequest) {
  * DELETE one override (revert to default classification).
  */
 export async function DELETE(request: NextRequest) {
-  const token = getSessionFromRequest(request);
-  if (!token) return NextResponse.json({ error: "No autorizado" }, { status: 401 });
-  const session = await verifySession(token);
-  if (!session) return NextResponse.json({ error: "Sesion expirada" }, { status: 401 });
+  const auth = await requirePermissionApi(request, "pnl");
+  if (!auth.ok) return auth.response;
 
   try {
     const url = new URL(request.url);

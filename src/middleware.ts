@@ -31,7 +31,13 @@ export async function middleware(request: NextRequest) {
     return NextResponse.redirect(new URL("/login", request.url));
   }
 
-  return NextResponse.next();
+  // Inyectar x-pathname para que server components/layouts conozcan el path actual.
+  // El control granular de permisos por sección se hace en:
+  //  - /administracion/layout.tsx (vía requirePermission del path)
+  //  - /api/erp/*/route.ts (vía requirePermissionApi)
+  const requestHeaders = new Headers(request.headers);
+  requestHeaders.set("x-pathname", pathname);
+  return NextResponse.next({ request: { headers: requestHeaders } });
 }
 
 export const config = {

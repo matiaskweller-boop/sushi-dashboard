@@ -50,13 +50,50 @@ Cliente en `src/lib/fudo-client.ts` con cache en memoria (5 min para datos, 23hs
 3 entradas en la barra principal:
 - **VENTAS** (dropdown): Dashboard (/), KPIs (/kpis), Histórico (/historico)
 - **P&L** (link directo): /administracion/pnl
-- **ADMINISTRACIÓN** (dropdown): contiene TODO lo demás
+- **ADMINISTRACIÓN** (link directo a /administracion): página índice con cards agrupadas
   - ERP: Egresos, Proveedores, Caja diaria, Descuentos, Alertas, Carga facturas (OCR)
   - Productos: Consumo, Stock (read-only)
   - Carta: Menú, Competencia
-  - Vista general: /administracion (página índice agrupada)
 
-P&L NO debe aparecer en la página índice de Administración ni en su dropdown — solo se accede vía la barra principal.
+P&L NO debe aparecer en la página índice de Administración — solo se accede vía la barra principal.
+
+### Control de acceso a Administración (sistema de permisos por usuario)
+
+El sistema de permisos vive en **`MASUNORI_ERP_CONFIG / Usuarios`** (Google Sheet).
+
+Schema de la tab Usuarios:
+| Email | Nombre | Rol | Sucursales | Permisos | Activo | Creado |
+
+- **Login global**: `ALLOWED_EMAILS` env var controla quién puede loguearse al dashboard.
+- **Permisos granulares**: por user en la tab Usuarios. Columna Permisos contiene:
+  - `*` = acceso total (admin)
+  - lista CSV: `pnl,egresos,facturas` = solo esas secciones
+  - vacío = sin acceso a Administración (solo Ventas)
+- **Owner único**: `matiaskweller@gmail.com` (constante `OWNER_EMAIL` en `src/lib/admin-permissions.ts`). Tiene acceso a TODO siempre, incluso si no está en la tab. Es el único que puede modificar usuarios.
+
+Permisos válidos (`ALL_PERMISSIONS` en admin-permissions.ts):
+`pnl, egresos, proveedores, caja, descuentos, alertas, facturas, consumo, stock, menu, competencia`
+
+Permiso especial:
+- `_users` = puede gestionar usuarios — **solo el owner** lo tiene.
+
+Implementación:
+- **Middleware** (`src/middleware.ts`): verifica sesión + inyecta header `x-pathname`. NO hace check de permisos (Edge no puede leer Sheets fácilmente).
+- **`src/lib/admin-permissions.ts`** (Node-only, server-side):
+  - `requirePermission(perm)` — usar en server components / layouts. Redirige si no autorizado.
+  - `requirePermissionApi(request, perm)` — usar en route handlers `/api/*`. Devuelve `{ ok, response | user }`.
+  - `getAllUsers()`, `upsertUser()`, `deleteUser()` — CRUD del sheet con cache 5 min in-memory.
+  - **Auto-migra** schema viejo (sin columna Permisos) la primera vez que se lee.
+- **`/administracion/layout.tsx`**: llama `requirePermission(perm)` según el path actual (lee `x-pathname`). Mapea path → permiso.
+- **APIs `/api/erp/*`**: cada route handler llama `requirePermissionApi(request, "X")` al inicio.
+- **Página `/administracion/usuarios`**: UI para gestionar permisos. Solo accesible por owner.
+
+Endpoints de la gestión de usuarios:
+- `GET /api/erp/usuarios` — lista usuarios (solo owner)
+- `POST /api/erp/usuarios` — crear/actualizar usuario (solo owner)
+- `DELETE /api/erp/usuarios?email=X` — eliminar usuario (solo owner, no permite eliminar al owner)
+
+Si un user logueado intenta acceder sin permisos, lo redirige a `/?error=admin_only` (o `/administracion?error=perm_denied`) y muestra un banner.
 
 ### Estructura de archivos
 

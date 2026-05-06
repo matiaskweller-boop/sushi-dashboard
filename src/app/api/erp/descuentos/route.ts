@@ -1,5 +1,5 @@
 import { NextRequest, NextResponse } from "next/server";
-import { verifySession, getSessionFromRequest } from "@/lib/auth";
+import { requirePermissionApi } from "@/lib/admin-permissions";
 import { getSales } from "@/lib/fudo-client";
 import { getSucursal } from "@/lib/sucursales";
 import { ParsedSale, SucursalId } from "@/types";
@@ -31,10 +31,8 @@ function getProductName(): string {
 }
 
 export async function GET(request: NextRequest) {
-  const token = getSessionFromRequest(request);
-  if (!token) return NextResponse.json({ error: "No autorizado" }, { status: 401 });
-  const session = await verifySession(token);
-  if (!session) return NextResponse.json({ error: "Sesion expirada" }, { status: 401 });
+  const auth = await requirePermissionApi(request, "descuentos");
+  if (!auth.ok) return auth.response;
 
   try {
     const url = new URL(request.url);

@@ -1,5 +1,5 @@
 import { NextRequest, NextResponse } from "next/server";
-import { verifySession, getSessionFromRequest } from "@/lib/auth";
+import { requirePermissionApi } from "@/lib/admin-permissions";
 import { appendToSheet } from "@/lib/google";
 
 export const runtime = "nodejs";
@@ -49,10 +49,9 @@ function toSheetDate(iso: string): string {
 }
 
 export async function POST(request: NextRequest) {
-  const token = getSessionFromRequest(request);
-  if (!token) return NextResponse.json({ error: "No autorizado" }, { status: 401 });
-  const session = await verifySession(token);
-  if (!session) return NextResponse.json({ error: "Sesion expirada" }, { status: 401 });
+  const auth = await requirePermissionApi(request, "facturas");
+  if (!auth.ok) return auth.response;
+  const session = auth.user;
 
   try {
     const body = (await request.json()) as SaveBody;

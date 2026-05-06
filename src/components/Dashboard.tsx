@@ -35,6 +35,20 @@ const EMPTY_DATA: DashboardData = {
 };
 
 export default function Dashboard() {
+  const [adminBanner, setAdminBanner] = useState(false);
+  useEffect(() => {
+    if (typeof window === "undefined") return;
+    const params = new URLSearchParams(window.location.search);
+    if (params.get("error") === "admin_only") {
+      setAdminBanner(true);
+      // Limpiar query param de la URL sin recargar
+      params.delete("error");
+      const newSearch = params.toString();
+      const newUrl = window.location.pathname + (newSearch ? "?" + newSearch : "");
+      window.history.replaceState({}, "", newUrl);
+    }
+  }, []);
+
   const [data, setData] = useState<DashboardData>(EMPTY_DATA);
   const [loading, setLoading] = useState(true);
   const [refreshing, setRefreshing] = useState(false);
@@ -111,6 +125,15 @@ export default function Dashboard() {
     <div className="min-h-screen bg-bg-main">
       <Header connectedCount={connectedCount} errors={data.errors} />
       <Navigation />
+
+      {adminBanner && (
+        <div className="bg-amber-50 border-b border-amber-200 px-4 py-3 text-sm text-amber-800 flex items-center justify-between">
+          <span>
+            ⚠️ <b>Acceso restringido:</b> Solo administradores autorizados pueden acceder a la sección de Administración. Si necesitás acceso, hablá con Matías.
+          </span>
+          <button onClick={() => setAdminBanner(false)} className="text-amber-600 hover:text-amber-800 ml-3">✕</button>
+        </div>
+      )}
 
       <main className="max-w-7xl mx-auto px-4 py-6 space-y-6">
         {/* Filtro de período + última actualización */}
