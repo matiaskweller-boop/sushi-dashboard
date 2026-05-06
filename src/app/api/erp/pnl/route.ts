@@ -5,6 +5,26 @@ import { getLiveMonthlySummaries } from "@/lib/dashboard-data";
 import fs from "fs";
 import path from "path";
 
+const ERP_CONFIG_SHEET = process.env.ERP_CONFIG_SHEET_ID || "1YMIE_t1O5RBfXGwFQf7xzh-TeuPUV6SfIl4Smj2mk1g";
+
+/**
+ * Lee overrides de RubroCategorias de manera tolerante (si la tab no existe, devuelve {}).
+ */
+async function readRubroOverrides(): Promise<Record<string, string>> {
+  try {
+    const rows = await readSheetRaw(ERP_CONFIG_SHEET, "RubroCategorias!A2:B1000");
+    const result: Record<string, string> = {};
+    for (const row of rows) {
+      const rubro = (row[0] || "").toString().trim();
+      const categoria = (row[1] || "").toString().trim().toLowerCase();
+      if (rubro && categoria) result[rubro] = categoria;
+    }
+    return result;
+  } catch {
+    return {};
+  }
+}
+
 const SHEET_IDS: Record<string, Record<string, string>> = {
   "2025": {
     palermo: process.env.SHEET_PALERMO_2025 || "",
@@ -105,8 +125,11 @@ interface PnLMonth {
 interface RubroBreakdown {
   rubro: string;
   categoria: Categoria;
+  categoriaDefault: Categoria;
+  isOverride: boolean;
   total: number;
   facturas: number;
+  byMonth: Record<number, number>; // mes -> total
 }
 
 /**
@@ -114,10 +137,18 @@ interface RubroBreakdown {
  * Usa fechaPago como referencia de cash real.
  */
 function parseCostsByMonth(
-  rows: string[][]
+  rows: string[][],
+  overrides: Record<string, string>
 ): { byMonth: Record<number, Record<Categoria, number>>; byRubro: RubroBreakdown[] } {
   const byMonth: Record<number, Record<Categoria, number>> = {};
-  const byRubro: Record<string, { categoria: Categoria; total: number; facturas: number }> = {};
+  const byRubro: Record<string, {
+    categoria: Categoria;
+    categoriaDefault: Categoria;
+    isOverride: boolean;
+    total: number;
+    facturas: number;
+    byMonth: Record<number, number>;
+  }> = {};
 
   if (rows.length < 2) return { byMonth, byRubro: [] };
 
@@ -141,6 +172,8 @@ function parseCostsByMonth(
   const colTotal = findCol("Total");
   const colMetodoPago = findCol("Metodo de Pago", "Método de Pago");
 
+  const validCategorias: Categoria[] = ["insumos", "sueldos", "alquilerServicios", "operativos", "financieros", "impuestos", "otros"];
+
   for (let i = headerIdx + 1; i < rows.length; i++) {
     const row = rows[i];
     if (!row || row.length === 0) continue;
@@ -156,16 +189,30 @@ function parseCostsByMonth(
 
     const mes = parseInt(fechaPago.substring(5, 7));
     const rubro = colRubro >= 0 ? (row[colRubro] || "").trim().replace(/\s+/g, " ") : "";
-    const cat = classifyRubro(rubro);
+
+    const catDefault = classifyRubro(rubro);
+    const overrideRaw = overrides[rubro];
+    const isOverride = !!(overrideRaw && validCategorias.includes(overrideRaw as Categoria) && overrideRaw !== catDefault);
+    const cat = isOverride ? (overrideRaw as Categoria) : catDefault;
 
     if (!byMonth[mes]) {
       byMonth[mes] = { insumos: 0, sueldos: 0, alquilerServicios: 0, operativos: 0, financieros: 0, impuestos: 0, otros: 0 };
     }
     byMonth[mes][cat] += total;
 
-    if (!byRubro[rubro]) byRubro[rubro] = { categoria: cat, total: 0, facturas: 0 };
+    if (!byRubro[rubro]) {
+      byRubro[rubro] = {
+        categoria: cat,
+        categoriaDefault: catDefault,
+        isOverride,
+        total: 0,
+        facturas: 0,
+        byMonth: {},
+      };
+    }
     byRubro[rubro].total += total;
     byRubro[rubro].facturas += 1;
+    byRubro[rubro].byMonth[mes] = (byRubro[rubro].byMonth[mes] || 0) + total;
   }
 
   const rubroBreakdown = Object.entries(byRubro)
@@ -244,12 +291,13 @@ export async function GET(request: NextRequest) {
     }
     const sucursalFudo = SUC_ERP_TO_FUDO[sucursalErp];
 
-    const [rows, ventas] = await Promise.all([
+    const [rows, ventas, overrides] = await Promise.all([
       readSheetRaw(sheetId, "EGRESOS!A1:Z5000"),
       loadMonthlyVentas(sucursalFudo, yearNum),
+      readRubroOverrides(),
     ]);
 
-    const { byMonth, byRubro } = parseCostsByMonth(rows);
+    const { byMonth, byRubro } = parseCostsByMonth(rows, overrides);
 
     // Armar P&L por mes
     const months: PnLMonth[] = [];
