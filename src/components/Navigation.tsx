@@ -4,14 +4,18 @@ import Link from "next/link";
 import { usePathname } from "next/navigation";
 import { useState, useRef, useEffect } from "react";
 
-interface NavSection {
+interface NavItem {
+  type: "dropdown" | "link";
   label: string;
   icon: string;
-  items: Array<{ href: string; label: string }>;
+  href?: string; // for type "link"
+  items?: Array<{ href: string; label: string }>; // for type "dropdown"
+  matchPaths?: string[]; // additional paths that mark as active for "link" type
 }
 
-const SECTIONS: NavSection[] = [
+const SECTIONS: NavItem[] = [
   {
+    type: "dropdown",
     label: "Ventas",
     icon: "📊",
     items: [
@@ -21,27 +25,35 @@ const SECTIONS: NavSection[] = [
     ],
   },
   {
-    label: "Productos",
-    icon: "📦",
-    items: [
-      { href: "/consumo", label: "Consumo" },
-      { href: "/stock", label: "Stock" },
-    ],
+    type: "link",
+    label: "P&L",
+    icon: "📈",
+    href: "/administracion/pnl",
   },
   {
-    label: "Carta",
-    icon: "🍣",
-    items: [
-      { href: "/menu", label: "Menú" },
-      { href: "/competencia", label: "Competencia" },
-    ],
-  },
-  {
+    type: "dropdown",
     label: "Administración",
     icon: "⚙️",
-    items: [{ href: "/administracion", label: "ERP" }],
+    items: [
+      { href: "/administracion/egresos", label: "Egresos" },
+      { href: "/administracion/proveedores", label: "Proveedores" },
+      { href: "/administracion/caja", label: "Caja diaria" },
+      { href: "/administracion/descuentos", label: "Descuentos" },
+      { href: "/administracion/alertas", label: "Alertas" },
+      { href: "/administracion/facturas", label: "Carga facturas (OCR)" },
+      { href: "/consumo", label: "Consumo" },
+      { href: "/stock", label: "Stock" },
+      { href: "/menu", label: "Menú" },
+      { href: "/competencia", label: "Competencia" },
+      { href: "/administracion", label: "Vista general" },
+    ],
   },
 ];
+
+function isItemActive(href: string, pathname: string): boolean {
+  if (href === "/") return pathname === "/";
+  return pathname.startsWith(href);
+}
 
 export default function Navigation() {
   const pathname = usePathname();
@@ -64,16 +76,16 @@ export default function Navigation() {
     setOpenSection(null);
   }, [pathname]);
 
-  function isSectionActive(section: NavSection): boolean {
-    return section.items.some((item) =>
-      item.href === "/" ? pathname === "/" : pathname.startsWith(item.href)
-    );
+  function isSectionActive(section: NavItem): boolean {
+    if (section.type === "link" && section.href) {
+      return isItemActive(section.href, pathname);
+    }
+    return (section.items || []).some((item) => isItemActive(item.href, pathname));
   }
 
-  function getActiveItemLabel(section: NavSection): string | null {
-    const active = section.items.find((item) =>
-      item.href === "/" ? pathname === "/" : pathname.startsWith(item.href)
-    );
+  function getActiveItemLabel(section: NavItem): string | null {
+    if (section.type === "link") return null;
+    const active = (section.items || []).find((item) => isItemActive(item.href, pathname));
     return active?.label || null;
   }
 
@@ -89,9 +101,27 @@ export default function Navigation() {
             const isOpen = openSection === section.label;
             const activeItem = getActiveItemLabel(section);
 
+            // Direct link (no dropdown)
+            if (section.type === "link" && section.href) {
+              return (
+                <Link
+                  key={section.label}
+                  href={section.href}
+                  className={`flex items-center gap-1.5 px-4 py-3 text-sm font-medium border-b-2 transition-colors whitespace-nowrap ${
+                    isActive
+                      ? "border-blue-accent text-navy"
+                      : "border-transparent text-gray-500 hover:text-navy hover:border-gray-300"
+                  }`}
+                >
+                  <span className="text-xs">{section.icon}</span>
+                  <span>{section.label}</span>
+                </Link>
+              );
+            }
+
+            // Dropdown
             return (
               <div key={section.label} className="relative">
-                {/* Section tab */}
                 <button
                   onClick={() =>
                     setOpenSection(isOpen ? null : section.label)
@@ -125,14 +155,11 @@ export default function Navigation() {
                 {/* Dropdown */}
                 {isOpen && (
                   <div
-                    className="absolute top-full left-0 mt-0 bg-white border border-gray-200 rounded-b-lg shadow-lg min-w-[180px] py-1"
+                    className="absolute top-full left-0 mt-0 bg-white border border-gray-200 rounded-b-lg shadow-lg min-w-[200px] py-1"
                     style={{ zIndex: 9999 }}
                   >
-                    {section.items.map((item) => {
-                      const itemActive =
-                        item.href === "/"
-                          ? pathname === "/"
-                          : pathname.startsWith(item.href);
+                    {(section.items || []).map((item) => {
+                      const itemActive = isItemActive(item.href, pathname);
                       return (
                         <Link
                           key={item.href}

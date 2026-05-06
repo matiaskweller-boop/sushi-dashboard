@@ -45,13 +45,18 @@ Configuradas en `src/lib/sucursales.ts`. Credenciales en `.env.local`.
 Cliente en `src/lib/fudo-client.ts` con cache en memoria (5 min para datos, 23hs para tokens).
 - **Timezone**: Fechas se construyen con `-03:00` (Argentina). "Hoy" = día calendario 00:00-23:59 AR.
 
-### Navegación v2.0
+### Navegación v3.0
 
-4 secciones con dropdown:
-- **VENTAS**: Dashboard (/), KPIs (/kpis), Histórico (/historico)
-- **PRODUCTOS**: Consumo (/consumo), Stock (/stock) — SOLO LECTURA, no escribe a Fudo
-- **CARTA**: Menú (/menu), Competencia (/competencia)
-- **ADMINISTRACIÓN**: ERP (/administracion) — placeholder
+3 entradas en la barra principal:
+- **VENTAS** (dropdown): Dashboard (/), KPIs (/kpis), Histórico (/historico)
+- **P&L** (link directo): /administracion/pnl
+- **ADMINISTRACIÓN** (dropdown): contiene TODO lo demás
+  - ERP: Egresos, Proveedores, Caja diaria, Descuentos, Alertas, Carga facturas (OCR)
+  - Productos: Consumo, Stock (read-only)
+  - Carta: Menú, Competencia
+  - Vista general: /administracion (página índice agrupada)
+
+P&L NO debe aparecer en la página índice de Administración ni en su dropdown — solo se accede vía la barra principal.
 
 ### Estructura de archivos
 
