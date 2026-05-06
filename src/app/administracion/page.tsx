@@ -45,6 +45,13 @@ const MODULES = [
     href: "/administracion/alertas",
     status: "activo",
   },
+  {
+    icon: "💸",
+    title: "Descuentos",
+    desc: "Detalle de cada venta con descuento (socios, promos, ajustes manuales)",
+    href: "/administracion/descuentos",
+    status: "activo",
+  },
 ];
 
 export default function AdministracionPage() {

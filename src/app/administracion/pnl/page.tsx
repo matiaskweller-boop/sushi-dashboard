@@ -130,11 +130,61 @@ function fmtPct(n: number): string {
   return n.toFixed(1) + "%";
 }
 
+function applyIvaToPnl(d: PnLResponse | null, factor: number): PnLResponse | null {
+  if (!d) return null;
+  if (factor === 1) return d;
+  return {
+    ...d,
+    months: d.months.map((m) => ({
+      ...m,
+      ventas: m.ventas * factor,
+      ventasBrutas: m.ventasBrutas * factor,
+      descuentos: m.descuentos * factor,
+      ticketPromedio: m.ticketPromedio * factor,
+      costos: {
+        insumos: m.costos.insumos * factor,
+        sueldos: m.costos.sueldos * factor,
+        alquilerServicios: m.costos.alquilerServicios * factor,
+        operativos: m.costos.operativos * factor,
+        financieros: m.costos.financieros * factor,
+        impuestos: m.costos.impuestos * factor,
+        otros: m.costos.otros * factor,
+        total: m.costos.total * factor,
+      },
+      retiros: m.retiros * factor,
+      margenBruto: m.margenBruto * factor,
+      ebitda: m.ebitda * factor,
+    })),
+    ytd: {
+      ...d.ytd,
+      ventas: d.ytd.ventas * factor,
+      ventasBrutas: d.ytd.ventasBrutas * factor,
+      descuentos: d.ytd.descuentos * factor,
+      costosInsumos: d.ytd.costosInsumos * factor,
+      costosSueldos: d.ytd.costosSueldos * factor,
+      costosAlquilerServicios: d.ytd.costosAlquilerServicios * factor,
+      costosOperativos: d.ytd.costosOperativos * factor,
+      costosFinancieros: d.ytd.costosFinancieros * factor,
+      costosImpuestos: d.ytd.costosImpuestos * factor,
+      costosOtros: d.ytd.costosOtros * factor,
+      costosTotal: d.ytd.costosTotal * factor,
+      retiros: d.ytd.retiros * factor,
+      ebitda: d.ytd.ebitda * factor,
+    },
+    byRubro: d.byRubro.map((r) => ({
+      ...r,
+      total: r.total * factor,
+      byMonth: Object.fromEntries(Object.entries(r.byMonth).map(([k, v]) => [k, v * factor])),
+      proveedores: r.proveedores.map((p) => ({ ...p, total: p.total * factor })),
+    })),
+  };
+}
+
 export default function PnLPage() {
   const [year, setYear] = useState<"2025" | "2026">("2026");
   const [sucursal, setSucursal] = useState<string>("palermo");
-  const [data, setData] = useState<PnLResponse | null>(null);
-  const [prevData, setPrevData] = useState<PnLResponse | null>(null);
+  const [rawData, setRawData] = useState<PnLResponse | null>(null);
+  const [rawPrevData, setRawPrevData] = useState<PnLResponse | null>(null);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
   const [selectedMonth, setSelectedMonth] = useState<number | null>(null);
@@ -144,6 +194,13 @@ export default function PnLPage() {
   const [expandedRubro, setExpandedRubro] = useState<string | null>(null);
   const [exporting, setExporting] = useState(false);
   const [hideZeros, setHideZeros] = useState(true);
+  const [sinIva, setSinIva] = useState(false);
+  const IVA_RATE = 0.21;
+  const ivaFactor = sinIva ? 1 / (1 + IVA_RATE) : 1;
+
+  // Aplicar IVA factor (sin IVA = dividir por 1.21)
+  const data = useMemo(() => applyIvaToPnl(rawData, ivaFactor), [rawData, ivaFactor]);
+  const prevData = useMemo(() => applyIvaToPnl(rawPrevData, ivaFactor), [rawPrevData, ivaFactor]);
 
   const fetchData = async () => {
     setLoading(true);
@@ -155,8 +212,8 @@ export default function PnLPage() {
         fetch(`/api/erp/pnl?sucursal=${sucursal}&year=${prevYear}`).then((r) => r.json()).catch(() => null),
       ]);
       if (rCur.error) throw new Error(rCur.error);
-      setData(rCur);
-      setPrevData(rPrev?.error ? null : rPrev);
+      setRawData(rCur);
+      setRawPrevData(rPrev?.error ? null : rPrev);
     } catch (e) {
       setError(e instanceof Error ? e.message : "Error");
     } finally {
@@ -184,10 +241,10 @@ export default function PnLPage() {
     }
   };
 
-  const resetRubroOverride = async (rubro: string) => {
-    setSavingRubro(rubro);
+  const resetRubroOverride = async (rubroName: string) => {
+    setSavingRubro(rubroName);
     try {
-      const res = await fetch(`/api/erp/rubro-categorias?rubro=${encodeURIComponent(rubro)}`, { method: "DELETE" });
+      const res = await fetch(`/api/erp/rubro-categorias?rubro=${encodeURIComponent(rubroName)}`, { method: "DELETE" });
       const d = await res.json();
       if (d.error) throw new Error(d.error);
       await fetchData();
@@ -393,6 +450,12 @@ export default function PnLPage() {
             </button>
           ))}
         </div>
+        <label className="flex items-center gap-1.5 text-sm text-gray-700 bg-white border border-gray-200 rounded-lg px-3 py-1.5 cursor-pointer hover:bg-gray-50">
+          <input type="checkbox" checked={sinIva} onChange={(e) => setSinIva(e.target.checked)} className="cursor-pointer" />
+          <span>Sin IVA (21%)</span>
+          {sinIva && <span className="text-xs text-emerald-600 ml-1">activo</span>}
+        </label>
+
         <div className="ml-auto flex gap-2">
           <button
             onClick={() => exportPDF("resumido")}
@@ -411,41 +474,42 @@ export default function PnLPage() {
         </div>
       </div>
 
+      {sinIva && (
+        <div className="bg-emerald-50 border border-emerald-200 rounded-lg p-2 mb-3 text-xs text-emerald-800">
+          ℹ️ Mostrando todos los valores <b>sin IVA</b> (dividido por 1.21). Esto asume IVA 21% sobre todo. El IVA real puede variar (10.5% en alimentos básicos, exentos, etc.)
+        </div>
+      )}
+
       {loading && <div className="text-center py-20 text-gray-400">Cargando...</div>}
       {error && <div className="bg-red-50 text-red-700 rounded-lg p-4 mb-4">Error: {error}</div>}
 
       {data && !loading && (
         <>
           {/* YTD KPI cards */}
-          <div className="grid grid-cols-2 lg:grid-cols-6 gap-3 mb-4">
-            <div className="bg-white rounded-xl border border-blue-100 p-4">
-              <div className="text-xs text-blue-600 uppercase tracking-wide mb-1">Ventas Brutas</div>
-              <div className="text-lg font-bold text-navy">{fmt(data.ytd.ventasBrutas)}</div>
-              <div className="text-xs text-gray-400 mt-1">{data.ytd.ordenes.toLocaleString("es-AR")} órdenes</div>
-            </div>
-            <div className="bg-white rounded-xl border border-amber-100 p-4">
-              <div className="text-xs text-amber-700 uppercase tracking-wide mb-1">Descuentos</div>
-              <div className="text-lg font-bold text-amber-700">{fmt(data.ytd.descuentos)}</div>
-              <div className="text-xs text-gray-400 mt-1">{fmtPct(data.ytd.descuentosPct)} de brutas</div>
-            </div>
+          <div className="grid grid-cols-2 lg:grid-cols-5 gap-3 mb-4">
             <div className="bg-white rounded-xl border border-gray-100 p-4">
-              <div className="text-xs text-gray-500 uppercase tracking-wide mb-1">Ventas Netas</div>
-              <div className="text-lg font-bold text-navy">{fmt(data.ytd.ventas)}</div>
-              <div className="text-xs text-gray-400 mt-1">lo que cobramos</div>
+              <div className="text-xs text-gray-500 uppercase tracking-wide mb-1">Ventas YTD</div>
+              <div className="text-xl font-bold text-navy">{fmt(data.ytd.ventas)}</div>
+              <div className="text-xs text-gray-400 mt-1">{data.ytd.ordenes.toLocaleString("es-AR")} órdenes</div>
             </div>
             <div className="bg-white rounded-xl border border-red-100 p-4">
               <div className="text-xs text-red-600 uppercase tracking-wide mb-1">Insumos (CMV)</div>
-              <div className="text-lg font-bold text-red-700">{fmt(data.ytd.costosInsumos)}</div>
+              <div className="text-xl font-bold text-red-700">{fmt(data.ytd.costosInsumos)}</div>
               <div className="text-xs text-gray-400 mt-1">{fmtPct(data.ytd.cmvPct)} de brutas</div>
+            </div>
+            <div className="bg-white rounded-xl border border-gray-100 p-4">
+              <div className="text-xs text-gray-500 uppercase tracking-wide mb-1">Costos totales</div>
+              <div className="text-xl font-bold text-navy">{fmt(data.ytd.costosTotal)}</div>
+              <div className="text-xs text-gray-400 mt-1">{data.ytd.ventas ? fmtPct((data.ytd.costosTotal / data.ytd.ventas) * 100) : "—"} de netas</div>
             </div>
             <div className={`bg-white rounded-xl border p-4 ${data.ytd.ebitda >= 0 ? "border-emerald-100" : "border-red-100"}`}>
               <div className={`text-xs uppercase tracking-wide mb-1 ${data.ytd.ebitda >= 0 ? "text-emerald-600" : "text-red-600"}`}>EBITDA</div>
-              <div className={`text-lg font-bold ${data.ytd.ebitda >= 0 ? "text-emerald-700" : "text-red-700"}`}>{fmt(data.ytd.ebitda)}</div>
-              <div className="text-xs text-gray-400 mt-1">{fmtPct(data.ytd.ebitdaPct)} de netas</div>
+              <div className={`text-xl font-bold ${data.ytd.ebitda >= 0 ? "text-emerald-700" : "text-red-700"}`}>{fmt(data.ytd.ebitda)}</div>
+              <div className="text-xs text-gray-400 mt-1">{fmtPct(data.ytd.ebitdaPct)} margen</div>
             </div>
             <div className="bg-white rounded-xl border border-emerald-100 p-4">
               <div className="text-xs text-emerald-600 uppercase tracking-wide mb-1">* Retiros</div>
-              <div className="text-lg font-bold text-emerald-700">{fmt(data.ytd.retiros)}</div>
+              <div className="text-xl font-bold text-emerald-700">{fmt(data.ytd.retiros)}</div>
               <div className="text-xs text-gray-400 mt-1">distribución banco→socios</div>
             </div>
           </div>
