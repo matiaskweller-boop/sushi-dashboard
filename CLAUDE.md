@@ -150,7 +150,7 @@ El P&L se construye desde **EGRESOS pagados** (cash real, no devengado) + ventas
 8. **Retiros (distribución a socios)** — Retiros, distribuciones a socios, dividendos. Se muestran como línea separada **debajo de EBITDA prefijada con `*`** (es **distribución desde banco a socios**, NO gasto operativo, NO ganancia operativa). **Nunca usar `+` para retiros**, siempre `*` con texto "distribución desde banco a socios".
 
 ### Ventas Brutas vs Netas vs Descuentos
-- **Ventas Brutas**: `Σ item.price × quantity` para items NO cancelados (lo que "deberían" pagar antes de cualquier descuento)
+- **Ventas Brutas**: `Σ item.price` para items NO cancelados. ⚠️ **CRÍTICO**: en Fudo, `Item.price` es el **TOTAL DE LA LÍNEA**, NO precio unitario. Por eso NO se multiplica por quantity. Ejemplo: 5× Combo a $48k cada uno → Fudo guarda price=$240k, quantity=5. Si multiplicás price×quantity overcomputás 5×$240k=$1.2M (incorrecto).
 - **Descuentos**: Brutas - Netas (descuentos de socios, promos, ajustes manuales, etc.)
 - **Ventas Netas**: `sale.total` de Fudo (lo que efectivamente se cobra)
 - **CMV %** se calcula contra **Ventas Brutas** (es la métrica operativa real, los descuentos no afectan el costo de los insumos). El CMV vs netas se guarda como referencia (`cmvPctNetas`)

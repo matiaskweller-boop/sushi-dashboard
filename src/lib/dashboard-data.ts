@@ -314,7 +314,8 @@ function calcTopProducts(
             products[key] = { quantity: 0, revenue: 0, displayName };
           }
           products[key].quantity += item.quantity || 1;
-          products[key].revenue += item.price * item.quantity || 0;
+          // En Fudo, item.price es el TOTAL DE LA LÍNEA (no unitario), por eso NO se multiplica por quantity.
+          products[key].revenue += item.price || 0;
         });
     });
 
@@ -615,7 +616,8 @@ export async function getAdvancedKPIs(
       const key = getNormalizedKey(item.productName);
       const displayName = getCanonicalName(item.productName);
       if (!productRevenues[key]) productRevenues[key] = { revenue: 0, quantity: 0, displayName };
-      productRevenues[key].revenue += item.price * item.quantity;
+      // En Fudo, item.price es el TOTAL DE LA LÍNEA (no unitario), por eso NO se multiplica por quantity.
+      productRevenues[key].revenue += item.price || 0;
       productRevenues[key].quantity += item.quantity || 1;
     });
   });
@@ -800,7 +802,8 @@ export async function getProductAnalytics(
       for (const item of sale.items.filter((i) => !i.canceled)) {
         const catName = item.categoryName || "Sin categoría";
         const qty = item.quantity || 1;
-        const rev = item.price * qty;
+        // En Fudo, item.price es el TOTAL DE LA LÍNEA (no unitario)
+        const rev = item.price || 0;
 
         // Global
         if (!categoryMap[catName]) {
@@ -877,7 +880,7 @@ export async function getProductAnalytics(
 
 interface MonthSummary {
   totalSales: number; // ventas netas (lo que el cliente paga, sale.total de Fudo)
-  totalGrossSales: number; // ventas brutas (sum item.price * quantity, antes de descuentos)
+  totalGrossSales: number; // ventas brutas (sum item.price = total de linea, antes de descuentos)
   totalDiscounts: number; // gross - net
   totalOrders: number;
   totalPeople: number;
@@ -962,10 +965,12 @@ function buildMonthlySummaries(
     const total = sale.total || 0;
     const people = sale.people || 1;
 
-    // Calcular gross sales (sum de items no cancelados, antes de descuentos)
+    // Calcular gross sales: en Fudo, item.price es el TOTAL DE LA LÍNEA
+    // (no precio unitario), por eso NO se multiplica por quantity.
+    // Ej: 5× Combo a $48k unit, Fudo guarda price=$240k quantity=5.
     const itemsGross = (sale.items || [])
       .filter((it) => !it.canceled)
-      .reduce((s, it) => s + (it.price || 0) * (it.quantity || 0), 0);
+      .reduce((s, it) => s + (it.price || 0), 0);
     // Si no hay items detail (ventas manuales), usar total como gross
     const gross = itemsGross > 0 ? itemsGross : total;
     const discount = Math.max(0, gross - total);

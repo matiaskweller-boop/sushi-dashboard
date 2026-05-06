@@ -53,11 +53,12 @@ export async function GET(request: NextRequest) {
     const sales: ParsedSale[] = await getSales(sucConf, fromStr, toStr);
 
     // Filtrar solo sales con descuento (gross > net)
+    // En Fudo, item.price es el TOTAL DE LA LÍNEA (no precio unitario), por eso NO se multiplica por quantity.
     const conDescuento: DescuentoRow[] = [];
     for (const sale of sales) {
       if (sale.saleState === "CANCELED") continue;
       const items = (sale.items || []).filter((it) => !it.canceled);
-      const gross = items.reduce((s, it) => s + (it.price || 0) * (it.quantity || 0), 0);
+      const gross = items.reduce((s, it) => s + (it.price || 0), 0);
       const net = sale.total || 0;
       const descuento = gross - net;
       // Solo facturas con descuento real (> 0.5 para evitar redondeos)
@@ -81,12 +82,16 @@ export async function GET(request: NextRequest) {
         descuento,
         pct,
         itemsCount: items.length,
-        itemsDetail: items.slice(0, 30).map((it) => ({
-          name: getProductName(),
-          price: it.price || 0,
-          quantity: it.quantity || 0,
-          subtotal: (it.price || 0) * (it.quantity || 0),
-        })),
+        itemsDetail: items.slice(0, 30).map((it) => {
+          const lineTotal = it.price || 0; // En Fudo, price es total de la linea
+          const qty = it.quantity || 1;
+          return {
+            name: getProductName(),
+            price: lineTotal / qty, // precio unitario derivado
+            quantity: qty,
+            subtotal: lineTotal, // total de la linea
+          };
+        }),
         metodoPago,
         saleType: sale.saleType || "",
       });
