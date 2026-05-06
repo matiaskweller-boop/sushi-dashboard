@@ -1134,7 +1134,7 @@ export default function FacturasPage() {
 
                                 <div className="space-y-2">
                                   <div className="text-xs font-semibold text-gray-600 uppercase">Items y meta</div>
-                                  <div className="bg-white rounded-lg p-2 max-h-[180px] overflow-y-auto">
+                                  <div className="bg-white rounded-lg p-2 max-h-[120px] overflow-y-auto">
                                     {editingFactura.items && editingFactura.items.length > 0 ? (
                                       editingFactura.items.map((it, i) => (
                                         <div key={i} className="text-[11px] flex justify-between border-b border-gray-50 py-0.5">
@@ -1146,6 +1146,114 @@ export default function FacturasPage() {
                                       <div className="text-[11px] text-gray-400 italic">Sin items</div>
                                     )}
                                   </div>
+
+                                  {/* Impuestos editables (si pendiente y aprobador) */}
+                                  {f.estado === "pendiente" && (
+                                    <div className="bg-white rounded-lg p-2 mt-2">
+                                      <div className="text-[10px] font-semibold text-gray-500 uppercase mb-1">
+                                        Impuestos ({editingFactura.impuestos?.length || 0}) — IVA, IIBB, percep
+                                      </div>
+                                      <div className="space-y-1">
+                                        {(editingFactura.impuestos || []).map((imp, i) => (
+                                          <div key={i} className="grid grid-cols-12 gap-1 items-center">
+                                            <input
+                                              type="text"
+                                              value={imp.tipo}
+                                              onChange={(e) => {
+                                                const next = [...(editingFactura.impuestos || [])];
+                                                next[i] = { ...next[i], tipo: e.target.value };
+                                                updateFacturaEditField("impuestos", next);
+                                              }}
+                                              placeholder="IVA 21%"
+                                              className="col-span-7 border border-gray-200 rounded px-1.5 py-0.5 text-[11px]"
+                                            />
+                                            <input
+                                              type="number"
+                                              step="0.01"
+                                              value={imp.monto}
+                                              onChange={(e) => {
+                                                const next = [...(editingFactura.impuestos || [])];
+                                                next[i] = { ...next[i], monto: parseFloat(e.target.value) || 0 };
+                                                updateFacturaEditField("impuestos", next);
+                                              }}
+                                              className="col-span-4 border border-gray-200 rounded px-1.5 py-0.5 text-[11px] font-mono text-right"
+                                            />
+                                            <button
+                                              type="button"
+                                              onClick={() => {
+                                                const next = (editingFactura.impuestos || []).filter((_, idx) => idx !== i);
+                                                updateFacturaEditField("impuestos", next);
+                                              }}
+                                              className="col-span-1 text-red-500 hover:text-red-700 text-xs"
+                                            >
+                                              ✕
+                                            </button>
+                                          </div>
+                                        ))}
+                                      </div>
+                                      <div className="flex gap-1 mt-1.5 flex-wrap">
+                                        <button
+                                          type="button"
+                                          onClick={() => {
+                                            const subtotal = editingFactura.subtotal || 0;
+                                            const ivaCalc = subtotal * 0.21;
+                                            const next = [...(editingFactura.impuestos || []), { tipo: "IVA 21%", monto: Math.round(ivaCalc * 100) / 100, alicuota: 21 }];
+                                            updateFacturaEditField("impuestos", next);
+                                          }}
+                                          className="text-[10px] text-blue-accent hover:underline px-1.5 py-0.5 bg-blue-50 rounded"
+                                        >
+                                          + IVA 21%
+                                        </button>
+                                        <button
+                                          type="button"
+                                          onClick={() => {
+                                            const subtotal = editingFactura.subtotal || 0;
+                                            const ivaCalc = subtotal * 0.105;
+                                            const next = [...(editingFactura.impuestos || []), { tipo: "IVA 10,5%", monto: Math.round(ivaCalc * 100) / 100, alicuota: 10.5 }];
+                                            updateFacturaEditField("impuestos", next);
+                                          }}
+                                          className="text-[10px] text-blue-accent hover:underline px-1.5 py-0.5 bg-blue-50 rounded"
+                                        >
+                                          + IVA 10,5%
+                                        </button>
+                                        <button
+                                          type="button"
+                                          onClick={() => {
+                                            const next = [...(editingFactura.impuestos || []), { tipo: "PERC. IVA 3%", monto: 0, alicuota: 3 }];
+                                            updateFacturaEditField("impuestos", next);
+                                          }}
+                                          className="text-[10px] text-blue-accent hover:underline px-1.5 py-0.5 bg-blue-50 rounded"
+                                        >
+                                          + PERC. IVA
+                                        </button>
+                                        <button
+                                          type="button"
+                                          onClick={() => {
+                                            const next = [...(editingFactura.impuestos || []), { tipo: "IIBB", monto: 0, alicuota: 3 }];
+                                            updateFacturaEditField("impuestos", next);
+                                          }}
+                                          className="text-[10px] text-blue-accent hover:underline px-1.5 py-0.5 bg-blue-50 rounded"
+                                        >
+                                          + IIBB
+                                        </button>
+                                        <button
+                                          type="button"
+                                          onClick={() => {
+                                            const next = [...(editingFactura.impuestos || []), { tipo: "", monto: 0 }];
+                                            updateFacturaEditField("impuestos", next);
+                                          }}
+                                          className="text-[10px] text-gray-500 hover:underline px-1.5 py-0.5"
+                                        >
+                                          + otro
+                                        </button>
+                                      </div>
+                                      {(!editingFactura.impuestos || editingFactura.impuestos.length === 0) && (
+                                        <div className="text-[10px] text-amber-600 mt-1 bg-amber-50 px-1.5 py-1 rounded">
+                                          ⚠️ No hay impuestos. Si la factura tiene IVA / IIBB, agregalos antes de aprobar.
+                                        </div>
+                                      )}
+                                    </div>
+                                  )}
                                   <div className="text-[10px] text-gray-400">
                                     Subido: {f.submittedAt.substring(0, 16).replace("T", " ")}<br/>
                                     Por: {f.submittedBy}<br/>

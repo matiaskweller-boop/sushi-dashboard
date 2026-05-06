@@ -298,8 +298,29 @@ function buildEgresosRows(
 
   // ─── Filas de IMPUESTOS ───
   // Rubro = label completa del impuesto matcheada contra valid rubros del sheet.
-  // INSUMOS = igual al rubro (mismo valor).
-  for (const imp of f.impuestos || []) {
+  // INSUMOS = igual al rubro.
+  //
+  // Si la factura no tiene impuestos[] detallados pero sí tiene los totales
+  // flat (f.iva / f.otrosImpuestos), generamos filas a partir de esos.
+  // Detectamos la alicuota más probable:
+  //   IVA = total IVA. Si iva ≈ subtotal × 0.21 → IVA 21%. Si ≈ 0.105 → IVA 10,5%.
+  let impuestosToWrite = (f.impuestos || []).filter((i) => i.monto && i.monto > 0);
+  if (impuestosToWrite.length === 0) {
+    if (f.iva && f.iva > 0) {
+      const ivaPct = f.subtotal > 0 ? (f.iva / f.subtotal) * 100 : 21;
+      let alicuota = 21;
+      if (Math.abs(ivaPct - 10.5) < 1) alicuota = 10.5;
+      else if (Math.abs(ivaPct - 21) < 1) alicuota = 21;
+      else if (Math.abs(ivaPct - 27) < 1) alicuota = 27;
+      else if (Math.abs(ivaPct - 1.5) < 0.5) alicuota = 1.5;
+      const tipo = `IVA ${String(alicuota).replace(".", ",")}%`;
+      impuestosToWrite.push({ tipo, monto: f.iva, alicuota });
+    }
+    if (f.otrosImpuestos && f.otrosImpuestos > 0) {
+      impuestosToWrite.push({ tipo: "Otros Impuestos", monto: f.otrosImpuestos });
+    }
+  }
+  for (const imp of impuestosToWrite) {
     if (!imp.monto || imp.monto === 0) continue;
     const label = normalizeImpuestoLabel(imp.tipo, imp.alicuota, datosss.rubros);
     rows.push(makeRow(label, label, imp.monto, "1,00", imp.monto));
