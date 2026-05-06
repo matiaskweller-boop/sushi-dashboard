@@ -1,6 +1,6 @@
 import { NextRequest, NextResponse } from "next/server";
 import { requirePermissionApi } from "@/lib/admin-permissions";
-import { GoogleGenerativeAI } from "@google/generative-ai";
+import { GoogleGenAI } from "@google/genai";
 
 export const runtime = "nodejs";
 export const maxDuration = 60;
@@ -114,14 +114,16 @@ export async function POST(request: NextRequest) {
     const { imageBase64, mimeType } = body as { imageBase64: string; mimeType: string };
     if (!imageBase64) return NextResponse.json({ error: "Falta imageBase64" }, { status: 400 });
 
-    const genAI = new GoogleGenerativeAI(apiKey);
+    const ai = new GoogleGenAI({ apiKey });
 
-    // Probar varios modelos en orden hasta que uno responda OK.
+    // Modelos disponibles (verificados via /v1beta/models en nov 2025).
+    // Los gemini-1.5-* fueron deprecados/removidos. Usamos los actuales.
     const MODELS_TO_TRY = [
-      "gemini-2.5-flash",
-      "gemini-2.0-flash",
-      "gemini-1.5-flash",
-      "gemini-1.5-pro",
+      "gemini-2.5-flash",          // estable, multimodal, soporta PDF
+      "gemini-2.5-flash-lite",     // más rápido, mismo soporte
+      "gemini-2.0-flash",          // fallback
+      "gemini-flash-latest",       // alias actualizado
+      "gemini-pro-latest",         // último recurso (más caro pero más preciso)
     ];
 
     let text: string | null = null;
@@ -130,30 +132,35 @@ export async function POST(request: NextRequest) {
 
     for (const modelName of MODELS_TO_TRY) {
       try {
-        const model = genAI.getGenerativeModel({
+        const result = await ai.models.generateContent({
           model: modelName,
-          generationConfig: {
+          contents: [
+            {
+              role: "user",
+              parts: [
+                { text: SYSTEM_PROMPT },
+                {
+                  inlineData: {
+                    data: imageBase64,
+                    mimeType: mimeType || "image/jpeg",
+                  },
+                },
+              ],
+            },
+          ],
+          config: {
             temperature: 0.1,
             responseMimeType: "application/json",
           },
         });
 
-        const result = await model.generateContent([
-          { text: SYSTEM_PROMPT },
-          {
-            inlineData: {
-              data: imageBase64,
-              mimeType: mimeType || "image/jpeg",
-            },
-          },
-        ]);
-
-        text = result.response.text();
+        text = result.text || null;
+        if (!text) throw new Error("Respuesta vacía del modelo");
         usedModel = modelName;
         break;
       } catch (e) {
         lastErr = e instanceof Error ? e : new Error(String(e));
-        console.warn(`[OCR] Modelo ${modelName} fallo:`, lastErr.message.substring(0, 200));
+        console.warn(`[OCR] Modelo ${modelName} fallo:`, lastErr.message.substring(0, 250));
         continue;
       }
     }
