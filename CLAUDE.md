@@ -147,12 +147,21 @@ El P&L se construye desde **EGRESOS pagados** (cash real, no devengado) + ventas
 7. **Otros** — fallback para rubros sin clasificar
 
 ### Categoría especial — NO suma a costos
-8. **Retiros / Ganancia** — Retiros, distribuciones a socios, dividendos. Se muestran como línea separada **debajo de EBITDA con signo +** (es ganancia distribuida, NO gasto operativo).
+8. **Retiros (distribución a socios)** — Retiros, distribuciones a socios, dividendos. Se muestran como línea separada **debajo de EBITDA prefijada con `*`** (es **distribución desde banco a socios**, NO gasto operativo, NO ganancia operativa). **Nunca usar `+` para retiros**, siempre `*` con texto "distribución desde banco a socios".
+
+### Ventas Brutas vs Netas vs Descuentos
+- **Ventas Brutas**: `Σ item.price × quantity` para items NO cancelados (lo que "deberían" pagar antes de cualquier descuento)
+- **Descuentos**: Brutas - Netas (descuentos de socios, promos, ajustes manuales, etc.)
+- **Ventas Netas**: `sale.total` de Fudo (lo que efectivamente se cobra)
+- **CMV %** se calcula contra **Ventas Brutas** (es la métrica operativa real, los descuentos no afectan el costo de los insumos). El CMV vs netas se guarda como referencia (`cmvPctNetas`)
+- **EBITDA %** y demás % de costos se calculan contra **Ventas Netas** (lo que efectivamente entra)
 
 ### Estructura del P&L mensual
 ```
-Ventas (de Fudo)
-- Insumos (CMV)
+Ventas Brutas (de Fudo, items × cant)
+- Descuentos (de socios, promos)
+= Ventas Netas (sale.total Fudo)
+- Insumos (CMV)               ← CMV% sobre BRUTAS
 = Margen Bruto
 - Sueldos / RRHH
 - Alquiler + Servicios
@@ -160,8 +169,8 @@ Ventas (de Fudo)
 - Impuestos / Acuerdos
 - Bancarios / Comisiones
 - Otros
-= EBITDA
-+ Retiros / Ganancia    ← NO afecta EBITDA, info aparte
+= EBITDA                       ← EBITDA% sobre NETAS
+* Retiros (distribución a socios)  ← NO afecta EBITDA, info aparte
 ```
 
 ### Re-asignación de rubros

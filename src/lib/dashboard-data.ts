@@ -876,7 +876,9 @@ export async function getProductAnalytics(
 // ===== Resúmenes mensuales desde datos live de Fudo =====
 
 interface MonthSummary {
-  totalSales: number;
+  totalSales: number; // ventas netas (lo que el cliente paga, sale.total de Fudo)
+  totalGrossSales: number; // ventas brutas (sum item.price * quantity, antes de descuentos)
+  totalDiscounts: number; // gross - net
   totalOrders: number;
   totalPeople: number;
   avgTicket: number;
@@ -905,6 +907,8 @@ function buildMonthlySummaries(
     string,
     {
       totalSales: number;
+      totalGrossSales: number;
+      totalDiscounts: number;
       totalOrders: number;
       totalPeople: number;
       totalDuration: number;
@@ -935,6 +939,8 @@ function buildMonthlySummaries(
     if (!monthly[monthKey]) {
       monthly[monthKey] = {
         totalSales: 0,
+        totalGrossSales: 0,
+        totalDiscounts: 0,
         totalOrders: 0,
         totalPeople: 0,
         totalDuration: 0,
@@ -956,7 +962,17 @@ function buildMonthlySummaries(
     const total = sale.total || 0;
     const people = sale.people || 1;
 
+    // Calcular gross sales (sum de items no cancelados, antes de descuentos)
+    const itemsGross = (sale.items || [])
+      .filter((it) => !it.canceled)
+      .reduce((s, it) => s + (it.price || 0) * (it.quantity || 0), 0);
+    // Si no hay items detail (ventas manuales), usar total como gross
+    const gross = itemsGross > 0 ? itemsGross : total;
+    const discount = Math.max(0, gross - total);
+
     m.totalSales += total;
+    m.totalGrossSales += gross;
+    m.totalDiscounts += discount;
     m.totalOrders += 1;
     m.totalPeople += people;
 
@@ -1003,6 +1019,8 @@ function buildMonthlySummaries(
 
     result[monthKey] = {
       totalSales: Math.round(m.totalSales * 100) / 100,
+      totalGrossSales: Math.round(m.totalGrossSales * 100) / 100,
+      totalDiscounts: Math.round(m.totalDiscounts * 100) / 100,
       totalOrders: m.totalOrders,
       totalPeople: m.totalPeople,
       avgTicket:

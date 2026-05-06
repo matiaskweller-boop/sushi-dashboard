@@ -20,7 +20,9 @@ type Categoria =
 interface PnLMonth {
   year: number;
   month: number;
-  ventas: number;
+  ventas: number; // netas
+  ventasBrutas: number;
+  descuentos: number;
   ordenes: number;
   comensales: number;
   ticketPromedio: number;
@@ -36,7 +38,8 @@ interface PnLMonth {
   };
   retiros: number;
   margenBruto: number;
-  cmvPct: number;
+  cmvPct: number; // CMV vs brutas
+  cmvPctNetas: number;
   ebitda: number;
   ebitdaPct: number;
 }
@@ -58,6 +61,8 @@ interface PnLResponse {
   months: PnLMonth[];
   ytd: {
     ventas: number;
+    ventasBrutas: number;
+    descuentos: number;
     ordenes: number;
     comensales: number;
     costosInsumos: number;
@@ -71,6 +76,8 @@ interface PnLResponse {
     retiros: number;
     ebitda: number;
     cmvPct: number;
+    cmvPctNetas: number;
+    descuentosPct: number;
     ebitdaPct: number;
   };
   byRubro: RubroBreakdown[];
@@ -97,7 +104,7 @@ const CATEGORIA_LABEL: Record<Categoria, string> = {
   operativos: "Operativos",
   financieros: "Bancarios / Comisiones",
   impuestos: "Impuestos / Acuerdos",
-  retiros: "Retiros / Ganancia",
+  retiros: "Retiros (distribución a socios)",
   otros: "Otros",
 };
 const CATEGORIA_COLOR: Record<Categoria, string> = {
@@ -127,6 +134,7 @@ export default function PnLPage() {
   const [year, setYear] = useState<"2025" | "2026">("2026");
   const [sucursal, setSucursal] = useState<string>("palermo");
   const [data, setData] = useState<PnLResponse | null>(null);
+  const [prevData, setPrevData] = useState<PnLResponse | null>(null);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
   const [selectedMonth, setSelectedMonth] = useState<number | null>(null);
@@ -135,15 +143,20 @@ export default function PnLPage() {
   const [filterCat, setFilterCat] = useState<Categoria | "">("");
   const [expandedRubro, setExpandedRubro] = useState<string | null>(null);
   const [exporting, setExporting] = useState(false);
+  const [hideZeros, setHideZeros] = useState(true);
 
   const fetchData = async () => {
     setLoading(true);
     setError(null);
+    const prevYear = year === "2026" ? "2025" : "2024";
     try {
-      const r = await fetch(`/api/erp/pnl?sucursal=${sucursal}&year=${year}`);
-      const d = await r.json();
-      if (d.error) throw new Error(d.error);
-      setData(d);
+      const [rCur, rPrev] = await Promise.all([
+        fetch(`/api/erp/pnl?sucursal=${sucursal}&year=${year}`).then((r) => r.json()),
+        fetch(`/api/erp/pnl?sucursal=${sucursal}&year=${prevYear}`).then((r) => r.json()).catch(() => null),
+      ]);
+      if (rCur.error) throw new Error(rCur.error);
+      setData(rCur);
+      setPrevData(rPrev?.error ? null : rPrev);
     } catch (e) {
       setError(e instanceof Error ? e.message : "Error");
     } finally {
@@ -214,9 +227,10 @@ export default function PnLPage() {
     return data.byRubro.filter((r) => {
       if (filterCat && r.categoria !== filterCat) return false;
       if (searchRubro && !r.rubro.toLowerCase().includes(searchRubro.toLowerCase())) return false;
+      if (hideZeros && r.total === 0) return false;
       return true;
     });
-  }, [data, filterCat, searchRubro]);
+  }, [data, filterCat, searchRubro, hideZeros]);
 
   const filteredTotal = useMemo(() => filteredRubros.reduce((s, r) => s + r.total, 0), [filteredRubros]);
 
@@ -239,10 +253,11 @@ export default function PnLPage() {
       doc.setFontSize(10);
       doc.setTextColor(0);
       const kpiY = 80;
-      doc.text(`Ventas YTD: ${fmt(data.ytd.ventas)}`, 40, kpiY);
-      doc.text(`CMV: ${fmtPct(data.ytd.cmvPct)}`, 240, kpiY);
-      doc.text(`EBITDA: ${fmt(data.ytd.ebitda)} (${fmtPct(data.ytd.ebitdaPct)})`, 380, kpiY);
-      doc.text(`Costos totales: ${fmt(data.ytd.costosTotal)}`, 600, kpiY);
+      doc.text(`V. Brutas: ${fmt(data.ytd.ventasBrutas)}`, 40, kpiY);
+      doc.text(`Desc: ${fmt(data.ytd.descuentos)} (${fmtPct(data.ytd.descuentosPct)})`, 200, kpiY);
+      doc.text(`V. Netas: ${fmt(data.ytd.ventas)}`, 380, kpiY);
+      doc.text(`CMV: ${fmtPct(data.ytd.cmvPct)} (vs brutas)`, 540, kpiY);
+      doc.text(`EBITDA: ${fmt(data.ytd.ebitda)} (${fmtPct(data.ytd.ebitdaPct)})`, 700, kpiY);
 
       // Table comun: P&L resumido
       const monthCols = MONTH_NAMES.map((m) => ({ header: m, dataKey: m }));
@@ -251,8 +266,10 @@ export default function PnLPage() {
       const ytdEbitda = data.ytd.ebitda;
       const ytdMargen = data.ytd.ventas - data.ytd.costosInsumos;
 
-      const rowVentas = ["Ventas", ...data.months.map((m) => m.ventas > 0 ? fmtK(m.ventas) : "—"), fmtK(data.ytd.ventas)];
-      const rowInsumos = ["- Insumos", ...data.months.map((m) => m.costos.insumos > 0 ? fmtK(m.costos.insumos) : "—"), fmtK(data.ytd.costosInsumos)];
+      const rowVentasBrutas = ["Ventas Brutas", ...data.months.map((m) => m.ventasBrutas > 0 ? fmtK(m.ventasBrutas) : "—"), fmtK(data.ytd.ventasBrutas)];
+      const rowDescuentos = ["- Descuentos", ...data.months.map((m) => m.descuentos > 0 ? fmtK(m.descuentos) : "—"), fmtK(data.ytd.descuentos)];
+      const rowVentas = ["= Ventas Netas", ...data.months.map((m) => m.ventas > 0 ? fmtK(m.ventas) : "—"), fmtK(data.ytd.ventas)];
+      const rowInsumos = ["- Insumos (CMV)", ...data.months.map((m) => m.costos.insumos > 0 ? fmtK(m.costos.insumos) : "—"), fmtK(data.ytd.costosInsumos)];
       const rowMargen = ["= Margen Bruto", ...data.months.map((m) => m.ventas > 0 ? fmtK(m.margenBruto) : "—"), fmtK(ytdMargen)];
       const rowSueldos = ["- Sueldos / RRHH", ...data.months.map((m) => m.costos.sueldos > 0 ? fmtK(m.costos.sueldos) : "—"), fmtK(data.ytd.costosSueldos)];
       const rowAlq = ["- Alquiler + Serv", ...data.months.map((m) => m.costos.alquilerServicios > 0 ? fmtK(m.costos.alquilerServicios) : "—"), fmtK(data.ytd.costosAlquilerServicios)];
@@ -261,11 +278,11 @@ export default function PnLPage() {
       const rowFin = ["- Bancarios", ...data.months.map((m) => m.costos.financieros > 0 ? fmtK(m.costos.financieros) : "—"), fmtK(data.ytd.costosFinancieros)];
       const rowOtros = ["- Otros", ...data.months.map((m) => m.costos.otros > 0 ? fmtK(m.costos.otros) : "—"), fmtK(data.ytd.costosOtros)];
       const rowEbitda = ["= EBITDA", ...data.months.map((m) => m.ventas > 0 ? fmtK(m.ebitda) : "—"), fmtK(ytdEbitda)];
-      const rowRetiros = ["+ Retiros / Ganancia", ...data.months.map((m) => m.retiros > 0 ? fmtK(m.retiros) : "—"), fmtK(data.ytd.retiros)];
+      const rowRetiros = ["* Retiros (distribución a socios)", ...data.months.map((m) => m.retiros > 0 ? fmtK(m.retiros) : "—"), fmtK(data.ytd.retiros)];
 
       autoTable(doc, {
         head: [headers],
-        body: [rowVentas, rowInsumos, rowMargen, rowSueldos, rowAlq, rowOp, rowImp, rowFin, rowOtros, rowEbitda, rowRetiros],
+        body: [rowVentasBrutas, rowDescuentos, rowVentas, rowInsumos, rowMargen, rowSueldos, rowAlq, rowOp, rowImp, rowFin, rowOtros, rowEbitda, rowRetiros],
         startY: 100,
         styles: { fontSize: 8, cellPadding: 3, halign: "right" },
         columnStyles: { 0: { halign: "left", fontStyle: "bold" } },
@@ -273,9 +290,13 @@ export default function PnLPage() {
         didParseCell: (h) => {
           if (!h.cell.raw) return;
           const text = String(h.cell.raw);
-          if (text.startsWith("=") || text === "Ventas") {
+          if (text.startsWith("=") || text === "Ventas Brutas") {
             h.cell.styles.fillColor = [240, 245, 255];
             h.cell.styles.fontStyle = "bold";
+          }
+          if (text.startsWith("*")) {
+            h.cell.styles.fillColor = [240, 253, 244];
+            h.cell.styles.textColor = [16, 185, 129];
           }
         },
       });
@@ -396,31 +417,36 @@ export default function PnLPage() {
       {data && !loading && (
         <>
           {/* YTD KPI cards */}
-          <div className="grid grid-cols-2 lg:grid-cols-5 gap-3 mb-4">
-            <div className="bg-white rounded-xl border border-gray-100 p-4">
-              <div className="text-xs text-gray-500 uppercase tracking-wide mb-1">Ventas YTD</div>
-              <div className="text-xl font-bold text-navy">{fmt(data.ytd.ventas)}</div>
+          <div className="grid grid-cols-2 lg:grid-cols-6 gap-3 mb-4">
+            <div className="bg-white rounded-xl border border-blue-100 p-4">
+              <div className="text-xs text-blue-600 uppercase tracking-wide mb-1">Ventas Brutas</div>
+              <div className="text-lg font-bold text-navy">{fmt(data.ytd.ventasBrutas)}</div>
               <div className="text-xs text-gray-400 mt-1">{data.ytd.ordenes.toLocaleString("es-AR")} órdenes</div>
+            </div>
+            <div className="bg-white rounded-xl border border-amber-100 p-4">
+              <div className="text-xs text-amber-700 uppercase tracking-wide mb-1">Descuentos</div>
+              <div className="text-lg font-bold text-amber-700">{fmt(data.ytd.descuentos)}</div>
+              <div className="text-xs text-gray-400 mt-1">{fmtPct(data.ytd.descuentosPct)} de brutas</div>
+            </div>
+            <div className="bg-white rounded-xl border border-gray-100 p-4">
+              <div className="text-xs text-gray-500 uppercase tracking-wide mb-1">Ventas Netas</div>
+              <div className="text-lg font-bold text-navy">{fmt(data.ytd.ventas)}</div>
+              <div className="text-xs text-gray-400 mt-1">lo que cobramos</div>
             </div>
             <div className="bg-white rounded-xl border border-red-100 p-4">
               <div className="text-xs text-red-600 uppercase tracking-wide mb-1">Insumos (CMV)</div>
-              <div className="text-xl font-bold text-red-700">{fmt(data.ytd.costosInsumos)}</div>
-              <div className="text-xs text-gray-400 mt-1">{fmtPct(data.ytd.cmvPct)} de ventas</div>
-            </div>
-            <div className="bg-white rounded-xl border border-gray-100 p-4">
-              <div className="text-xs text-gray-500 uppercase tracking-wide mb-1">Costos totales</div>
-              <div className="text-xl font-bold text-navy">{fmt(data.ytd.costosTotal)}</div>
-              <div className="text-xs text-gray-400 mt-1">{data.ytd.ventas ? fmtPct((data.ytd.costosTotal / data.ytd.ventas) * 100) : "—"} de ventas</div>
+              <div className="text-lg font-bold text-red-700">{fmt(data.ytd.costosInsumos)}</div>
+              <div className="text-xs text-gray-400 mt-1">{fmtPct(data.ytd.cmvPct)} de brutas</div>
             </div>
             <div className={`bg-white rounded-xl border p-4 ${data.ytd.ebitda >= 0 ? "border-emerald-100" : "border-red-100"}`}>
               <div className={`text-xs uppercase tracking-wide mb-1 ${data.ytd.ebitda >= 0 ? "text-emerald-600" : "text-red-600"}`}>EBITDA</div>
-              <div className={`text-xl font-bold ${data.ytd.ebitda >= 0 ? "text-emerald-700" : "text-red-700"}`}>{fmt(data.ytd.ebitda)}</div>
-              <div className="text-xs text-gray-400 mt-1">{fmtPct(data.ytd.ebitdaPct)} margen</div>
+              <div className={`text-lg font-bold ${data.ytd.ebitda >= 0 ? "text-emerald-700" : "text-red-700"}`}>{fmt(data.ytd.ebitda)}</div>
+              <div className="text-xs text-gray-400 mt-1">{fmtPct(data.ytd.ebitdaPct)} de netas</div>
             </div>
             <div className="bg-white rounded-xl border border-emerald-100 p-4">
-              <div className="text-xs text-emerald-600 uppercase tracking-wide mb-1">+ Retiros / Ganancia</div>
-              <div className="text-xl font-bold text-emerald-700">{fmt(data.ytd.retiros)}</div>
-              <div className="text-xs text-gray-400 mt-1">distribución a socios</div>
+              <div className="text-xs text-emerald-600 uppercase tracking-wide mb-1">* Retiros</div>
+              <div className="text-lg font-bold text-emerald-700">{fmt(data.ytd.retiros)}</div>
+              <div className="text-xs text-gray-400 mt-1">distribución banco→socios</div>
             </div>
           </div>
 
@@ -472,6 +498,9 @@ export default function PnLPage() {
           <div className="bg-white rounded-xl border border-gray-100 overflow-hidden mb-4">
             <div className="px-4 py-3 border-b border-gray-100 bg-gray-50">
               <h2 className="text-sm font-semibold text-navy">P&amp;L Resumen · {year}</h2>
+              {prevData && (
+                <p className="text-xs text-gray-500 mt-0.5">Comparación YoY con {year === "2026" ? "2025" : "2024"}</p>
+              )}
             </div>
             <div className="overflow-x-auto">
               <table className="w-full text-xs">
@@ -489,76 +518,200 @@ export default function PnLPage() {
                         {m}
                       </th>
                     ))}
-                    <th className="text-right px-3 py-2 font-semibold text-gray-700 uppercase bg-gray-100">Total</th>
+                    <th className="text-right px-3 py-2 font-semibold text-gray-700 uppercase bg-gray-100">Total {year}</th>
+                    <th className="text-right px-2 py-2 font-semibold text-gray-500 uppercase bg-gray-100">% vts</th>
+                    {prevData && (
+                      <>
+                        <th className="text-right px-2 py-2 font-semibold text-gray-500 uppercase bg-gray-50">{year === "2026" ? "2025" : "2024"}</th>
+                        <th className="text-right px-2 py-2 font-semibold text-gray-500 uppercase bg-gray-50">YoY%</th>
+                      </>
+                    )}
                   </tr>
                 </thead>
                 <tbody>
-                  <tr className="border-b border-gray-100 bg-blue-50/40">
-                    <td className="px-3 py-2 font-semibold text-navy sticky left-0 bg-blue-50/40">Ventas</td>
-                    {data.months.map((m) => (
-                      <td key={m.month} className="text-right px-2 py-2 font-mono text-navy">{m.ventas > 0 ? fmtK(m.ventas) : "—"}</td>
-                    ))}
-                    <td className="text-right px-3 py-2 font-mono font-semibold text-navy bg-gray-100">{fmtK(data.ytd.ventas)}</td>
-                  </tr>
-                  <tr className="border-b border-gray-50 hover:bg-gray-50">
-                    <td className="px-3 py-2 text-red-700 sticky left-0 bg-white">- Insumos (CMV)</td>
-                    {data.months.map((m) => (
-                      <td key={m.month} className="text-right px-2 py-2 font-mono text-red-600">{m.costos.insumos > 0 ? fmtK(m.costos.insumos) : "—"}</td>
-                    ))}
-                    <td className="text-right px-3 py-2 font-mono text-red-600 bg-gray-100">{fmtK(data.ytd.costosInsumos)}</td>
-                  </tr>
-                  <tr className="border-b border-gray-100 bg-gray-50/50 font-semibold">
-                    <td className="px-3 py-2 text-navy sticky left-0 bg-gray-50/50">= Margen Bruto</td>
-                    {data.months.map((m) => (
-                      <td key={m.month} className="text-right px-2 py-2 font-mono text-navy">
-                        {m.ventas > 0 ? <span>{fmtK(m.margenBruto)}<span className="text-[10px] text-gray-400 block">{fmtPct(100 - m.cmvPct)}</span></span> : "—"}
-                      </td>
-                    ))}
-                    <td className="text-right px-3 py-2 font-mono text-navy bg-gray-100">{fmtK(data.ytd.ventas - data.ytd.costosInsumos)}</td>
-                  </tr>
-                  {(["sueldos", "alquilerServicios", "operativos", "impuestos", "financieros", "otros"] as const).map((cat) => {
-                    const ytdField = `costos${cat.charAt(0).toUpperCase() + cat.slice(1)}` as keyof typeof data.ytd;
-                    const ytdValue = data.ytd[ytdField] as number;
+                  {(() => {
+                    // % de ventas: usamos NETAS para todo excepto Insumos (que usa BRUTAS para reflejar CMV operativo real)
+                    const pctVts = (val: number) => data.ytd.ventas > 0 ? ((val / data.ytd.ventas) * 100).toFixed(1) + "%" : "—";
+                    const pctBrutas = (val: number) => data.ytd.ventasBrutas > 0 ? ((val / data.ytd.ventasBrutas) * 100).toFixed(1) + "%" : "—";
+                    const yoyCell = (cur: number, prev: number) => {
+                      if (!prev || prev === 0) return <td className="text-right px-2 py-2 font-mono text-gray-300 bg-gray-50">—</td>;
+                      const pct = ((cur - prev) / Math.abs(prev)) * 100;
+                      // Para costos: subir es malo (rojo). Para Ventas/Margen/EBITDA/Retiros: subir es bueno (verde).
+                      const positive = pct >= 0;
+                      return (
+                        <td className={`text-right px-2 py-2 font-mono bg-gray-50 ${positive ? "text-emerald-600" : "text-red-600"}`}>
+                          {positive ? "↑" : "↓"} {Math.abs(pct).toFixed(1)}%
+                        </td>
+                      );
+                    };
+                    const yoyCellInverted = (cur: number, prev: number) => {
+                      // Para costos: subir es malo
+                      if (!prev || prev === 0) return <td className="text-right px-2 py-2 font-mono text-gray-300 bg-gray-50">—</td>;
+                      const pct = ((cur - prev) / Math.abs(prev)) * 100;
+                      const isBad = pct >= 0;
+                      return (
+                        <td className={`text-right px-2 py-2 font-mono bg-gray-50 ${isBad ? "text-red-600" : "text-emerald-600"}`}>
+                          {pct >= 0 ? "↑" : "↓"} {Math.abs(pct).toFixed(1)}%
+                        </td>
+                      );
+                    };
+
                     return (
-                      <tr key={cat} className="border-b border-gray-50 hover:bg-gray-50">
-                        <td className="px-3 py-2 text-gray-600 sticky left-0 bg-white">- {CATEGORIA_LABEL[cat]}</td>
-                        {data.months.map((m) => (
-                          <td key={m.month} className="text-right px-2 py-2 font-mono text-gray-500">
-                            {m.costos[cat] > 0 ? fmtK(m.costos[cat]) : "—"}
+                      <>
+                        <tr className="border-b border-gray-100 bg-blue-50/60">
+                          <td className="px-3 py-2 font-semibold text-navy sticky left-0 bg-blue-50/60" title="Ventas brutas: sum item.price × cantidad antes de descuentos">
+                            Ventas Brutas
                           </td>
-                        ))}
-                        <td className="text-right px-3 py-2 font-mono text-gray-500 bg-gray-100">{fmtK(ytdValue)}</td>
-                      </tr>
+                          {data.months.map((m) => (
+                            <td key={m.month} className="text-right px-2 py-2 font-mono text-navy">{m.ventasBrutas > 0 ? fmtK(m.ventasBrutas) : "—"}</td>
+                          ))}
+                          <td className="text-right px-3 py-2 font-mono font-semibold text-navy bg-gray-100">{fmtK(data.ytd.ventasBrutas)}</td>
+                          <td className="text-right px-2 py-2 font-mono text-gray-400 bg-gray-100">100%</td>
+                          {prevData && (
+                            <>
+                              <td className="text-right px-2 py-2 font-mono text-gray-500 bg-gray-50">{fmtK(prevData.ytd.ventasBrutas)}</td>
+                              {yoyCell(data.ytd.ventasBrutas, prevData.ytd.ventasBrutas)}
+                            </>
+                          )}
+                        </tr>
+
+                        <tr className="border-b border-gray-100 hover:bg-gray-50">
+                          <td className="px-3 py-2 text-amber-700 sticky left-0 bg-white" title="Descuentos aplicados (socios, promos, etc)">
+                            - Descuentos
+                          </td>
+                          {data.months.map((m) => (
+                            <td key={m.month} className="text-right px-2 py-2 font-mono text-amber-600">{m.descuentos > 0 ? fmtK(m.descuentos) : "—"}</td>
+                          ))}
+                          <td className="text-right px-3 py-2 font-mono text-amber-600 bg-gray-100">{fmtK(data.ytd.descuentos)}</td>
+                          <td className="text-right px-2 py-2 font-mono text-gray-500 bg-gray-100">{data.ytd.descuentosPct.toFixed(1)}%</td>
+                          {prevData && (
+                            <>
+                              <td className="text-right px-2 py-2 font-mono text-gray-500 bg-gray-50">{fmtK(prevData.ytd.descuentos)}</td>
+                              {yoyCellInverted(data.ytd.descuentos, prevData.ytd.descuentos)}
+                            </>
+                          )}
+                        </tr>
+
+                        <tr className="border-b border-gray-100 bg-blue-50/40 font-semibold">
+                          <td className="px-3 py-2 text-navy sticky left-0 bg-blue-50/40">= Ventas Netas</td>
+                          {data.months.map((m) => (
+                            <td key={m.month} className="text-right px-2 py-2 font-mono text-navy">{m.ventas > 0 ? fmtK(m.ventas) : "—"}</td>
+                          ))}
+                          <td className="text-right px-3 py-2 font-mono font-semibold text-navy bg-gray-100">{fmtK(data.ytd.ventas)}</td>
+                          <td className="text-right px-2 py-2 font-mono text-gray-500 bg-gray-100">{data.ytd.ventasBrutas > 0 ? ((data.ytd.ventas / data.ytd.ventasBrutas) * 100).toFixed(1) + "%" : "—"}</td>
+                          {prevData && (
+                            <>
+                              <td className="text-right px-2 py-2 font-mono text-gray-500 bg-gray-50">{fmtK(prevData.ytd.ventas)}</td>
+                              {yoyCell(data.ytd.ventas, prevData.ytd.ventas)}
+                            </>
+                          )}
+                        </tr>
+
+                        <tr className="border-b border-gray-50 hover:bg-gray-50">
+                          <td className="px-3 py-2 text-red-700 sticky left-0 bg-white">- Insumos (CMV)</td>
+                          {data.months.map((m) => (
+                            <td key={m.month} className="text-right px-2 py-2 font-mono text-red-600">{m.costos.insumos > 0 ? fmtK(m.costos.insumos) : "—"}</td>
+                          ))}
+                          <td className="text-right px-3 py-2 font-mono text-red-600 bg-gray-100">{fmtK(data.ytd.costosInsumos)}</td>
+                          <td className="text-right px-2 py-2 font-mono text-red-600 font-semibold bg-gray-100" title="CMV vs Ventas Brutas — métrica operativa más precisa">
+                            {pctBrutas(data.ytd.costosInsumos)}
+                          </td>
+                          {prevData && (
+                            <>
+                              <td className="text-right px-2 py-2 font-mono text-gray-500 bg-gray-50">{fmtK(prevData.ytd.costosInsumos)}</td>
+                              {yoyCellInverted(data.ytd.costosInsumos, prevData.ytd.costosInsumos)}
+                            </>
+                          )}
+                        </tr>
+
+                        <tr className="border-b border-gray-100 bg-gray-50/50 font-semibold">
+                          <td className="px-3 py-2 text-navy sticky left-0 bg-gray-50/50">= Margen Bruto</td>
+                          {data.months.map((m) => (
+                            <td key={m.month} className="text-right px-2 py-2 font-mono text-navy">
+                              {m.ventas > 0 ? <span>{fmtK(m.margenBruto)}<span className="text-[10px] text-gray-400 block">{fmtPct(100 - m.cmvPct)}</span></span> : "—"}
+                            </td>
+                          ))}
+                          <td className="text-right px-3 py-2 font-mono text-navy bg-gray-100">{fmtK(data.ytd.ventas - data.ytd.costosInsumos)}</td>
+                          <td className="text-right px-2 py-2 font-mono text-gray-500 bg-gray-100">{pctVts(data.ytd.ventas - data.ytd.costosInsumos)}</td>
+                          {prevData && (
+                            <>
+                              <td className="text-right px-2 py-2 font-mono text-gray-500 bg-gray-50">{fmtK(prevData.ytd.ventas - prevData.ytd.costosInsumos)}</td>
+                              {yoyCell(data.ytd.ventas - data.ytd.costosInsumos, prevData.ytd.ventas - prevData.ytd.costosInsumos)}
+                            </>
+                          )}
+                        </tr>
+
+                        {(["sueldos", "alquilerServicios", "operativos", "impuestos", "financieros", "otros"] as const).map((cat) => {
+                          const ytdField = `costos${cat.charAt(0).toUpperCase() + cat.slice(1)}` as keyof typeof data.ytd;
+                          const ytdValue = data.ytd[ytdField] as number;
+                          const prevValue = prevData ? (prevData.ytd[ytdField] as number) : 0;
+                          return (
+                            <tr key={cat} className="border-b border-gray-50 hover:bg-gray-50">
+                              <td className="px-3 py-2 text-gray-600 sticky left-0 bg-white">- {CATEGORIA_LABEL[cat]}</td>
+                              {data.months.map((m) => (
+                                <td key={m.month} className="text-right px-2 py-2 font-mono text-gray-500">
+                                  {m.costos[cat] > 0 ? fmtK(m.costos[cat]) : "—"}
+                                </td>
+                              ))}
+                              <td className="text-right px-3 py-2 font-mono text-gray-500 bg-gray-100">{fmtK(ytdValue)}</td>
+                              <td className="text-right px-2 py-2 font-mono text-gray-500 bg-gray-100">{pctVts(ytdValue)}</td>
+                              {prevData && (
+                                <>
+                                  <td className="text-right px-2 py-2 font-mono text-gray-500 bg-gray-50">{fmtK(prevValue)}</td>
+                                  {yoyCellInverted(ytdValue, prevValue)}
+                                </>
+                              )}
+                            </tr>
+                          );
+                        })}
+
+                        <tr className="border-t-2 border-emerald-200 bg-emerald-50/40 font-bold">
+                          <td className="px-3 py-2.5 text-emerald-700 sticky left-0 bg-emerald-50/40">= EBITDA</td>
+                          {data.months.map((m) => (
+                            <td key={m.month} className={`text-right px-2 py-2.5 font-mono ${m.ebitda >= 0 ? "text-emerald-700" : "text-red-700"}`}>
+                              {m.ventas > 0 ? (
+                                <span>
+                                  {fmtK(m.ebitda)}
+                                  <span className="text-[10px] block font-normal">{fmtPct(m.ebitdaPct)}</span>
+                                </span>
+                              ) : "—"}
+                            </td>
+                          ))}
+                          <td className={`text-right px-3 py-2.5 font-mono bg-emerald-100 ${data.ytd.ebitda >= 0 ? "text-emerald-700" : "text-red-700"}`}>
+                            {fmtK(data.ytd.ebitda)}
+                            <span className="text-[10px] block font-normal">{fmtPct(data.ytd.ebitdaPct)}</span>
+                          </td>
+                          <td className="text-right px-2 py-2.5 font-mono text-gray-500 bg-emerald-100">{pctVts(data.ytd.ebitda)}</td>
+                          {prevData && (
+                            <>
+                              <td className="text-right px-2 py-2.5 font-mono text-gray-500 bg-gray-50">{fmtK(prevData.ytd.ebitda)}</td>
+                              {yoyCell(data.ytd.ebitda, prevData.ytd.ebitda)}
+                            </>
+                          )}
+                        </tr>
+
+                        <tr className="border-b border-gray-50 hover:bg-gray-50">
+                          <td className="px-3 py-2 text-emerald-700 sticky left-0 bg-white" title="Retiros: distribución desde banco a socios. NO suma a costos operativos.">
+                            * Retiros / Ganancia
+                            <div className="text-[10px] text-gray-400 font-normal">distribución banco→socios</div>
+                          </td>
+                          {data.months.map((m) => (
+                            <td key={m.month} className="text-right px-2 py-2 font-mono text-emerald-600">
+                              {m.retiros > 0 ? fmtK(m.retiros) : "—"}
+                            </td>
+                          ))}
+                          <td className="text-right px-3 py-2 font-mono text-emerald-600 bg-gray-100">{fmtK(data.ytd.retiros)}</td>
+                          <td className="text-right px-2 py-2 font-mono text-gray-500 bg-gray-100">{pctVts(data.ytd.retiros)}</td>
+                          {prevData && (
+                            <>
+                              <td className="text-right px-2 py-2 font-mono text-gray-500 bg-gray-50">{fmtK(prevData.ytd.retiros)}</td>
+                              {yoyCell(data.ytd.retiros, prevData.ytd.retiros)}
+                            </>
+                          )}
+                        </tr>
+                      </>
                     );
-                  })}
-                  <tr className="border-t-2 border-emerald-200 bg-emerald-50/40 font-bold">
-                    <td className="px-3 py-2.5 text-emerald-700 sticky left-0 bg-emerald-50/40">= EBITDA</td>
-                    {data.months.map((m) => (
-                      <td key={m.month} className={`text-right px-2 py-2.5 font-mono ${m.ebitda >= 0 ? "text-emerald-700" : "text-red-700"}`}>
-                        {m.ventas > 0 ? (
-                          <span>
-                            {fmtK(m.ebitda)}
-                            <span className="text-[10px] block font-normal">{fmtPct(m.ebitdaPct)}</span>
-                          </span>
-                        ) : "—"}
-                      </td>
-                    ))}
-                    <td className={`text-right px-3 py-2.5 font-mono bg-emerald-100 ${data.ytd.ebitda >= 0 ? "text-emerald-700" : "text-red-700"}`}>
-                      {fmtK(data.ytd.ebitda)}
-                      <span className="text-[10px] block font-normal">{fmtPct(data.ytd.ebitdaPct)}</span>
-                    </td>
-                  </tr>
-                  <tr className="border-b border-gray-50 hover:bg-gray-50">
-                    <td className="px-3 py-2 text-emerald-700 sticky left-0 bg-white" title="Retiros: distribución a socios. NO suma a costos.">
-                      + Retiros / Ganancia
-                    </td>
-                    {data.months.map((m) => (
-                      <td key={m.month} className="text-right px-2 py-2 font-mono text-emerald-600">
-                        {m.retiros > 0 ? fmtK(m.retiros) : "—"}
-                      </td>
-                    ))}
-                    <td className="text-right px-3 py-2 font-mono text-emerald-600 bg-gray-100">{fmtK(data.ytd.retiros)}</td>
-                  </tr>
+                  })()}
                 </tbody>
               </table>
             </div>
@@ -623,6 +776,10 @@ export default function PnLPage() {
                   <option value="">Todas las categorías</option>
                   {CATEGORIAS.map((c) => <option key={c} value={c}>{CATEGORIA_LABEL[c]}</option>)}
                 </select>
+                <label className="flex items-center gap-1.5 text-xs text-gray-600 cursor-pointer">
+                  <input type="checkbox" checked={hideZeros} onChange={(e) => setHideZeros(e.target.checked)} className="cursor-pointer" />
+                  ocultar ceros
+                </label>
                 {(searchRubro || filterCat) && (
                   <button onClick={() => { setSearchRubro(""); setFilterCat(""); }} className="text-xs text-red-500 hover:underline">
                     Limpiar
@@ -715,26 +872,39 @@ export default function PnLPage() {
                         {/* Expanded row: lista de proveedores que componen este rubro */}
                         {isExpanded && (
                           <tr className="bg-blue-50/20 border-b border-blue-100">
-                            <td colSpan={16} className="px-6 py-3">
-                              <div className="text-xs font-semibold text-gray-600 uppercase mb-2">
-                                Proveedores · {r.proveedores.length} en este rubro
+                            <td colSpan={17} className="px-6 py-3">
+                              <div className="text-xs font-semibold text-gray-600 uppercase mb-2 flex items-center justify-between">
+                                <span>Proveedores · {r.proveedores.length} en este rubro</span>
+                                <span className="text-[10px] text-gray-400 font-normal">Suma: {fmt(r.proveedores.reduce((s, p) => s + p.total, 0))}</span>
                               </div>
                               {r.proveedores.length === 0 ? (
                                 <div className="text-xs text-gray-400 italic">No hay proveedores cargados (rubro vacío)</div>
                               ) : (
-                                <div className="grid grid-cols-1 lg:grid-cols-2 gap-x-6 gap-y-1">
-                                  {r.proveedores.map((p) => {
-                                    const pct = r.total > 0 ? (p.total / r.total) * 100 : 0;
-                                    return (
-                                      <div key={p.name} className="flex items-baseline justify-between text-xs py-1 border-b border-blue-50">
-                                        <span className="text-navy font-medium truncate flex-1">{p.name}</span>
-                                        <span className="text-gray-400 mx-2 text-[10px]">{p.facturas}f</span>
-                                        <span className="text-gray-400 w-12 text-right text-[10px]">{pct.toFixed(0)}%</span>
-                                        <span className="font-mono text-navy w-24 text-right">{fmt(p.total)}</span>
-                                      </div>
-                                    );
-                                  })}
-                                </div>
+                                <table className="w-full text-xs">
+                                  <thead>
+                                    <tr className="text-gray-500 text-[10px] uppercase border-b border-blue-100">
+                                      <th className="text-left py-1 font-semibold">#</th>
+                                      <th className="text-left py-1 font-semibold">Proveedor</th>
+                                      <th className="text-right py-1 font-semibold w-20">Facturas</th>
+                                      <th className="text-right py-1 font-semibold w-20">% rubro</th>
+                                      <th className="text-right py-1 font-semibold w-32">Total YTD</th>
+                                    </tr>
+                                  </thead>
+                                  <tbody>
+                                    {r.proveedores.map((p, idx) => {
+                                      const pct = r.total > 0 ? (p.total / r.total) * 100 : 0;
+                                      return (
+                                        <tr key={p.name} className="border-b border-blue-50/50 hover:bg-blue-50/40">
+                                          <td className="py-1 text-gray-400 text-[10px] w-6">{idx + 1}</td>
+                                          <td className="py-1 text-navy font-medium">{p.name}</td>
+                                          <td className="py-1 text-right text-gray-500">{p.facturas}</td>
+                                          <td className="py-1 text-right text-gray-500">{pct.toFixed(1)}%</td>
+                                          <td className="py-1 text-right font-mono text-navy">{fmt(p.total)}</td>
+                                        </tr>
+                                      );
+                                    })}
+                                  </tbody>
+                                </table>
                               )}
                             </td>
                           </tr>

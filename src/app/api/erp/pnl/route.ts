@@ -70,6 +70,7 @@ function classifyRubro(rubro: string): Categoria {
   const insumosKeys = [
     "almacen", "bebida", "postre", "café", "cafe", "carnic", "descart",
     "oriental", "pescader", "verduler", "envios", "envíos", "polleria", "pollería",
+    "frut", "lácte", "lacte", "panad", "queso", "fiambr",
   ];
   if (insumosKeys.some((k) => r.includes(k))) return "insumos";
 
@@ -77,27 +78,35 @@ function classifyRubro(rubro: string): Categoria {
   const sueldosKeys = [
     "rrhh", "sueldo", "comida personal", "reemplazo", "extra evento",
     "sindicato", "aguinaldo", "prevision", "previsión", "carga social",
-    "liquidacion", "liquidación", "despido",
+    "liquidacion", "liquidación", "despido", "horas extra", "viáti", "viati",
+    "art ", "monotrib", "obra social", "personal",
   ];
   if (sueldosKeys.some((k) => r.includes(k))) return "sueldos";
 
-  // Alquiler + Servicios
-  if (r.includes("alquiler") || r.includes("servicios") || r.includes("exp")) return "alquilerServicios";
+  // Alquiler + Servicios (luz, gas, internet, agua, ABL, expensas)
+  const alqServKeys = [
+    "alquiler", "servicios", "expensas", "exp.", "abl ", "abl",
+    "luz", "gas butano", "gas ", "agua ", "aysa", "edenor", "edesur",
+    "internet", "wifi", "telef", "telecom", "metrogas",
+  ];
+  if (alqServKeys.some((k) => r.includes(k))) return "alquilerServicios";
 
   // Financieros / Bancarios
   if (r.includes("bancari") || r.includes("comision") || r.includes("comisión") ||
-      r.includes("interes") || r.includes("interés") || r.includes("financi")) return "financieros";
+      r.includes("interes") || r.includes("interés") || r.includes("financi") ||
+      r.includes("cambio a dolar") || r.includes("posnet")) return "financieros";
 
   // Impuestos / Acuerdos
   if (r.includes("iva") || r.includes("iibb") || r.includes("impuesto") ||
       r.includes("retenc") || r.includes("afip") || r.includes("acuerdo") ||
-      r.includes("imp.") || r.includes("interno")) return "impuestos";
+      r.includes("imp.") || r.includes("interno") || r.includes("ingresos brut")) return "impuestos";
 
   // Operativos varios (lo demas que no caiga en otros)
   const operativosKeys = [
     "bazar", "equipamiento", "farmacia", "honorario", "abono", "inversion",
     "inversión", "libreria", "librería", "limpieza", "mantenim", "redes",
-    "varios",
+    "varios", "hielo", "gerenciamiento", "gasto operativo", "gas operativo",
+    "marketing", "publicidad", "uniforme", "delivery",
   ];
   if (operativosKeys.some((k) => r.includes(k))) return "operativos";
 
@@ -107,7 +116,9 @@ function classifyRubro(rubro: string): Categoria {
 interface PnLMonth {
   year: number;
   month: number;
-  ventas: number;
+  ventas: number; // NETAS (lo que cobramos)
+  ventasBrutas: number; // antes de descuentos
+  descuentos: number; // brutas - netas
   ordenes: number;
   comensales: number;
   ticketPromedio: number;
@@ -123,7 +134,8 @@ interface PnLMonth {
   };
   retiros: number; // ganancia distribuida — NO suma a costos
   margenBruto: number;
-  cmvPct: number;
+  cmvPct: number; // CMV vs ventas BRUTAS (más preciso, descuentos no son responsabilidad del CMV)
+  cmvPctNetas: number; // CMV vs ventas netas (referencia)
   ebitda: number;
   ebitdaPct: number;
 }
@@ -250,22 +262,41 @@ function parseCostsByMonth(
   return { byMonth, byRubro: rubroBreakdown };
 }
 
+interface VentasMes {
+  ventas: number; // netas
+  ventasBrutas: number;
+  descuentos: number;
+  ordenes: number;
+  comensales: number;
+}
+
 /**
  * Cargar datos historicos de ventas del JSON + live Fudo (merge).
  */
-async function loadMonthlyVentas(sucursalFudo: string, year: number): Promise<Record<number, { ventas: number; ordenes: number; comensales: number }>> {
-  const result: Record<number, { ventas: number; ordenes: number; comensales: number }> = {};
+async function loadMonthlyVentas(sucursalFudo: string, year: number): Promise<Record<number, VentasMes>> {
+  const result: Record<number, VentasMes> = {};
 
-  // Live de Fudo (oct 2025 -> hoy)
+  // Live de Fudo (oct 2025 -> hoy) — ya trae gross/discounts
   try {
     const live = await getLiveMonthlySummaries();
     const sucursalData = live[sucursalFudo] || {};
     for (const key of Object.keys(sucursalData)) {
       const [y, m] = key.split("-").map(Number);
       if (y !== year) continue;
-      const s = sucursalData[key] as { totalSales?: number; totalOrders?: number; totalPeople?: number };
+      const s = sucursalData[key] as {
+        totalSales?: number;
+        totalGrossSales?: number;
+        totalDiscounts?: number;
+        totalOrders?: number;
+        totalPeople?: number;
+      };
+      const ventas = s.totalSales || 0;
+      const gross = s.totalGrossSales || ventas; // fallback a netas si no hay gross
+      const desc = s.totalDiscounts || 0;
       result[m] = {
-        ventas: s.totalSales || 0,
+        ventas,
+        ventasBrutas: gross,
+        descuentos: desc,
         ordenes: s.totalOrders || 0,
         comensales: s.totalPeople || 0,
       };
@@ -274,21 +305,23 @@ async function loadMonthlyVentas(sucursalFudo: string, year: number): Promise<Re
     console.error("loadMonthlyVentas live error:", e);
   }
 
-  // JSON historico (pre-oct 2025)
+  // JSON historico (pre-oct 2025) — el JSON viejo NO tiene gross/discounts
   try {
     const p = path.join(process.cwd(), "data/historico/resumen-mensual.json");
     if (fs.existsSync(p)) {
       const raw = fs.readFileSync(p, "utf-8");
-      const data = JSON.parse(raw) as Record<string, Record<string, { totalSales?: number; totalOrders?: number; totalPeople?: number }>>;
+      const data = JSON.parse(raw) as Record<string, Record<string, { totalSales?: number; totalGrossSales?: number; totalDiscounts?: number; totalOrders?: number; totalPeople?: number }>>;
       const sucursalData = data[sucursalFudo] || {};
       for (const key of Object.keys(sucursalData)) {
         const [y, m] = key.split("-").map(Number);
         if (y !== year) continue;
-        // Solo si no tenemos datos live para ese mes
         if (result[m]) continue;
         const s = sucursalData[key];
+        const ventas = s.totalSales || 0;
         result[m] = {
-          ventas: s.totalSales || 0,
+          ventas,
+          ventasBrutas: s.totalGrossSales || ventas, // fallback a netas
+          descuentos: s.totalDiscounts || 0,
           ordenes: s.totalOrders || 0,
           comensales: s.totalPeople || 0,
         };
@@ -330,12 +363,13 @@ export async function GET(request: NextRequest) {
     // Armar P&L por mes
     const months: PnLMonth[] = [];
     for (let m = 1; m <= 12; m++) {
-      const v = ventas[m] || { ventas: 0, ordenes: 0, comensales: 0 };
+      const v = ventas[m] || { ventas: 0, ventasBrutas: 0, descuentos: 0, ordenes: 0, comensales: 0 };
       const c = byMonth[m] || { insumos: 0, sueldos: 0, alquilerServicios: 0, operativos: 0, financieros: 0, impuestos: 0, retiros: 0, otros: 0 };
-      // Retiros NO suman a costos (son distribución a socios, no gasto operativo)
       const totalCostos = c.insumos + c.sueldos + c.alquilerServicios + c.operativos + c.financieros + c.impuestos + c.otros;
       const margenBruto = v.ventas - c.insumos;
-      const cmvPct = v.ventas > 0 ? (c.insumos / v.ventas) * 100 : 0;
+      // CMV vs ventas BRUTAS (más operativo, los descuentos no afectan el costo de los insumos)
+      const cmvPct = v.ventasBrutas > 0 ? (c.insumos / v.ventasBrutas) * 100 : 0;
+      const cmvPctNetas = v.ventas > 0 ? (c.insumos / v.ventas) * 100 : 0;
       const ebitda = v.ventas - totalCostos;
       const ebitdaPct = v.ventas > 0 ? (ebitda / v.ventas) * 100 : 0;
 
@@ -343,6 +377,8 @@ export async function GET(request: NextRequest) {
         year: yearNum,
         month: m,
         ventas: v.ventas,
+        ventasBrutas: v.ventasBrutas,
+        descuentos: v.descuentos,
         ordenes: v.ordenes,
         comensales: v.comensales,
         ticketPromedio: v.ordenes > 0 ? v.ventas / v.ordenes : 0,
@@ -359,6 +395,7 @@ export async function GET(request: NextRequest) {
         retiros: c.retiros,
         margenBruto,
         cmvPct,
+        cmvPctNetas,
         ebitda,
         ebitdaPct,
       });
@@ -367,6 +404,8 @@ export async function GET(request: NextRequest) {
     // Acumulado YTD
     const ytd = months.reduce((acc, m) => {
       acc.ventas += m.ventas;
+      acc.ventasBrutas += m.ventasBrutas;
+      acc.descuentos += m.descuentos;
       acc.ordenes += m.ordenes;
       acc.comensales += m.comensales;
       acc.costosInsumos += m.costos.insumos;
@@ -381,19 +420,21 @@ export async function GET(request: NextRequest) {
       acc.ebitda += m.ebitda;
       return acc;
     }, {
-      ventas: 0, ordenes: 0, comensales: 0,
+      ventas: 0, ventasBrutas: 0, descuentos: 0, ordenes: 0, comensales: 0,
       costosInsumos: 0, costosSueldos: 0, costosAlquilerServicios: 0,
       costosOperativos: 0, costosFinancieros: 0, costosImpuestos: 0, costosOtros: 0,
       costosTotal: 0, retiros: 0, ebitda: 0,
     });
-    const cmvPctYtd = ytd.ventas > 0 ? (ytd.costosInsumos / ytd.ventas) * 100 : 0;
+    const cmvPctYtd = ytd.ventasBrutas > 0 ? (ytd.costosInsumos / ytd.ventasBrutas) * 100 : 0;
+    const cmvPctNetasYtd = ytd.ventas > 0 ? (ytd.costosInsumos / ytd.ventas) * 100 : 0;
+    const descuentosPctYtd = ytd.ventasBrutas > 0 ? (ytd.descuentos / ytd.ventasBrutas) * 100 : 0;
     const ebitdaPctYtd = ytd.ventas > 0 ? (ytd.ebitda / ytd.ventas) * 100 : 0;
 
     return NextResponse.json({
       sucursal: sucursalErp,
       year,
       months,
-      ytd: { ...ytd, cmvPct: cmvPctYtd, ebitdaPct: ebitdaPctYtd },
+      ytd: { ...ytd, cmvPct: cmvPctYtd, cmvPctNetas: cmvPctNetasYtd, descuentosPct: descuentosPctYtd, ebitdaPct: ebitdaPctYtd },
       byRubro,
     });
   } catch (e) {
