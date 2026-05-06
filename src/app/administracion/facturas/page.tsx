@@ -80,6 +80,17 @@ interface ListResponse {
   stats: { pendiente: number; aprobada: number; rechazada: number; misPendientes: number };
 }
 
+interface ProveedorMaster {
+  proveedor: string;
+  razonSocial: string;
+  cuit: string;
+  alias: string;
+  banco: string;
+  cbu: string;
+  producto: string;
+  plazoPago: string;
+}
+
 const SUC_NAMES: Record<string, string> = { palermo: "Palermo", belgrano: "Belgrano", madero: "Madero" };
 const SUC_COLORS: Record<string, string> = { palermo: "#2E6DA4", belgrano: "#10B981", madero: "#8B5CF6" };
 
@@ -99,6 +110,104 @@ const METODOS_PAGO = [
 
 function fmt(n: number): string { return "$" + Math.round(n).toLocaleString("es-AR"); }
 
+/**
+ * Combobox para elegir proveedor de la lista existente o crear uno nuevo.
+ */
+function ProveedorPicker({
+  value,
+  onChange,
+  proveedores,
+  ocrSuggestion,
+}: {
+  value: string;
+  onChange: (proveedor: string, match?: ProveedorMaster) => void;
+  proveedores: ProveedorMaster[];
+  ocrSuggestion?: { razonSocial: string; cuit: string; proveedorRaw: string };
+}) {
+  const [open, setOpen] = useState(false);
+  const [search, setSearch] = useState(value);
+  const containerRef = useRef<HTMLDivElement>(null);
+
+  useEffect(() => { setSearch(value); }, [value]);
+
+  useEffect(() => {
+    function onClick(e: MouseEvent) {
+      if (containerRef.current && !containerRef.current.contains(e.target as Node)) {
+        setOpen(false);
+      }
+    }
+    document.addEventListener("mousedown", onClick);
+    return () => document.removeEventListener("mousedown", onClick);
+  }, []);
+
+  const filtered = useMemo(() => {
+    const q = search.trim().toLowerCase();
+    if (!q) return proveedores.slice(0, 30);
+    return proveedores.filter((p) => {
+      return p.proveedor.toLowerCase().includes(q) ||
+             p.razonSocial.toLowerCase().includes(q) ||
+             p.cuit.includes(q.replace(/\D/g, ""));
+    }).slice(0, 30);
+  }, [proveedores, search]);
+
+  const exactMatch = filtered.find((p) => p.proveedor.toLowerCase() === search.trim().toLowerCase());
+  const showCreateOption = search.trim().length > 0 && !exactMatch;
+
+  return (
+    <div ref={containerRef} className="relative">
+      <input
+        type="text"
+        value={search}
+        onChange={(e) => { setSearch(e.target.value); onChange(e.target.value); setOpen(true); }}
+        onFocus={() => setOpen(true)}
+        placeholder="Buscar proveedor existente o tipear uno nuevo..."
+        className="w-full border border-gray-200 rounded-lg px-3 py-2 text-sm font-medium"
+      />
+      {ocrSuggestion && (ocrSuggestion.razonSocial || ocrSuggestion.proveedorRaw) && (
+        <div className="text-[10px] text-gray-400 mt-1 px-1">
+          OCR detectó: <b className="text-gray-500">{ocrSuggestion.proveedorRaw}</b>
+          {ocrSuggestion.razonSocial && ocrSuggestion.razonSocial !== ocrSuggestion.proveedorRaw && (
+            <> · razón social <b className="text-gray-500">{ocrSuggestion.razonSocial}</b></>
+          )}
+          {ocrSuggestion.cuit && <> · CUIT {ocrSuggestion.cuit}</>}
+        </div>
+      )}
+      {open && (
+        <div className="absolute z-50 w-full mt-1 bg-white border border-gray-200 rounded-lg shadow-lg max-h-72 overflow-y-auto">
+          {filtered.length === 0 && !showCreateOption && (
+            <div className="px-3 py-2 text-xs text-gray-400">No hay proveedores en el master</div>
+          )}
+          {filtered.map((p) => (
+            <button
+              key={p.proveedor}
+              type="button"
+              onClick={() => { onChange(p.proveedor, p); setSearch(p.proveedor); setOpen(false); }}
+              className="block w-full text-left px-3 py-2 text-sm hover:bg-blue-50 border-b border-gray-50"
+            >
+              <div className="font-medium text-navy">{p.proveedor}</div>
+              <div className="text-[11px] text-gray-500 truncate">
+                {p.razonSocial && <span>{p.razonSocial}</span>}
+                {p.cuit && <span> · CUIT {p.cuit}</span>}
+                {p.producto && <span> · {p.producto}</span>}
+              </div>
+            </button>
+          ))}
+          {showCreateOption && (
+            <button
+              type="button"
+              onClick={() => { onChange(search.trim()); setOpen(false); }}
+              className="block w-full text-left px-3 py-2 text-sm hover:bg-emerald-50 bg-emerald-50/30 border-t border-emerald-200"
+            >
+              <span className="text-emerald-700 font-medium">+ Usar como proveedor nuevo: </span>
+              <span className="text-emerald-700 font-mono">{search.trim()}</span>
+            </button>
+          )}
+        </div>
+      )}
+    </div>
+  );
+}
+
 export default function FacturasPage() {
   const [tab, setTab] = useState<"upload" | "queue" | "history">("upload");
 
@@ -116,6 +225,9 @@ export default function FacturasPage() {
   const [metodoPago, setMetodoPago] = useState<string>("Sin pagar");
   const [fechaPago, setFechaPago] = useState<string>("");
   const fileInputRef = useRef<HTMLInputElement>(null);
+
+  // Proveedores master (cargados de DEUDA AL DIA, cache 10 min server-side)
+  const [proveedoresMaster, setProveedoresMaster] = useState<ProveedorMaster[]>([]);
 
   // List/queue state
   const [listData, setListData] = useState<ListResponse | null>(null);
@@ -147,6 +259,16 @@ export default function FacturasPage() {
   useEffect(() => {
     fetchList(); /* eslint-disable-next-line react-hooks/exhaustive-deps */
   }, [scope, estadoFilter]);
+
+  // Cargar master de proveedores una vez al montar
+  useEffect(() => {
+    fetch("/api/erp/proveedores/master")
+      .then((r) => r.json())
+      .then((d) => {
+        if (Array.isArray(d.proveedores)) setProveedoresMaster(d.proveedores);
+      })
+      .catch((e) => console.warn("master proveedores:", e));
+  }, []);
 
   // Auto-default scope basado en si es approver
   useEffect(() => {
@@ -463,12 +585,24 @@ export default function FacturasPage() {
                   </div>
 
                   <div>
-                    <label className="text-xs text-gray-500 uppercase">Proveedor *</label>
-                    <input type="text" value={editing.proveedor} onChange={(e) => updateEditField("proveedor", e.target.value)}
-                      className="w-full border border-gray-200 rounded-lg px-3 py-2 text-sm font-medium" />
-                    {editing.razonSocial && (
-                      <div className="text-xs text-gray-400 mt-1">{editing.razonSocial} · CUIT {editing.cuit || "—"}</div>
-                    )}
+                    <label className="text-xs text-gray-500 uppercase">Proveedor * <span className="text-[10px] text-gray-400 normal-case">— elegí del master o creá uno nuevo</span></label>
+                    <ProveedorPicker
+                      value={editing.proveedor}
+                      onChange={(name, match) => {
+                        updateEditField("proveedor", name);
+                        if (match) {
+                          // Si seleccionó del master, completar razon social y CUIT del master (sobrescribe OCR)
+                          if (match.razonSocial) updateEditField("razonSocial", match.razonSocial);
+                          if (match.cuit) updateEditField("cuit", match.cuit);
+                        }
+                      }}
+                      proveedores={proveedoresMaster}
+                      ocrSuggestion={ocrResult ? {
+                        razonSocial: ocrResult.razonSocial,
+                        cuit: ocrResult.cuit,
+                        proveedorRaw: ocrResult.proveedor,
+                      } : undefined}
+                    />
                   </div>
 
                   <div className="grid grid-cols-2 gap-2">
@@ -836,15 +970,55 @@ export default function FacturasPage() {
                         {isExp && editingFactura && editingFactura.id === f.id && (
                           <tr className="bg-blue-50/30 border-b border-blue-100">
                             <td colSpan={8} className="px-6 py-4">
+                              {/* SUCURSAL DESTACADA - el approver verifica antes de aprobar */}
+                              {f.estado === "pendiente" && listData?.isApprover && (
+                                <div className="mb-4 bg-white border-2 rounded-xl p-3" style={{ borderColor: SUC_COLORS[editingFactura.sucursal] }}>
+                                  <div className="text-xs font-semibold text-gray-700 uppercase mb-2">⚠️ Verificar sucursal antes de aprobar</div>
+                                  <div className="flex gap-1 bg-gray-50 border border-gray-200 rounded-lg p-1 mb-2">
+                                    {Object.entries(SUC_NAMES).map(([id, name]) => (
+                                      <button key={id} onClick={() => updateFacturaEditField("sucursal", id)}
+                                        className={`px-3 py-1.5 rounded-md text-sm font-medium transition-all ${editingFactura.sucursal === id ? "text-white shadow-sm" : "text-gray-600 hover:bg-gray-100"}`}
+                                        style={editingFactura.sucursal === id ? { backgroundColor: SUC_COLORS[id] } : {}}>
+                                        {name}
+                                      </button>
+                                    ))}
+                                  </div>
+                                  <div className="flex gap-1 bg-gray-50 border border-gray-200 rounded-lg p-1 inline-flex">
+                                    {(["2026", "2025"] as const).map((y) => (
+                                      <button key={y} onClick={() => updateFacturaEditField("year", y)}
+                                        className={`px-3 py-1.5 rounded-md text-xs font-medium transition-all ${editingFactura.year === y ? "bg-navy text-white shadow-sm" : "text-gray-600 hover:bg-gray-100"}`}>
+                                        Año {y}
+                                      </button>
+                                    ))}
+                                  </div>
+                                  {editingFactura.sucursal !== f.sucursal && (
+                                    <div className="text-[11px] text-amber-700 mt-2 bg-amber-50 px-2 py-1 rounded">
+                                      ⚠️ Sucursal cambiada de <b>{SUC_NAMES[f.sucursal]}</b> a <b>{SUC_NAMES[editingFactura.sucursal]}</b>
+                                    </div>
+                                  )}
+                                </div>
+                              )}
                               {/* Detalle expandido — editable solo si pendiente */}
                               <div className="grid grid-cols-1 lg:grid-cols-3 gap-4 text-xs">
                                 <div className="space-y-2">
                                   <div className="text-xs font-semibold text-gray-600 uppercase">Datos comerciales</div>
                                   <div>
                                     <label className="text-gray-500 block">Proveedor</label>
-                                    <input value={editingFactura.proveedor} disabled={f.estado !== "pendiente"}
-                                      onChange={(e) => updateFacturaEditField("proveedor", e.target.value)}
-                                      className="w-full border border-gray-200 rounded-md px-2 py-1 text-xs font-medium disabled:bg-gray-50" />
+                                    {f.estado === "pendiente" ? (
+                                      <ProveedorPicker
+                                        value={editingFactura.proveedor}
+                                        onChange={(name, match) => {
+                                          updateFacturaEditField("proveedor", name);
+                                          if (match) {
+                                            if (match.razonSocial) updateFacturaEditField("razonSocial", match.razonSocial);
+                                            if (match.cuit) updateFacturaEditField("cuit", match.cuit);
+                                          }
+                                        }}
+                                        proveedores={proveedoresMaster}
+                                      />
+                                    ) : (
+                                      <div className="border border-gray-200 rounded-md px-2 py-1 text-xs font-medium bg-gray-50">{editingFactura.proveedor}</div>
+                                    )}
                                   </div>
                                   <div>
                                     <label className="text-gray-500 block">Razón social</label>

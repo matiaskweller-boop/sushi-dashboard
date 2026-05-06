@@ -1,59 +1,26 @@
 import { NextRequest, NextResponse } from "next/server";
 import { requirePermissionApi } from "@/lib/admin-permissions";
 import { GoogleGenerativeAI } from "@google/generative-ai";
-import { readSheetRaw } from "@/lib/google";
 
 export const runtime = "nodejs";
 export const maxDuration = 60;
 
-const SHEET_IDS_2026: Record<string, string> = {
-  palermo: process.env.SHEET_PALERMO_2026 || "",
-  belgrano: process.env.SHEET_BELGRANO_2026 || "",
-  madero: process.env.SHEET_MADERO_2026 || "",
-};
+// Nota: el matching de proveedor se hace en el frontend con un combobox.
+// El OCR solo extrae los datos crudos (razón social + CUIT + nombre comercial)
+// tal como aparecen en la factura, sin intentar matchear contra el master.
 
-let proveedoresCache: { list: string[]; expiresAt: number } | null = null;
-const PROVEEDORES_TTL = 10 * 60 * 1000;
-
-/**
- * Cargar lista de proveedores conocidos desde DEUDA AL DIA de las 3 sucursales.
- * Cache 10 min.
- */
-async function loadProveedoresMaster(): Promise<string[]> {
-  if (proveedoresCache && proveedoresCache.expiresAt > Date.now()) {
-    return proveedoresCache.list;
-  }
-  const set = new Set<string>();
-  await Promise.all(
-    Object.values(SHEET_IDS_2026).map(async (sheetId) => {
-      if (!sheetId) return;
-      try {
-        const rows = await readSheetRaw(sheetId, "DEUDA AL DIA!A1:H200");
-        for (const row of rows.slice(2)) {
-          const proveedor = (row[0] || "").toString().trim();
-          const razonSocial = (row[6] || "").toString().trim();
-          if (proveedor && proveedor.length > 1) set.add(proveedor);
-          if (razonSocial && razonSocial.length > 1) set.add(razonSocial);
-        }
-      } catch (e) {
-        console.warn("loadProveedoresMaster:", e);
-      }
-    })
-  );
-  const list = Array.from(set).sort();
-  proveedoresCache = { list, expiresAt: Date.now() + PROVEEDORES_TTL };
-  return list;
-}
-
-const SYSTEM_PROMPT_BASE = `Sos un asistente que lee facturas/comprobantes de proveedores de un restaurante en Argentina.
+const SYSTEM_PROMPT = `Sos un asistente que lee facturas/comprobantes de proveedores de un restaurante en Argentina.
 Te paso una foto, imagen escaneada o PDF (puede tener varias páginas).
 Si es un PDF con varias páginas, considerá toda la información del documento como una sola factura.
 Tenés que extraer los siguientes datos en JSON.
 
 CAMPOS A EXTRAER:
-- proveedor: nombre comercial del proveedor (string corto, en mayúsculas)
-- razonSocial: razón social completa si aparece (string)
+- proveedor: nombre comercial del proveedor (string corto, en mayúsculas, como aparece en la factura)
+- razonSocial: razón social legal completa (la que figura junto al CUIT)
 - cuit: CUIT del emisor (string con formato 30-12345678-9 o solo dígitos, vacío si no hay)
+NOTA: NO intentes matchear el proveedor con ninguna lista. Solo extrae los datos exactos como aparecen en la factura.
+La razón social y el nombre comercial pueden ser distintos (ej "RAFAEL CIOFFI E HIJOS" vs "DELFIN PESCADERIA").
+Devolvé los DOS campos separados, exactamente como aparecen.
 - fechaFC: fecha de emisión de la factura en formato YYYY-MM-DD
 - fechaVto: fecha de vencimiento del pago si aparece, formato YYYY-MM-DD (vacío si no)
 - nroComprobante: número de factura/comprobante completo (ej "0001-00012345")
@@ -102,16 +69,6 @@ REGLAS CRITICAS:
 
 Respondé SOLO con JSON válido, sin markdown, sin texto adicional.`;
 
-function buildPrompt(proveedoresMaster: string[]): string {
-  if (proveedoresMaster.length === 0) return SYSTEM_PROMPT_BASE;
-  // Limitar a top 100 proveedores para no inflar el prompt
-  const list = proveedoresMaster.slice(0, 100).join(", ");
-  return SYSTEM_PROMPT_BASE + `\n\nLISTA DE PROVEEDORES CONOCIDOS (matchear si es posible):
-${list}
-
-REGLA: si el proveedor de la factura coincide aprox. con uno de la lista (típicamente la razón social del proveedor o el nombre comercial), devolvé EXACTAMENTE el nombre de la lista en el campo "proveedor". Si no matchea, devolvé el nombre tal como aparece en la factura.`;
-}
-
 interface OCRResult {
   proveedor: string;
   razonSocial: string;
@@ -158,10 +115,6 @@ export async function POST(request: NextRequest) {
     if (!imageBase64) return NextResponse.json({ error: "Falta imageBase64" }, { status: 400 });
 
     const genAI = new GoogleGenerativeAI(apiKey);
-
-    // Cargar lista de proveedores conocidos para que Gemini pueda matchear
-    const proveedoresMaster = await loadProveedoresMaster();
-    const SYSTEM_PROMPT = buildPrompt(proveedoresMaster);
 
     // Probar varios modelos en orden hasta que uno responda OK.
     const MODELS_TO_TRY = [
