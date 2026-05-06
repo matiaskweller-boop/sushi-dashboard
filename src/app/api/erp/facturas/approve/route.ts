@@ -46,12 +46,19 @@ function mapImpuestoToRubro(tipo: string): string {
 
 /**
  * Genera las filas a insertar en EGRESOS para una factura.
- * - 1 row por cada item (con su unidad/cantidad/precio unit/subtotal sin IVA)
- * - 1 row por cada impuesto (IVA, IIBB, percep, etc.)
- * Si la factura no tiene items detallados, cae a 1 row consolidada.
+ *
+ * Modelo:
+ * - 1 row PRINCIPAL con el subtotal sin IVA de la factura
+ *   (insumo = descripción consolidada de los items)
+ * - 1 row por cada impuesto (IVA, IIBB, percep, etc.) con su rubro
+ *
+ * Cantidad/unidad de la row principal:
+ * - Si la factura tiene 1 solo item: usa su cantidad real (3.2) y unidad real (kg)
+ * - Si la factura tiene varios items: cantidad=1, unidad="unidad"
+ *   (la descripción consolida los items, ej "Lavandina, Detergente y 14 más")
  *
  * Estructura columnas EGRESOS (15 cols A-O):
- * A: nro
+ * A: nro auto
  * B: Fecha ingreso
  * C: Fecha FC
  * D: Fecha Pago
@@ -59,9 +66,9 @@ function mapImpuestoToRubro(tipo: string): string {
  * F: Tipo comprobante
  * G: Nro comprobante
  * H: Rubro
- * I: INSUMOS (descripción del item o tipo de impuesto)
- * J: Total (de la línea)
- * K: unidad de medida
+ * I: INSUMOS
+ * J: Total de la línea
+ * K: cantidad (numérica)
  * L: Precio Un.
  * M: Metodo de Pago
  * N: Verif.
@@ -78,61 +85,83 @@ function buildEgresosRows(f: FacturaQueue): string[][] {
   const nro = f.nroComprobante || "";
   const proveedor = f.proveedor || "";
 
-  // Filas de items
-  if (f.items && f.items.length > 0) {
-    for (const item of f.items) {
-      if (!item.descripcion && !item.subtotal) continue;
-      const cantidad = item.cantidad || 1;
-      const unidad = item.unidad || "unidad";
-      const precioUn = item.precioUnitario || (cantidad > 0 ? (item.subtotal / cantidad) : 0);
-      rows.push([
-        "",                           // A
-        fechaIng,                     // B
-        fechaFC,                      // C
-        fechaPago,                    // D
-        proveedor,                    // E
-        tipo,                         // F
-        nro,                          // G
-        f.rubro || "",                // H Rubro
-        item.descripcion || "",       // I INSUMOS
-        formatArs(item.subtotal),     // J Total línea (sin IVA)
-        cantidad.toLocaleString("es-AR", { useGrouping: false }), // K cantidad (NUMERO)
-        formatArs(precioUn),          // L Precio Un
-        metodoPago,                   // M
-        "ok",                         // N Verif
-        fechaVto,                     // O Vto
-      ]);
-      // Nota: la columna K en algunos sheets dice "unidad de medida" pero en práctica
-      // se usa como cantidad. Si tu sheet usa unidad como string (ej "kg"), el
-      // approver puede ajustar manualmente. Por defecto guardamos cantidad para
-      // que los cálculos cuadren con J (subtotal) = cantidad × L (precio).
+  const validItems = (f.items || []).filter((i) => i.descripcion || i.subtotal);
+
+  // Construir la descripción del insumo principal
+  let insumoDesc = f.insumo || "";
+  let cantidadMain = 1;
+  let unidadMain = "unidad";
+  let precioUnMain = 0;
+  let totalMain = f.subtotal || 0;
+
+  if (validItems.length === 1) {
+    // Factura con un solo item: usar sus datos exactos
+    const it = validItems[0];
+    if (!insumoDesc) insumoDesc = it.descripcion;
+    cantidadMain = it.cantidad || 1;
+    unidadMain = it.unidad || "unidad";
+    precioUnMain = it.precioUnitario || (cantidadMain > 0 ? it.subtotal / cantidadMain : 0);
+    totalMain = it.subtotal || totalMain;
+  } else if (validItems.length > 1) {
+    // Factura multi-item: consolidar
+    if (!insumoDesc) {
+      const list = validItems.map((i) => i.descripcion).filter(Boolean);
+      if (list.length <= 3) {
+        insumoDesc = list.join(", ").substring(0, 100);
+      } else {
+        insumoDesc = `${list[0]}, ${list[1]} y ${list.length - 2} más`.substring(0, 100);
+      }
     }
-  } else if (f.subtotal > 0) {
-    // Sin items: una sola row con el subtotal
+    cantidadMain = 1;
+    unidadMain = "unidad";
+    // totalMain ya es el subtotal de la factura (suma de items sin IVA)
+    if (totalMain === 0) {
+      totalMain = validItems.reduce((s, i) => s + (i.subtotal || 0), 0);
+    }
+    precioUnMain = totalMain;
+  } else {
+    // Sin items: usar subtotal o total
+    if (totalMain === 0) totalMain = f.total || 0;
+    precioUnMain = totalMain;
+  }
+
+  // Fallback final: si no hay subtotal NI items, usar total (puede pasar con
+  // facturas viejas sin desglose)
+  const hasImpuestos = (f.impuestos || []).some((imp) => imp.monto && imp.monto > 0);
+  if (totalMain === 0 && !hasImpuestos) {
+    totalMain = f.total;
+    precioUnMain = f.total;
+  }
+
+  // Row principal de la factura
+  if (totalMain > 0 || !hasImpuestos) {
     rows.push([
-      "", fechaIng, fechaFC, fechaPago, proveedor, tipo, nro,
-      f.rubro || "", f.insumo || "", formatArs(f.subtotal),
-      "1", formatArs(f.subtotal), metodoPago, "ok", fechaVto,
+      "",                            // A
+      fechaIng,                      // B
+      fechaFC,                       // C
+      fechaPago,                     // D
+      proveedor,                     // E
+      tipo,                          // F
+      nro,                           // G
+      f.rubro || "",                 // H Rubro
+      insumoDesc || "",              // I INSUMOS
+      formatArs(totalMain),          // J Total
+      cantidadMain.toLocaleString("es-AR", { useGrouping: false }), // K cantidad
+      formatArs(precioUnMain),       // L Precio Un
+      metodoPago,                    // M
+      "ok",                          // N Verif
+      fechaVto,                      // O Vto
     ]);
   }
 
-  // Filas de impuestos
-  if (f.impuestos && f.impuestos.length > 0) {
-    for (const imp of f.impuestos) {
-      if (!imp.monto || imp.monto === 0) continue;
-      const rubro = mapImpuestoToRubro(imp.tipo);
-      rows.push([
-        "", fechaIng, fechaFC, fechaPago, proveedor, tipo, nro,
-        rubro, imp.tipo, formatArs(imp.monto),
-        "1", formatArs(imp.monto), metodoPago, "ok", fechaVto,
-      ]);
-    }
-  } else if (rows.length === 0) {
-    // Edge case: sin items ni impuestos, usar el total como única fila
+  // Rows de impuestos (IVA, IIBB, Percep, etc.)
+  for (const imp of f.impuestos || []) {
+    if (!imp.monto || imp.monto === 0) continue;
+    const rubro = mapImpuestoToRubro(imp.tipo);
     rows.push([
       "", fechaIng, fechaFC, fechaPago, proveedor, tipo, nro,
-      f.rubro || "", f.insumo || "", formatArs(f.total),
-      "1", formatArs(f.total), metodoPago, "ok", fechaVto,
+      rubro, imp.tipo, formatArs(imp.monto),
+      "1", formatArs(imp.monto), metodoPago, "ok", fechaVto,
     ]);
   }
 
