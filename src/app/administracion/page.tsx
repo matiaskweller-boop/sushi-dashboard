@@ -46,6 +46,14 @@ const MODULES: ModuleCard[] = [
     group: "ERP",
   },
   {
+    icon: "🔁",
+    title: "Deuda entre locales",
+    desc: "Movimientos y deudas netas entre Palermo, Belgrano y Madero",
+    href: "/administracion/deuda-locales",
+    status: "activo",
+    group: "ERP",
+  },
+  {
     icon: "🔔",
     title: "Alertas",
     desc: "Vencimientos, facturas sin pagar, deudas vencidas",

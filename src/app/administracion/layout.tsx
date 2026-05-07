@@ -11,6 +11,7 @@ const PATH_PERMS: Array<{ prefix: string; perm: string | "any" | "_users" | "log
   { prefix: "/administracion/alertas", perm: "alertas" },
   { prefix: "/administracion/facturas", perm: "facturas" },
   { prefix: "/administracion/usuarios", perm: "_users" },
+  { prefix: "/administracion/deuda-locales", perm: "egresos" },
   // /administracion landing — accesible para cualquier user activo logueado.
   // Las cards filtrarán client-side qué puede ver.
   { prefix: "/administracion", perm: "logged_in" },

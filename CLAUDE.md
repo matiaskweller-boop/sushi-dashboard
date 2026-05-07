@@ -111,7 +111,33 @@ OCR (Gemini) extrae además:
 - fechaVto si aparece
 - **moneda** ("ARS" / "USD") y **tipoCambio** si la factura está en USD
 
-### Facturas en USD (tipo de cambio)
+### Deuda entre locales (`/administracion/deuda-locales`)
+
+Módulo para visualizar movimientos y deudas netas entre Palermo, Belgrano y Madero. Cada local registra los gastos compartidos a su manera, así que el sistema detecta los movimientos por **patrones explícitos** sobre las columnas Rubro/Insumo/Proveedor de EGRESOS de cada sucursal.
+
+**Patrones detectados como inter-sucursal**:
+- `PAGO POR GASTO HECHO POR (MADERO|PALERMO|BELGRANO)` — Madero usa esto en su rubro
+- `deuda con (palermo|belgrano|madero)`
+- `envío de X de (sucursal) a (sucursal)`
+- `flete que pagó (sucursal)`
+- `(uber|envío) entre locales`
+
+Para cada movimiento detectado:
+- Sucursal de origen = el sheet en el que apareció
+- Sucursal contraparte = mención explícita a otra sucursal en el texto (puede quedar `null`)
+
+**Outputs del API `/api/erp/deuda-locales?year=2026`**:
+- `movimientos`: lista de filas inter-sucursal con monto, fechas, estadoPago
+- `matriz[origen][destino]`: total bruto registrado de A → B
+- `saldosNetos`: si A→B = X y B→A = Y, neto = max(0, X - Y) hacia el ganador
+- `centralizados`: filas con mismo proveedor + fecha + monto que aparecen en >1 sucursal (servicios pagados centralmente que se replican, ej WOKI/FUDO/ALLIANZ). Sirve para detectar el monto duplicado en el P&L consolidado.
+
+**Vista de la página** tiene 3 tabs:
+- **Resumen**: saldos netos destacados (deudor → acreedor), matriz 3×3, stats por sucursal, alerta de duplicados
+- **Movimientos**: tabla detallada con filtros (search, sucursal)
+- **Duplicados**: lista de gastos centralizados con monto extra que suman al P&L
+
+Permisos: requiere `egresos`. Solo el aprobador / admin debería verlo.
 
 Si la factura es en dólares, el sistema soporta conversión automática:
 
