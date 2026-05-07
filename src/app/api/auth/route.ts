@@ -1,5 +1,6 @@
 import { NextRequest, NextResponse } from "next/server";
 import { createSession, isEmailAllowed, COOKIE_NAME } from "@/lib/auth";
+import { getUserAccess } from "@/lib/admin-permissions";
 import { decodeJwt } from "jose";
 
 export async function GET(request: NextRequest) {
@@ -59,8 +60,24 @@ export async function GET(request: NextRequest) {
       return NextResponse.redirect(new URL("/login?error=google", request.url));
     }
 
-    // Check email whitelist
-    if (!isEmailAllowed(email)) {
+    // Check email whitelist:
+    // 1. ALLOWED_EMAILS env var (legacy / cuenta admin), OR
+    // 2. Tab Usuarios del workbook MASUNORI_ERP_CONFIG (gestion via UI).
+    // Esto permite al owner agregar usuarios desde /administracion/usuarios
+    // sin tener que tocar la env var de Vercel.
+    let allowed = isEmailAllowed(email);
+    if (!allowed) {
+      try {
+        const userAccess = await getUserAccess(email);
+        if (userAccess && userAccess.active) {
+          allowed = true;
+          console.log(`[auth] User ${email} authorized via Usuarios sheet (perms: ${userAccess.perms.join(",")})`);
+        }
+      } catch (e) {
+        console.warn("[auth] No se pudo verificar Usuarios sheet:", e);
+      }
+    }
+    if (!allowed) {
       return NextResponse.redirect(new URL("/login?error=unauthorized", request.url));
     }
 
