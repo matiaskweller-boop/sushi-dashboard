@@ -111,6 +111,17 @@ OCR (Gemini) extrae además:
 - fechaVto si aparece
 - **moneda** ("ARS" / "USD") y **tipoCambio** si la factura está en USD
 
+### Integración Proveedores ↔ Deuda Locales
+
+`/administracion/proveedores` consume el mismo análisis (`analyzeDeudaLocales` desde `lib/deuda-locales.ts`) que `/deuda-locales` y muestra:
+- Header con resumen `🔁 Movimientos entre locales`: cant. movimientos, total, sin contraparte, servicios duplicados, saldos netos en mini-cards.
+- Saldos netos destacados (deudor → acreedor con colores) con link a la página dedicada.
+- Badge `🔁 Nx duplicado` en cada proveedor que aparece como "centralizado" (aparece en >1 sucursal con mismo monto+fecha). Tooltip explica qué significa.
+- Línea adicional debajo del nombre: `+$X duplicado en P&L` cuando aplica.
+- Toggle filter `🔁 solo duplicados` para ver solo proveedores afectados.
+
+Esto permite identificar al instante en el panel de Proveedores qué proveedores son servicios centralizados (WOKI, FUDO, ALLIANZ, etc.) que están inflando el P&L consolidado.
+
 ### Deuda entre locales (`/administracion/deuda-locales`)
 
 Módulo para visualizar movimientos y deudas netas entre Palermo, Belgrano y Madero. Cada local registra los gastos compartidos a su manera, así que el sistema detecta los movimientos por **patrones explícitos** sobre las columnas Rubro/Insumo/Proveedor de EGRESOS de cada sucursal.
