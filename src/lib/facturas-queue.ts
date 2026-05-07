@@ -40,6 +40,8 @@ export const FACTURA_HEADERS = [
   "NotasReview",
   "ItemsJSON",
   "ImpuestosJSON",  // [{tipo, monto, alicuota?}, ...]
+  "Moneda",         // "ARS" | "USD"
+  "TipoCambio",     // numero, ej 1050.50 (1 USD = X ARS). Default 1 para ARS.
 ];
 
 export type EstadoFactura = "pendiente" | "aprobada" | "rechazada";
@@ -87,6 +89,8 @@ export interface FacturaQueue {
     monto: number;
     alicuota?: number;
   }>;
+  moneda: "ARS" | "USD"; // si es USD, los montos están en dólares y deben convertirse al exportar
+  tipoCambio: number;    // si moneda="USD", monto * tipoCambio = monto en ARS. Default 1.
 }
 
 /**
@@ -143,6 +147,9 @@ function rowToFactura(row: string[]): FacturaQueue {
   } catch {
     impuestos = [];
   }
+  const monedaStr = ((row[30] || "ARS") + "").toUpperCase().trim();
+  const moneda: "ARS" | "USD" = monedaStr === "USD" ? "USD" : "ARS";
+  const tipoCambio = num(row[31]) || 1;
   return {
     id: row[0] || "",
     submittedAt: row[1] || "",
@@ -174,6 +181,8 @@ function rowToFactura(row: string[]): FacturaQueue {
     notasReview: row[27] || "",
     items,
     impuestos,
+    moneda,
+    tipoCambio,
   };
 }
 
@@ -209,6 +218,8 @@ function facturaToRow(f: Partial<FacturaQueue> & { id: string }): string[] {
     f.notasReview || "",
     JSON.stringify(f.items || []),
     JSON.stringify(f.impuestos || []),
+    f.moneda || "ARS",
+    String(f.tipoCambio ?? 1),
   ];
 }
 
@@ -218,7 +229,7 @@ export function generateId(): string {
 
 export async function listFacturas(filter?: { estado?: EstadoFactura; submittedBy?: string }): Promise<FacturaQueue[]> {
   await ensureFacturasTab();
-  const rows = await readSheetRaw(ERP_CONFIG_SHEET, `${TAB}!A2:AD10000`);
+  const rows = await readSheetRaw(ERP_CONFIG_SHEET, `${TAB}!A2:AF10000`);
   const facturas = rows.map(rowToFactura).filter((f) => f.id);
   if (filter?.estado) {
     return facturas.filter((f) => f.estado === filter.estado);
@@ -231,20 +242,20 @@ export async function listFacturas(filter?: { estado?: EstadoFactura; submittedB
 
 export async function getFactura(id: string): Promise<FacturaQueue | null> {
   await ensureFacturasTab();
-  const rows = await readSheetRaw(ERP_CONFIG_SHEET, `${TAB}!A2:AD10000`);
+  const rows = await readSheetRaw(ERP_CONFIG_SHEET, `${TAB}!A2:AF10000`);
   const found = rows.find((r) => (r[0] || "") === id);
   return found ? rowToFactura(found) : null;
 }
 
 export async function appendFactura(f: Partial<FacturaQueue> & { id: string }): Promise<void> {
   await ensureFacturasTab();
-  await appendToSheet(ERP_CONFIG_SHEET, `${TAB}!A:AD`, [facturaToRow(f)]);
+  await appendToSheet(ERP_CONFIG_SHEET, `${TAB}!A:AF`, [facturaToRow(f)]);
 }
 
 export async function updateFactura(id: string, updates: Partial<FacturaQueue>): Promise<FacturaQueue | null> {
   await ensureFacturasTab();
   const sheets = getSheets();
-  const rows = await readSheetRaw(ERP_CONFIG_SHEET, `${TAB}!A2:AD10000`);
+  const rows = await readSheetRaw(ERP_CONFIG_SHEET, `${TAB}!A2:AF10000`);
   const idx = rows.findIndex((r) => (r[0] || "") === id);
   if (idx < 0) return null;
 
@@ -254,7 +265,7 @@ export async function updateFactura(id: string, updates: Partial<FacturaQueue>):
   const sheetRow = idx + 2;
   await sheets.spreadsheets.values.update({
     spreadsheetId: ERP_CONFIG_SHEET,
-    range: `${TAB}!A${sheetRow}:AD${sheetRow}`,
+    range: `${TAB}!A${sheetRow}:AF${sheetRow}`,
     valueInputOption: "RAW",
     requestBody: { values: [newRow] },
   });

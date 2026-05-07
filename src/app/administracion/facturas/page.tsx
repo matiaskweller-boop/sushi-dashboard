@@ -32,6 +32,7 @@ interface OCRResult {
   otrosImpuestos: number;
   total: number;
   moneda: string;
+  tipoCambio: number;
   rubro: string;
   insumo: string;
   detalleItems: OCRItem[];
@@ -71,6 +72,8 @@ interface Factura {
   notasReview: string;
   items: OCRItem[];
   impuestos: ImpuestoLine[];
+  moneda: "ARS" | "USD";
+  tipoCambio: number;
 }
 
 interface ListResponse {
@@ -224,6 +227,8 @@ export default function FacturasPage() {
   const [year, setYear] = useState<"2025" | "2026">("2026");
   const [metodoPago, setMetodoPago] = useState<string>("Sin pagar");
   const [fechaPago, setFechaPago] = useState<string>("");
+  const [esUSD, setEsUSD] = useState(false);
+  const [tipoCambio, setTipoCambio] = useState<number>(0);
   const fileInputRef = useRef<HTMLInputElement>(null);
 
   // Proveedores master (cargados de DEUDA AL DIA, cache 10 min server-side)
@@ -330,6 +335,13 @@ export default function FacturasPage() {
       if (!res.ok || data.error) throw new Error(data.error || "Error OCR");
       setOcrResult(data.data);
       setEditing({ ...data.data });
+      // Prefill USD si OCR detectó moneda USD
+      if (data.data.moneda === "USD") {
+        setEsUSD(true);
+        if (data.data.tipoCambio && data.data.tipoCambio > 0) {
+          setTipoCambio(data.data.tipoCambio);
+        }
+      }
     } catch (e) {
       setError(e instanceof Error ? e.message : "Error procesando imagen");
     } finally {
@@ -346,6 +358,8 @@ export default function FacturasPage() {
     setSuccess(null);
     setMetodoPago("Sin pagar");
     setFechaPago("");
+    setEsUSD(false);
+    setTipoCambio(0);
     if (fileInputRef.current) fileInputRef.current.value = "";
   };
 
@@ -353,6 +367,10 @@ export default function FacturasPage() {
     if (!editing) return;
     if (!editing.proveedor || !editing.total) {
       setError("Falta proveedor o total");
+      return;
+    }
+    if (esUSD && (!tipoCambio || tipoCambio <= 0)) {
+      setError("Factura en USD: ingresá el tipo de cambio");
       return;
     }
     setSubmitting(true);
@@ -364,6 +382,8 @@ export default function FacturasPage() {
         body: JSON.stringify({
           sucursal,
           year,
+          moneda: esUSD ? "USD" : "ARS",
+          tipoCambio: esUSD ? tipoCambio : 1,
           tipoComprobante: editing.tipoComprobante,
           nroComprobante: editing.nroComprobante,
           proveedor: editing.proveedor,
@@ -648,6 +668,45 @@ export default function FacturasPage() {
                       rows={2} className="w-full border border-gray-200 rounded-lg px-3 py-2 text-sm" />
                   </div>
 
+                  {/* Toggle USD + tipo de cambio */}
+                  <div className={`rounded-lg p-3 border ${esUSD ? "border-emerald-300 bg-emerald-50" : "border-gray-200 bg-gray-50"}`}>
+                    <label className="flex items-center gap-2 cursor-pointer">
+                      <input
+                        type="checkbox"
+                        checked={esUSD}
+                        onChange={(e) => setEsUSD(e.target.checked)}
+                        className="cursor-pointer"
+                      />
+                      <span className="text-xs font-semibold text-gray-700">💵 Factura en USD</span>
+                      {esUSD && <span className="text-[10px] text-emerald-700 ml-1">se convertirá a ARS al aprobar</span>}
+                    </label>
+                    {esUSD && (
+                      <div className="mt-2 grid grid-cols-2 gap-2">
+                        <div>
+                          <label className="text-[10px] text-gray-500 uppercase">Tipo de cambio (1 USD = X ARS) *</label>
+                          <input
+                            type="number"
+                            step="0.01"
+                            value={tipoCambio || ""}
+                            onChange={(e) => setTipoCambio(parseFloat(e.target.value) || 0)}
+                            placeholder="ej 1050.50"
+                            className="w-full border border-gray-200 rounded-lg px-2 py-1.5 text-sm font-mono text-right"
+                          />
+                        </div>
+                        <div className="text-xs text-emerald-800">
+                          {tipoCambio > 0 && editing.total > 0 ? (
+                            <>
+                              <div className="text-[10px] text-gray-500 uppercase">Total convertido a ARS</div>
+                              <div className="text-base font-bold font-mono">${(editing.total * tipoCambio).toLocaleString("es-AR", { minimumFractionDigits: 2, maximumFractionDigits: 2 })}</div>
+                            </>
+                          ) : (
+                            <div className="text-amber-700 text-[11px] mt-1">Ingresá el TC que figura en la factura</div>
+                          )}
+                        </div>
+                      </div>
+                    )}
+                  </div>
+
                   {/* Desglose de impuestos */}
                   <div className="bg-gray-50 rounded-lg p-3">
                     <div className="text-xs font-semibold text-gray-600 uppercase mb-2">Desglose</div>
@@ -671,7 +730,7 @@ export default function FacturasPage() {
                           className="w-full border border-gray-200 rounded-lg px-2 py-1.5 font-mono text-right" />
                       </div>
                       <div>
-                        <label className="text-gray-500 font-semibold">Total *</label>
+                        <label className="text-gray-500 font-semibold">Total * <span className="text-[10px] text-gray-400 normal-case">{esUSD ? "(USD)" : "(ARS)"}</span></label>
                         <input type="number" step="0.01" value={editing.total}
                           onChange={(e) => updateEditField("total", parseFloat(e.target.value) || 0)}
                           className="w-full border border-gray-200 rounded-lg px-2 py-1.5 font-mono text-right font-semibold" />
@@ -964,7 +1023,14 @@ export default function FacturasPage() {
                           <td className="px-3 py-2 font-medium text-navy">{f.proveedor}</td>
                           <td className="px-3 py-2 text-xs text-gray-500">{f.tipoComprobante} {f.nroComprobante}</td>
                           <td className="px-3 py-2 text-xs text-gray-500 truncate max-w-[140px]">{isMine ? "Yo" : f.submittedBy}</td>
-                          <td className="px-3 py-2 text-right font-mono text-navy font-semibold">{fmt(f.total)}</td>
+                          <td className="px-3 py-2 text-right font-mono text-navy font-semibold">
+                            {fmt(f.total)}
+                            {f.moneda === "USD" && (
+                              <span className="ml-1 text-[10px] bg-emerald-100 text-emerald-700 px-1 py-0.5 rounded font-normal">
+                                💵 USD {f.tipoCambio > 0 ? `× ${f.tipoCambio}` : "sin TC"}
+                              </span>
+                            )}
+                          </td>
                           <td className="px-3 py-2 text-xs text-gray-400">{isExp ? "▼" : "▶"}</td>
                         </tr>
                         {isExp && editingFactura && editingFactura.id === f.id && (
@@ -1101,8 +1167,42 @@ export default function FacturasPage() {
                                     </select>
                                   </div>
 
+                                  {/* USD toggle en aprobacion */}
+                                  <div className={`rounded-lg p-2 mt-2 border ${editingFactura.moneda === "USD" ? "border-emerald-300 bg-emerald-50" : "border-gray-200 bg-white"}`}>
+                                    <label className="flex items-center gap-1.5 cursor-pointer text-[11px]">
+                                      <input
+                                        type="checkbox"
+                                        checked={editingFactura.moneda === "USD"}
+                                        disabled={f.estado !== "pendiente"}
+                                        onChange={(e) => updateFacturaEditField("moneda", e.target.checked ? "USD" : "ARS")}
+                                      />
+                                      <span className="font-semibold text-gray-700">💵 Factura en USD</span>
+                                    </label>
+                                    {editingFactura.moneda === "USD" && (
+                                      <div className="mt-1.5">
+                                        <label className="text-[9px] text-gray-500 uppercase">TC (1 USD = X ARS) *</label>
+                                        <input
+                                          type="number"
+                                          step="0.01"
+                                          value={editingFactura.tipoCambio || 0}
+                                          disabled={f.estado !== "pendiente"}
+                                          onChange={(e) => updateFacturaEditField("tipoCambio", parseFloat(e.target.value) || 0)}
+                                          placeholder="ej 1050.50"
+                                          className="w-full border border-gray-200 rounded px-1.5 py-0.5 text-[11px] font-mono text-right"
+                                        />
+                                        {editingFactura.tipoCambio > 0 && editingFactura.total > 0 && (
+                                          <div className="text-[10px] text-emerald-700 mt-1 font-mono">
+                                            Total ARS: ${(editingFactura.total * editingFactura.tipoCambio).toLocaleString("es-AR", { minimumFractionDigits: 2, maximumFractionDigits: 2 })}
+                                          </div>
+                                        )}
+                                      </div>
+                                    )}
+                                  </div>
+
                                   <div className="bg-white rounded-lg p-2 mt-2">
-                                    <div className="text-[10px] font-semibold text-gray-500 uppercase mb-1">Desglose</div>
+                                    <div className="text-[10px] font-semibold text-gray-500 uppercase mb-1">
+                                      Desglose {editingFactura.moneda === "USD" ? "(USD)" : "(ARS)"}
+                                    </div>
                                     <div className="grid grid-cols-2 gap-1.5">
                                       <div>
                                         <label className="text-[10px] text-gray-500">Subtotal</label>

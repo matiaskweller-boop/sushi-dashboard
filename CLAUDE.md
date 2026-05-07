@@ -91,8 +91,8 @@ Permisos especiales:
 5. Al aprobar: estado pasa a `aprobada` + se exporta una fila a la tab `EGRESOS` de la sucursal correspondiente
 6. Si rechaza: estado pasa a `rechazada` con motivo (NO va a EGRESOS)
 
-Schema tab `Facturas` (29 cols A-AC):
-ID | SubmittedAt | SubmittedBy | Sucursal | Año | TipoComprobante | NroComprobante | Proveedor | RazonSocial | CUIT | FechaIngreso | FechaFC | FechaVto | FechaPago | Rubro | Insumo | Subtotal | IVA | OtrosImpuestos | Total | MetodoPago | FotoURL | Confianza | NotasOCR | Estado | ReviewedBy | ReviewedAt | NotasReview | ItemsJSON
+Schema tab `Facturas` (32 cols A-AF):
+ID | SubmittedAt | SubmittedBy | Sucursal | Año | TipoComprobante | NroComprobante | Proveedor | RazonSocial | CUIT | FechaIngreso | FechaFC | FechaVto | FechaPago | Rubro | Insumo | Subtotal | IVA | OtrosImpuestos | Total | MetodoPago | FotoURL | Confianza | NotasOCR | Estado | ReviewedBy | ReviewedAt | NotasReview | ItemsJSON | ImpuestosJSON | Moneda | TipoCambio
 
 APIs:
 - `POST /api/erp/ocr` — extrae datos de imagen/PDF con Gemini
@@ -104,11 +104,43 @@ APIs:
 
 OCR (Gemini) extrae además:
 - subtotal SIN impuestos
-- iva (suma de alícuotas)
+- iva (suma de alícuotas) + array `impuestos: [{tipo, monto, alicuota}]`
 - otros impuestos (IIBB, percepciones, etc.)
 - total
-- por item: descripcion, cantidad, precioUnitario (sin IVA), subtotal (sin IVA), alicuotaIva, montoIva
+- por item: descripcion, cantidad, **unidad** (kg/lt/ud/g/ml), precioUnitario (sin IVA), subtotal (sin IVA), alicuotaIva, montoIva
 - fechaVto si aparece
+- **moneda** ("ARS" / "USD") y **tipoCambio** si la factura está en USD
+
+### Facturas en USD (tipo de cambio)
+
+Si la factura es en dólares, el sistema soporta conversión automática:
+
+1. OCR detecta `moneda: "USD"` y trata de extraer `tipoCambio` impreso en la factura.
+2. UI muestra un toggle "💵 Factura en USD" en upload Y en panel de aprobación.
+3. Cuando está activo, todos los montos del form se interpretan en USD y se muestra un preview de conversión a ARS usando el TC.
+4. Al **aprobar**, los valores que se exportan a EGRESOS están convertidos a ARS (`monto × tipoCambio`). Cantidad y unidad NO se convierten.
+5. Si el approver intenta aprobar una factura en USD sin TC > 0, el endpoint devuelve 400 con error.
+6. El TC queda guardado en la columna `TipoCambio` de la tab Facturas (auditoría).
+
+Convenciones:
+- `moneda` se guarda como string "ARS" o "USD" (col AE)
+- `tipoCambio` se guarda como número (col AF). Default 1 para ARS.
+- Aplica a TODOS los montos: items, impuestos, totales.
+
+### Login y permisos (auto-sync)
+
+El callback `/api/auth` chequea si el email está autorizado en este orden:
+1. `ALLOWED_EMAILS` env var de Vercel (legacy, admins iniciales)
+2. Tab Usuarios del workbook MASUNORI_ERP_CONFIG con `Activo=TRUE`
+
+Esto permite agregar usuarios desde `/administracion/usuarios` sin tocar Vercel.
+
+**Fuente de verdad de permisos**: la columna **Permisos** del sheet (no el rol).
+- Anteriormente, si `rol="admin"`, el código auto-asignaba `*` ignorando la columna Permisos.
+- Ahora la columna Permisos manda. Esto permite editar a admins desde la UI live.
+- El rol queda como label informativo: "admin" si Permisos="*", "user" si tiene perms específicos.
+- Cache de permisos: 30s (live edits propagan en máx 30s).
+- Owner (`matiaskweller@gmail.com`) sigue hardcoded con acceso total — no se puede restringir desde la UI (security).
 
 Implementación:
 - **Middleware** (`src/middleware.ts`): verifica sesión + inyecta header `x-pathname`. NO hace check de permisos (Edge no puede leer Sheets fácilmente).

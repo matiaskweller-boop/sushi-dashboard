@@ -227,6 +227,12 @@ function buildEgresosRows(
   const mesIngreso = mesNombreFromIso(f.fechaIngreso || new Date().toISOString().substring(0, 10));
   const mesPago = mesNombreFromIso(f.fechaPago);
 
+  // Conversión de moneda: si la factura es en USD, multiplicar todos los
+  // montos por el tipo de cambio. Cantidad y unidad NO cambian.
+  const isUSD = f.moneda === "USD";
+  const tc = isUSD && f.tipoCambio > 0 ? f.tipoCambio : 1;
+  const convert = (amount: number): number => amount * tc;
+
   // Match rubro y método de pago contra master
   const rubroMatched = findBestMatch(f.rubro, datosss.rubros);
   const metodoPagoMatched = findBestMatch(f.metodoPago || "Sin pagar", datosss.metodosPago) || (f.metodoPago || "Sin pagar");
@@ -289,11 +295,12 @@ function buildEgresosRows(
       });
       // Match descripción contra master de INSUMOS (498 entries)
       const insumoMatched = findBestMatch(item.descripcion, datosss.insumos);
-      rows.push(makeRow(rubroMatched, insumoMatched, subtotalLinea, cantidadStr, precioUn));
+      // Convertir USD->ARS si aplica. Cantidad NO se convierte (sigue siendo unidades).
+      rows.push(makeRow(rubroMatched, insumoMatched, convert(subtotalLinea), cantidadStr, convert(precioUn)));
     }
   } else if (f.subtotal > 0) {
     const insumoMatched = findBestMatch(f.insumo || "Varios", datosss.insumos);
-    rows.push(makeRow(rubroMatched, insumoMatched, f.subtotal, "1,00", f.subtotal));
+    rows.push(makeRow(rubroMatched, insumoMatched, convert(f.subtotal), "1,00", convert(f.subtotal)));
   }
 
   // ─── Filas de IMPUESTOS ───
@@ -323,13 +330,13 @@ function buildEgresosRows(
   for (const imp of impuestosToWrite) {
     if (!imp.monto || imp.monto === 0) continue;
     const label = normalizeImpuestoLabel(imp.tipo, imp.alicuota, datosss.rubros);
-    rows.push(makeRow(label, label, imp.monto, "1,00", imp.monto));
+    rows.push(makeRow(label, label, convert(imp.monto), "1,00", convert(imp.monto)));
   }
 
   // Edge case: si no hay items NI impuestos, usar total
   if (rows.length === 0) {
     const insumoMatched = findBestMatch(f.insumo || "Varios", datosss.insumos);
-    rows.push(makeRow(rubroMatched, insumoMatched, f.total, "1,00", f.total));
+    rows.push(makeRow(rubroMatched, insumoMatched, convert(f.total), "1,00", convert(f.total)));
   }
 
   return rows;
@@ -401,6 +408,9 @@ export async function POST(request: NextRequest) {
     if (!merged.total || merged.total <= 0) return NextResponse.json({ error: "Total debe ser > 0" }, { status: 400 });
     if (!merged.sucursal) return NextResponse.json({ error: "Sucursal requerida" }, { status: 400 });
     if (!merged.year) return NextResponse.json({ error: "Año requerido" }, { status: 400 });
+    if (merged.moneda === "USD" && (!merged.tipoCambio || merged.tipoCambio <= 0)) {
+      return NextResponse.json({ error: "Factura en USD: tipo de cambio requerido (> 0)" }, { status: 400 });
+    }
 
     const exportResult = await exportToEgresos(merged);
 

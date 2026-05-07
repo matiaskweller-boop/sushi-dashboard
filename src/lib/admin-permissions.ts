@@ -126,13 +126,21 @@ export async function getAllUsers(): Promise<UserAccess[]> {
       const activeStr = schema.activo >= 0 ? (row[schema.activo] || "").toString().toLowerCase().trim() : "true";
       const createdAt = schema.creado >= 0 ? (row[schema.creado] || "").toString() : "";
 
+      // FUENTE DE VERDAD: la columna Permisos. La columna Rol ahora es
+      // solo informativa ("admin" si tiene *, "user" si tiene perms específicos).
+      // Antes el rol=admin sobrescribía Permisos y eso impedía editar admins
+      // desde el panel. Ahora si modificás los perms de un admin desde la UI,
+      // el cambio se respeta. Backward compat: si rol=admin pero Permisos=""
+      // (edge case viejo), seguimos dándole *.
       let perms: string[];
-      if (permsStr === "*" || rol === "admin") {
+      if (permsStr === "*") {
         perms = ["*"];
       } else if (permsStr) {
         perms = permsStr.split(",").map((p) => p.trim()).filter(Boolean);
+      } else if (rol === "admin") {
+        // Fallback solo para datos viejos sin Permisos llenado
+        perms = ["*"];
       } else {
-        // Sin permisos explícitos y no admin: sin acceso
         perms = [];
       }
 

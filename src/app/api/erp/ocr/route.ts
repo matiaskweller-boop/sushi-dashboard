@@ -29,7 +29,8 @@ Devolvé los DOS campos separados, exactamente como aparecen.
 - iva: monto TOTAL del IVA — sumar todas las alícuotas (10.5%, 21%, etc.) si las hay (número)
 - otrosImpuestos: suma de IIBB, percepciones IIBB, percepción IVA, impuestos internos, otros (número, 0 si no hay)
 - total: TOTAL FINAL de la factura (número, OBLIGATORIO) — debe ser igual a subtotal + iva + otrosImpuestos
-- moneda: "ARS" o "USD" (default "ARS")
+- moneda: "ARS" o "USD" (default "ARS"). Mirá con cuidado: si los importes tienen "USD", "U$S", "U$D" o "$" pero el contexto indica dólares, marcá "USD".
+- tipoCambio: si la factura es en USD, busca si tiene impreso el "TIPO DE CAMBIO" o "TC" o "COTIZACION" usado (ej "TC: 1.050,50" → 1050.50). Devolvé como número. 0 si no hay o si la factura es en ARS.
 - rubro: clasifica el contenido en uno de estos rubros del restaurante:
   Almacen, Bebidas c/Alcohol, Bebidas s/Alcohol, Postres y Café, Carniceria,
   Descartables, Productos Orientales, Pescaderia, Polleria, Verduleria, Envios,
@@ -82,6 +83,7 @@ interface OCRResult {
   otrosImpuestos: number;
   total: number;
   moneda: string;
+  tipoCambio: number;
   rubro: string;
   insumo: string;
   detalleItems: Array<{
@@ -197,6 +199,7 @@ export async function POST(request: NextRequest) {
       otrosImpuestos: Number(parsed.otrosImpuestos) || 0,
       total: Number(parsed.total) || 0,
       moneda: String(parsed.moneda || "ARS").trim().toUpperCase(),
+      tipoCambio: Number(parsed.tipoCambio) || 0,
       rubro: String(parsed.rubro || "").trim(),
       insumo: String(parsed.insumo || "").trim(),
       detalleItems: Array.isArray(parsed.detalleItems) ? parsed.detalleItems.slice(0, 30).map((i) => ({

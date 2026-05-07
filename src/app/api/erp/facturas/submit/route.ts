@@ -55,6 +55,9 @@ export async function POST(request: NextRequest) {
       reviewedAt: "",
       notasReview: "",
       items: body.items || [],
+      impuestos: body.impuestos || [],
+      moneda: (body.moneda === "USD" ? "USD" : "ARS"),
+      tipoCambio: Number(body.tipoCambio) || 1,
     };
 
     await appendFactura(factura);
