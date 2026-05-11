@@ -164,6 +164,28 @@ Convenciones:
 - `tipoCambio` se guarda como número (col AF). Default 1 para ARS.
 - Aplica a TODOS los montos: items, impuestos, totales.
 
+### Editor de carta (`/menu`) — etiquetas/badges por item
+
+Cada item del menú soporta un campo opcional `tag` (string) que se renderiza como badge dorado al lado del nombre.
+Schema:
+```ts
+interface MenuItem { id; name; price; description?; tag?; fudoMatch? }
+```
+
+UI:
+- En modo edición, el panel del item incluye input `Etiqueta / Badge` (maxLength 50, uppercase).
+- Presets rápidos: `THE CHEESECAKE FACTORY`, `EXCLUSIVO PUERTO MADERO`, `EXCLUSIVO PALERMO`, `EXCLUSIVO BELGRANO`, `NUEVO`, `TEMPORADA`, `CHEFS CHOICE`, y botón "sin etiqueta" para limpiar.
+- Preview en vivo muestra el nombre con TagBadge al lado.
+
+Persistencia:
+- `POST /api/menu/save` action=update acepta `changes.tag`. Si viene `""` elimina el field, si trae valor lo asigna.
+- `POST /api/menu/save` action=add ya soportaba `tag` en el objeto item.
+- Se guarda en KV (Cloudflare Workers) vía `/menu-data` con `X-Proxy-Secret`.
+
+Render:
+- App `/menu`: componente `TagBadge` con `bg-menu-gold/10 text-menu-gold border-menu-gold-light`.
+- Print HTML estático (`public/menu-print.html`): clase `.tag` ya estilizada para impresión.
+
 ### Login y permisos (auto-sync)
 
 El callback `/api/auth` chequea si el email está autorizado en este orden:
