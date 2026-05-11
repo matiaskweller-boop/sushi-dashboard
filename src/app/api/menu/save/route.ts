@@ -118,7 +118,7 @@ export async function POST(request: NextRequest) {
     if (action === "update") {
       const { itemId, changes, syncFudo } = body as {
         itemId: string;
-        changes: { price?: number; name?: string; description?: string; fudoMatch?: string };
+        changes: { price?: number; name?: string; description?: string; tag?: string; fudoMatch?: string };
         syncFudo?: boolean;
       };
       if (!itemId || !changes) {
@@ -145,6 +145,10 @@ export async function POST(request: NextRequest) {
       if (changes.price !== undefined) foundItem.price = changes.price;
       if (changes.name !== undefined) foundItem.name = changes.name;
       if (changes.description !== undefined) foundItem.description = changes.description || undefined;
+      if (changes.tag !== undefined) {
+        if (changes.tag === "") delete foundItem.tag;
+        else foundItem.tag = changes.tag;
+      }
       if (changes.fudoMatch !== undefined) {
         if (changes.fudoMatch === "") delete foundItem.fudoMatch;
         else foundItem.fudoMatch = changes.fudoMatch;

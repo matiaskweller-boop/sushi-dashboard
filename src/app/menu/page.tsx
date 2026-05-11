@@ -175,9 +175,11 @@ function EditPanel({
   editName,
   editPrice,
   editDesc,
+  editTag,
   setEditName,
   setEditPrice,
   setEditDesc,
+  setEditTag,
   onSave,
   onCancel,
   onDelete,
@@ -188,9 +190,11 @@ function EditPanel({
   editName: string;
   editPrice: string;
   editDesc: string;
+  editTag: string;
   setEditName: (v: string) => void;
   setEditPrice: (v: string) => void;
   setEditDesc: (v: string) => void;
+  setEditTag: (v: string) => void;
   onSave: () => void;
   onCancel: () => void;
   onDelete: () => void;
@@ -233,6 +237,49 @@ function EditPanel({
           placeholder="Ingredientes, detalle..."
           className="w-full border border-gray-200 rounded-lg px-3 py-2 text-sm text-menu-text focus:outline-none focus:border-menu-gold focus:ring-1 focus:ring-menu-gold-light"
         />
+      </div>
+
+      <div className="mb-3">
+        <label className="text-[11px] text-gray-500 uppercase tracking-wide block mb-1">
+          Etiqueta / Badge <span className="normal-case text-gray-400">— sale al lado del nombre</span>
+        </label>
+        <input
+          type="text"
+          value={editTag}
+          onChange={(e) => setEditTag(e.target.value)}
+          placeholder='ej "THE CHEESECAKE FACTORY" o "EXCLUSIVO PUERTO MADERO"'
+          maxLength={50}
+          className="w-full border border-gray-200 rounded-lg px-3 py-2 text-sm text-menu-text uppercase tracking-wide focus:outline-none focus:border-menu-gold focus:ring-1 focus:ring-menu-gold-light"
+        />
+        {/* Atajos rapidos */}
+        <div className="flex flex-wrap gap-1.5 mt-1.5">
+          <button type="button" onClick={() => setEditTag("")}
+            className="text-[10px] px-2 py-0.5 rounded bg-gray-100 text-gray-500 hover:bg-gray-200">
+            sin etiqueta
+          </button>
+          {[
+            "THE CHEESECAKE FACTORY",
+            "EXCLUSIVO PUERTO MADERO",
+            "EXCLUSIVO PALERMO",
+            "EXCLUSIVO BELGRANO",
+            "NUEVO",
+            "TEMPORADA",
+            "CHEF'S CHOICE",
+          ].map((preset) => (
+            <button key={preset} type="button" onClick={() => setEditTag(preset)}
+              className="text-[10px] px-2 py-0.5 rounded border border-menu-gold-light text-menu-gold hover:bg-menu-gold-light/30">
+              {preset}
+            </button>
+          ))}
+        </div>
+        {/* Preview */}
+        {editTag.trim() && (
+          <div className="mt-2 flex items-center gap-2">
+            <span className="text-[10px] text-gray-400 uppercase">Preview:</span>
+            <span className="text-menu-text text-[14px]">{editName || item.name}</span>
+            <TagBadge tag={editTag.trim()} />
+          </div>
+        )}
       </div>
 
       {fudoProduct && (
@@ -299,9 +346,11 @@ function MenuItemRow({
   editName,
   editPrice,
   editDesc,
+  editTag,
   setEditName,
   setEditPrice,
   setEditDesc,
+  setEditTag,
   onClickItem,
   onSave,
   onCancel,
@@ -316,9 +365,11 @@ function MenuItemRow({
   editName: string;
   editPrice: string;
   editDesc: string;
+  editTag: string;
   setEditName: (v: string) => void;
   setEditPrice: (v: string) => void;
   setEditDesc: (v: string) => void;
+  setEditTag: (v: string) => void;
   onClickItem: () => void;
   onSave: () => void;
   onCancel: () => void;
@@ -380,9 +431,11 @@ function MenuItemRow({
           editName={editName}
           editPrice={editPrice}
           editDesc={editDesc}
+          editTag={editTag}
           setEditName={setEditName}
           setEditPrice={setEditPrice}
           setEditDesc={setEditDesc}
+          setEditTag={setEditTag}
           onSave={onSave}
           onCancel={onCancel}
           onDelete={onDelete}
@@ -402,9 +455,11 @@ function SectionBlock({
   editName,
   editPrice,
   editDesc,
+  editTag,
   setEditName,
   setEditPrice,
   setEditDesc,
+  setEditTag,
   onClickItem,
   onSave,
   onCancel,
@@ -420,9 +475,11 @@ function SectionBlock({
   editName: string;
   editPrice: string;
   editDesc: string;
+  editTag: string;
   setEditName: (v: string) => void;
   setEditPrice: (v: string) => void;
   setEditDesc: (v: string) => void;
+  setEditTag: (v: string) => void;
   onClickItem: (item: MenuItem) => void;
   onSave: () => void;
   onCancel: () => void;
@@ -464,9 +521,11 @@ function SectionBlock({
               editName={editName}
               editPrice={editPrice}
               editDesc={editDesc}
+              editTag={editTag}
               setEditName={setEditName}
               setEditPrice={setEditPrice}
               setEditDesc={setEditDesc}
+              setEditTag={setEditTag}
               onClickItem={() => onClickItem(item)}
               onSave={onSave}
               onCancel={onCancel}
@@ -549,6 +608,7 @@ export default function MenuPage() {
   const [editPrice, setEditPrice] = useState("");
   const [editName, setEditName] = useState("");
   const [editDesc, setEditDesc] = useState("");
+  const [editTag, setEditTag] = useState("");
   const [saving, setSaving] = useState(false);
   const [saveResult, setSaveResult] = useState<{
     type: "success" | "error";
@@ -608,6 +668,7 @@ export default function MenuPage() {
     setEditName(item.name);
     setEditPrice(String(item.price));
     setEditDesc(item.description || "");
+    setEditTag(item.tag || "");
   };
 
   // Cancel editing
@@ -632,10 +693,11 @@ export default function MenuPage() {
     const fudoProduct = findFudoMatch(menuItem, fudoLookup);
 
     const newPrice = parseFloat(editPrice);
-    const menuChanges: { price?: number; name?: string; description?: string } = {};
+    const menuChanges: { price?: number; name?: string; description?: string; tag?: string } = {};
     if (!isNaN(newPrice) && newPrice !== menuItem.price) menuChanges.price = newPrice;
     if (editName.trim() && editName.trim() !== menuItem.name) menuChanges.name = editName.trim();
     if (editDesc !== (menuItem.description || "")) menuChanges.description = editDesc;
+    if (editTag.trim() !== (menuItem.tag || "")) menuChanges.tag = editTag.trim();
 
     if (Object.keys(menuChanges).length === 0) {
       setSaveResult({ type: "success", msg: "Sin cambios" });
@@ -1011,9 +1073,11 @@ export default function MenuPage() {
             editName={editName}
             editPrice={editPrice}
             editDesc={editDesc}
+            editTag={editTag}
             setEditName={setEditName}
             setEditPrice={setEditPrice}
             setEditDesc={setEditDesc}
+            setEditTag={setEditTag}
             onClickItem={handleClickItem}
             onSave={handleSave}
             onCancel={handleCancel}
