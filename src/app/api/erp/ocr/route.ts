@@ -15,12 +15,18 @@ Si es un PDF con varias páginas, considerá toda la información del documento 
 Tenés que extraer los siguientes datos en JSON.
 
 CAMPOS A EXTRAER:
-- proveedor: nombre comercial del proveedor (string corto, en mayúsculas, como aparece en la factura)
-- razonSocial: razón social legal completa (la que figura junto al CUIT)
-- cuit: CUIT del emisor (string con formato 30-12345678-9 o solo dígitos, vacío si no hay)
+- proveedor: nombre comercial del proveedor EMISOR (string corto, en mayúsculas, como aparece en la factura)
+- razonSocial: razón social legal completa del EMISOR (la que figura junto al CUIT del proveedor)
+- cuit: CUIT del EMISOR/proveedor (string con formato 30-12345678-9 o solo dígitos, vacío si no hay)
+- razonSocialReceptor: razón social del CLIENTE/COMPRADOR — somos NOSOTROS (la sociedad del restaurante que recibe la factura). Buscalo en la sección "CLIENTE:", "FACTURADO A:", "Sr./Sra.:", "Comprador:", etc. Las sociedades posibles son:
+  • "Tobet" o "Tobet S.A." → corresponde a sucursal Palermo
+  • "Pro Vegan" o "Pro Vegan SAS" o "Provegan" → corresponde a sucursal Belgrano
+  • "Icono" o "Icono SAS" o "Icono S.A." → corresponde a sucursal Puerto Madero
+  Devolvé el nombre tal cual aparece en la factura. Si no podés identificar la razón social del receptor, dejá vacío.
+
 NOTA: NO intentes matchear el proveedor con ninguna lista. Solo extrae los datos exactos como aparecen en la factura.
-La razón social y el nombre comercial pueden ser distintos (ej "RAFAEL CIOFFI E HIJOS" vs "DELFIN PESCADERIA").
-Devolvé los DOS campos separados, exactamente como aparecen.
+La razón social y el nombre comercial del EMISOR pueden ser distintos (ej "RAFAEL CIOFFI E HIJOS" vs "DELFIN PESCADERIA").
+Devolvé los campos separados, exactamente como aparecen.
 - fechaFC: fecha de emisión de la factura en formato YYYY-MM-DD
 - fechaVto: fecha de vencimiento del pago si aparece, formato YYYY-MM-DD (vacío si no)
 - nroComprobante: número de factura/comprobante completo (ej "0001-00012345")
@@ -73,6 +79,7 @@ Respondé SOLO con JSON válido, sin markdown, sin texto adicional.`;
 interface OCRResult {
   proveedor: string;
   razonSocial: string;
+  razonSocialReceptor: string;
   cuit: string;
   fechaFC: string;
   fechaVto: string;
@@ -189,6 +196,7 @@ export async function POST(request: NextRequest) {
     const ocrResult: OCRResult = {
       proveedor: String(parsed.proveedor || "").trim(),
       razonSocial: String(parsed.razonSocial || "").trim(),
+      razonSocialReceptor: String(parsed.razonSocialReceptor || "").trim(),
       cuit: String(parsed.cuit || "").trim(),
       fechaFC: String(parsed.fechaFC || "").trim(),
       fechaVto: String(parsed.fechaVto || "").trim(),

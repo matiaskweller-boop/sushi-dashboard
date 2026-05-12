@@ -42,7 +42,37 @@ export const FACTURA_HEADERS = [
   "ImpuestosJSON",  // [{tipo, monto, alicuota?}, ...]
   "Moneda",         // "ARS" | "USD"
   "TipoCambio",     // numero, ej 1050.50 (1 USD = X ARS). Default 1 para ARS.
+  "RazonSocialReceptor", // col AG — razón social NUESTRA (Tobet/Pro Vegan/Icono) para validar coincidencia con sucursal
 ];
+
+/**
+ * Mapeo sucursal → razón social NUESTRA (las sociedades del grupo Masunori).
+ * Usado para validar que la sucursal seleccionada coincida con la razón social
+ * que figura en la factura como "cliente / receptor".
+ */
+export const SUCURSAL_TO_SOCIEDAD: Record<string, string> = {
+  palermo: "Tobet",
+  belgrano: "Pro Vegan",
+  madero: "Icono",
+};
+
+/**
+ * Para detección por texto: lista de aliases que indican una razón social NUESTRA
+ * y a qué sucursal corresponde.
+ */
+export const SOCIEDAD_PATTERNS: Array<{ patterns: RegExp; sucursal: string; nombre: string }> = [
+  { patterns: /\btobet\b/i, sucursal: "palermo", nombre: "Tobet" },
+  { patterns: /\bpro\s*vegan\b/i, sucursal: "belgrano", nombre: "Pro Vegan" },
+  { patterns: /\bicono\b/i, sucursal: "madero", nombre: "Icono" },
+];
+
+export function detectSucursalFromRazonSocial(razonSocial: string): { sucursal: string | null; nombre: string | null } {
+  if (!razonSocial) return { sucursal: null, nombre: null };
+  for (const p of SOCIEDAD_PATTERNS) {
+    if (p.patterns.test(razonSocial)) return { sucursal: p.sucursal, nombre: p.nombre };
+  }
+  return { sucursal: null, nombre: null };
+}
 
 export type EstadoFactura = "pendiente" | "aprobada" | "rechazada";
 
@@ -91,6 +121,7 @@ export interface FacturaQueue {
   }>;
   moneda: "ARS" | "USD"; // si es USD, los montos están en dólares y deben convertirse al exportar
   tipoCambio: number;    // si moneda="USD", monto * tipoCambio = monto en ARS. Default 1.
+  razonSocialReceptor: string; // razón social NUESTRA detectada en la factura (Tobet/Pro Vegan/Icono)
 }
 
 /**
@@ -100,14 +131,32 @@ export async function ensureFacturasTab() {
   const sheets = getSheets();
   const meta = await sheets.spreadsheets.get({
     spreadsheetId: ERP_CONFIG_SHEET,
-    fields: "sheets(properties(title))",
+    fields: "sheets(properties(title,sheetId,gridProperties))",
   });
-  const exists = meta.data.sheets?.some((s) => s.properties?.title === TAB);
-  if (!exists) {
+  const existingTab = meta.data.sheets?.find((s) => s.properties?.title === TAB);
+  if (!existingTab) {
     await sheets.spreadsheets.batchUpdate({
       spreadsheetId: ERP_CONFIG_SHEET,
       requestBody: { requests: [{ addSheet: { properties: { title: TAB } } }] },
     });
+  } else {
+    // Expandir grid si la tab tiene menos columnas que las que pide el schema
+    const currentCols = existingTab.properties?.gridProperties?.columnCount || 0;
+    if (currentCols < FACTURA_HEADERS.length) {
+      const toAdd = FACTURA_HEADERS.length - currentCols;
+      await sheets.spreadsheets.batchUpdate({
+        spreadsheetId: ERP_CONFIG_SHEET,
+        requestBody: {
+          requests: [{
+            appendDimension: {
+              sheetId: existingTab.properties!.sheetId!,
+              dimension: "COLUMNS",
+              length: toAdd,
+            },
+          }],
+        },
+      });
+    }
   }
   // Setear/actualizar headers
   await sheets.spreadsheets.values.update({
@@ -183,6 +232,7 @@ function rowToFactura(row: string[]): FacturaQueue {
     impuestos,
     moneda,
     tipoCambio,
+    razonSocialReceptor: row[32] || "", // col AG
   };
 }
 
@@ -220,6 +270,7 @@ function facturaToRow(f: Partial<FacturaQueue> & { id: string }): string[] {
     JSON.stringify(f.impuestos || []),
     f.moneda || "ARS",
     String(f.tipoCambio ?? 1),
+    f.razonSocialReceptor || "", // col AG
   ];
 }
 
@@ -229,7 +280,7 @@ export function generateId(): string {
 
 export async function listFacturas(filter?: { estado?: EstadoFactura; submittedBy?: string }): Promise<FacturaQueue[]> {
   await ensureFacturasTab();
-  const rows = await readSheetRaw(ERP_CONFIG_SHEET, `${TAB}!A2:AF10000`);
+  const rows = await readSheetRaw(ERP_CONFIG_SHEET, `${TAB}!A2:AG10000`);
   const facturas = rows.map(rowToFactura).filter((f) => f.id);
   if (filter?.estado) {
     return facturas.filter((f) => f.estado === filter.estado);
@@ -242,20 +293,20 @@ export async function listFacturas(filter?: { estado?: EstadoFactura; submittedB
 
 export async function getFactura(id: string): Promise<FacturaQueue | null> {
   await ensureFacturasTab();
-  const rows = await readSheetRaw(ERP_CONFIG_SHEET, `${TAB}!A2:AF10000`);
+  const rows = await readSheetRaw(ERP_CONFIG_SHEET, `${TAB}!A2:AG10000`);
   const found = rows.find((r) => (r[0] || "") === id);
   return found ? rowToFactura(found) : null;
 }
 
 export async function appendFactura(f: Partial<FacturaQueue> & { id: string }): Promise<void> {
   await ensureFacturasTab();
-  await appendToSheet(ERP_CONFIG_SHEET, `${TAB}!A:AF`, [facturaToRow(f)]);
+  await appendToSheet(ERP_CONFIG_SHEET, `${TAB}!A:AG`, [facturaToRow(f)]);
 }
 
 export async function updateFactura(id: string, updates: Partial<FacturaQueue>): Promise<FacturaQueue | null> {
   await ensureFacturasTab();
   const sheets = getSheets();
-  const rows = await readSheetRaw(ERP_CONFIG_SHEET, `${TAB}!A2:AF10000`);
+  const rows = await readSheetRaw(ERP_CONFIG_SHEET, `${TAB}!A2:AG10000`);
   const idx = rows.findIndex((r) => (r[0] || "") === id);
   if (idx < 0) return null;
 
@@ -265,7 +316,7 @@ export async function updateFactura(id: string, updates: Partial<FacturaQueue>):
   const sheetRow = idx + 2;
   await sheets.spreadsheets.values.update({
     spreadsheetId: ERP_CONFIG_SHEET,
-    range: `${TAB}!A${sheetRow}:AF${sheetRow}`,
+    range: `${TAB}!A${sheetRow}:AG${sheetRow}`,
     valueInputOption: "RAW",
     requestBody: { values: [newRow] },
   });

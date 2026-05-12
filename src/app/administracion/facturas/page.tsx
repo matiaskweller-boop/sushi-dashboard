@@ -22,6 +22,7 @@ interface ImpuestoLine {
 interface OCRResult {
   proveedor: string;
   razonSocial: string;
+  razonSocialReceptor: string;
   cuit: string;
   fechaFC: string;
   fechaVto: string;
@@ -74,6 +75,7 @@ interface Factura {
   impuestos: ImpuestoLine[];
   moneda: "ARS" | "USD";
   tipoCambio: number;
+  razonSocialReceptor: string;
 }
 
 interface ListResponse {
@@ -137,6 +139,36 @@ function addDaysISO(iso: string, days: number): string {
 
 const SUC_NAMES: Record<string, string> = { palermo: "Palermo", belgrano: "Belgrano", madero: "Madero" };
 const SUC_COLORS: Record<string, string> = { palermo: "#2E6DA4", belgrano: "#10B981", madero: "#8B5CF6" };
+
+/**
+ * Mapping de sucursal → sociedad NUESTRA (la razón social del receptor en la factura).
+ * Si la factura está dirigida a "Tobet" y el user seleccionó Palermo → match ✓.
+ * Si está dirigida a "Pro Vegan" y el user seleccionó Palermo → mismatch ⚠️.
+ */
+const SUC_TO_SOCIEDAD: Record<string, string> = {
+  palermo: "Tobet",
+  belgrano: "Pro Vegan",
+  madero: "Icono",
+};
+const SOCIEDAD_TO_SUC: Record<string, string> = {
+  tobet: "palermo",
+  "pro vegan": "belgrano",
+  provegan: "belgrano",
+  icono: "madero",
+};
+
+/**
+ * Detecta a qué sucursal pertenece la razón social del receptor.
+ * Devuelve null si no se reconoce.
+ */
+function detectSucursalFromReceptor(razonSocialReceptor: string): string | null {
+  if (!razonSocialReceptor) return null;
+  const norm = razonSocialReceptor.toLowerCase().trim();
+  for (const [sociedad, suc] of Object.entries(SOCIEDAD_TO_SUC)) {
+    if (norm.includes(sociedad)) return suc;
+  }
+  return null;
+}
 
 const RUBROS = [
   "Almacen", "Bebidas c/Alcohol", "Bebidas s/Alcohol", "Postres y Café",
@@ -586,6 +618,7 @@ export default function FacturasPage() {
     const empty: OCRResult = {
       proveedor: "",
       razonSocial: "",
+      razonSocialReceptor: SUC_TO_SOCIEDAD[sucursal] || "",
       cuit: "",
       fechaFC: today,
       fechaVto: today,
@@ -650,6 +683,7 @@ export default function FacturasPage() {
           notasOCR: editing.notas,
           items: editing.detalleItems,
           impuestos: editing.impuestos || [],
+          razonSocialReceptor: editing.razonSocialReceptor || "",
         }),
       });
       const data = await res.json();
@@ -778,6 +812,9 @@ export default function FacturasPage() {
                 </button>
               ))}
             </div>
+            <span className="text-[11px] bg-gray-100 text-gray-600 px-2 py-1 rounded-md">
+              Razón social receptora: <b className="text-navy">{SUC_TO_SOCIEDAD[sucursal] || "—"}</b>
+            </span>
             <div className="flex gap-1 bg-gray-50 border border-gray-200 rounded-lg p-1">
               {(["2026", "2025"] as const).map((y) => (
                 <button key={y} onClick={() => setYear(y)}
@@ -930,6 +967,58 @@ export default function FacturasPage() {
                           {matched.aliasCbu && <span>📋 {matched.aliasCbu}</span>}
                           {matched.mail && <a href={`mailto:${matched.mail}`} className="text-blue-accent hover:underline">✉ {matched.mail}</a>}
                           {!matched.corroborado && <span className="text-amber-700">⚠️ sin corroborar</span>}
+                        </div>
+                      );
+                    })()}
+                  </div>
+
+                  {/* Razón social del RECEPTOR (la sociedad NUESTRA: Tobet/Pro Vegan/Icono) */}
+                  <div>
+                    <label className="text-xs text-gray-500 uppercase">
+                      Razón social receptor (NUESTRA)
+                      <span className="text-[10px] text-gray-400 normal-case"> — extraída de la factura, debe coincidir con la sucursal</span>
+                    </label>
+                    <input
+                      type="text"
+                      value={editing.razonSocialReceptor}
+                      onChange={(e) => updateEditField("razonSocialReceptor", e.target.value)}
+                      placeholder="Tobet / Pro Vegan / Icono"
+                      className="w-full border border-gray-200 rounded-lg px-3 py-2 text-sm"
+                    />
+                    {(() => {
+                      const detectedSuc = detectSucursalFromReceptor(editing.razonSocialReceptor);
+                      const expected = SUC_TO_SOCIEDAD[sucursal] || "";
+                      if (!editing.razonSocialReceptor.trim()) {
+                        return (
+                          <div className="mt-1 text-[11px] text-gray-500 bg-gray-50 border border-gray-200 rounded-md px-2 py-1.5">
+                            ℹ️ Esperado para <b>{SUC_NAMES[sucursal]}</b>: <b className="text-navy">{expected}</b>
+                          </div>
+                        );
+                      }
+                      if (detectedSuc === sucursal) {
+                        return (
+                          <div className="mt-1 text-[11px] text-emerald-700 bg-emerald-50 border border-emerald-200 rounded-md px-2 py-1.5">
+                            ✓ Coincide con sucursal <b>{SUC_NAMES[sucursal]}</b>
+                          </div>
+                        );
+                      }
+                      if (detectedSuc && detectedSuc !== sucursal) {
+                        return (
+                          <div className="mt-1 text-[11px] text-red-700 bg-red-50 border-2 border-red-300 rounded-md px-2 py-1.5">
+                            ⚠️ <b>MISMATCH</b>: la factura es para <b>{SUC_TO_SOCIEDAD[detectedSuc]}</b> (sucursal {SUC_NAMES[detectedSuc]}), pero seleccionaste <b>{SUC_NAMES[sucursal]}</b>.
+                            <button
+                              type="button"
+                              onClick={() => setSucursal(detectedSuc)}
+                              className="ml-1 underline hover:text-red-900"
+                            >
+                              cambiar a {SUC_NAMES[detectedSuc]}
+                            </button>
+                          </div>
+                        );
+                      }
+                      return (
+                        <div className="mt-1 text-[11px] text-amber-700 bg-amber-50 border border-amber-200 rounded-md px-2 py-1.5">
+                          ⚠️ Razón social no reconocida. Esperado: <b>{expected}</b>
                         </div>
                       );
                     })()}
@@ -1360,7 +1449,25 @@ export default function FacturasPage() {
                             </span>
                           </td>
                           <td className="px-3 py-2 text-xs text-gray-500">{f.fechaFC || f.submittedAt.substring(0, 10)}</td>
-                          <td className="px-3 py-2 text-xs font-medium" style={{ color: SUC_COLORS[f.sucursal] }}>{SUC_NAMES[f.sucursal] || f.sucursal}</td>
+                          <td className="px-3 py-2 text-xs font-medium" style={{ color: SUC_COLORS[f.sucursal] }}>
+                            <div className="flex items-center gap-1">
+                              {SUC_NAMES[f.sucursal] || f.sucursal}
+                              {(() => {
+                                const detected = detectSucursalFromReceptor(f.razonSocialReceptor || "");
+                                if (detected && detected !== f.sucursal) {
+                                  return (
+                                    <span
+                                      title={`Razón social receptora "${f.razonSocialReceptor}" sugiere sucursal ${SUC_NAMES[detected]}, pero la factura está cargada en ${SUC_NAMES[f.sucursal]}`}
+                                      className="text-[9px] bg-red-100 text-red-700 px-1 py-0.5 rounded font-bold"
+                                    >
+                                      ⚠️ mismatch
+                                    </span>
+                                  );
+                                }
+                                return null;
+                              })()}
+                            </div>
+                          </td>
                           <td className="px-3 py-2 font-medium text-navy">{f.proveedor}</td>
                           <td className="px-3 py-2 text-xs text-gray-500">{f.tipoComprobante} {f.nroComprobante}</td>
                           <td className="px-3 py-2 text-xs text-gray-500 truncate max-w-[140px]">{isMine ? "Yo" : f.submittedBy}</td>
@@ -1450,6 +1557,27 @@ export default function FacturasPage() {
                                     <input value={editingFactura.razonSocial} disabled={f.estado !== "pendiente"}
                                       onChange={(e) => updateFacturaEditField("razonSocial", e.target.value)}
                                       className="w-full border border-gray-200 rounded-md px-2 py-1 text-xs disabled:bg-gray-50" />
+                                  </div>
+                                  <div>
+                                    <label className="text-gray-500 block">Razón social RECEPTOR (NUESTRA)</label>
+                                    <input value={editingFactura.razonSocialReceptor || ""} disabled={f.estado !== "pendiente"}
+                                      onChange={(e) => updateFacturaEditField("razonSocialReceptor", e.target.value)}
+                                      placeholder="Tobet / Pro Vegan / Icono"
+                                      className="w-full border border-gray-200 rounded-md px-2 py-1 text-xs disabled:bg-gray-50" />
+                                    {(() => {
+                                      const detectedSuc = detectSucursalFromReceptor(editingFactura.razonSocialReceptor || "");
+                                      const expected = SUC_TO_SOCIEDAD[editingFactura.sucursal] || "";
+                                      if (!editingFactura.razonSocialReceptor) {
+                                        return <div className="text-[10px] text-gray-400 mt-0.5">esperado: {expected}</div>;
+                                      }
+                                      if (detectedSuc === editingFactura.sucursal) {
+                                        return <div className="text-[10px] text-emerald-600 mt-0.5">✓ coincide con {SUC_NAMES[editingFactura.sucursal]}</div>;
+                                      }
+                                      if (detectedSuc && detectedSuc !== editingFactura.sucursal) {
+                                        return <div className="text-[10px] text-red-600 mt-0.5 font-medium">⚠️ es para {SUC_NAMES[detectedSuc]}, no {SUC_NAMES[editingFactura.sucursal]}</div>;
+                                      }
+                                      return <div className="text-[10px] text-amber-600 mt-0.5">no reconocido, esperado: {expected}</div>;
+                                    })()}
                                   </div>
                                   <div>
                                     <label className="text-gray-500 block">CUIT</label>
