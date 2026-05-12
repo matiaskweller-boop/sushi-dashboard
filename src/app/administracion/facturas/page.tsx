@@ -409,6 +409,43 @@ export default function FacturasPage() {
     if (fileInputRef.current) fileInputRef.current.value = "";
   };
 
+  /**
+   * Inicia entrada manual de un movimiento SIN factura (cash, sin comprobante, etc).
+   * Crea un editing en blanco para que el usuario complete todo a mano.
+   */
+  const startManualEntry = () => {
+    setFile(null);
+    setPreviewUrl(null);
+    setOcrResult(null);
+    setError(null);
+    setSuccess(null);
+    const today = new Date().toISOString().substring(0, 10);
+    const empty: OCRResult = {
+      proveedor: "",
+      razonSocial: "",
+      cuit: "",
+      fechaFC: today,
+      fechaVto: today,
+      nroComprobante: "",
+      tipoComprobante: "SIN FACTURA",
+      subtotal: 0,
+      iva: 0,
+      otrosImpuestos: 0,
+      total: 0,
+      moneda: "ARS",
+      tipoCambio: 1,
+      rubro: "",
+      insumo: "",
+      detalleItems: [],
+      impuestos: [],
+      confianza: 100,
+      notas: "Carga manual sin factura",
+    };
+    setEditing(empty);
+    setMetodoPago("Efectivo Local");
+    setFechaPago(today);
+  };
+
   const submitToQueue = async () => {
     if (!editing) return;
     if (!editing.proveedor || !editing.total) {
@@ -591,8 +628,19 @@ export default function FacturasPage() {
           <div className="grid grid-cols-1 lg:grid-cols-2 gap-4">
             {/* Imagen / PDF */}
             <div className="bg-white border border-gray-200 rounded-xl p-4">
-              <h2 className="text-sm font-semibold text-navy uppercase tracking-wide mb-3">Imagen / PDF</h2>
-              {!previewUrl ? (
+              <div className="flex items-center justify-between mb-3">
+                <h2 className="text-sm font-semibold text-navy uppercase tracking-wide">Imagen / PDF</h2>
+                {!editing && (
+                  <button
+                    onClick={startManualEntry}
+                    className="text-xs bg-amber-50 border border-amber-200 text-amber-700 px-3 py-1.5 rounded-lg hover:bg-amber-100 transition font-medium"
+                    title="Para gastos sin factura: cash, anticipos, ajustes manuales"
+                  >
+                    ✏️ Cargar sin factura
+                  </button>
+                )}
+              </div>
+              {!previewUrl && !editing ? (
                 <div onDrop={onDrop} onDragOver={(e) => e.preventDefault()} onClick={() => fileInputRef.current?.click()}
                   className="border-2 border-dashed border-gray-300 rounded-lg p-8 text-center cursor-pointer hover:border-blue-accent hover:bg-blue-50/30">
                   <div className="text-4xl mb-2">📸 📄</div>
@@ -602,15 +650,35 @@ export default function FacturasPage() {
                     accept="image/jpeg,image/png,image/webp,image/heic,image/heif,application/pdf,image/*"
                     onChange={onFileChange} className="hidden" />
                 </div>
+              ) : !previewUrl && editing ? (
+                <div className="border-2 border-dashed border-amber-300 bg-amber-50/40 rounded-lg p-8 text-center">
+                  <div className="text-4xl mb-2">✏️ 🧾</div>
+                  <div className="text-sm text-amber-700 font-medium mb-1">Carga manual sin factura</div>
+                  <div className="text-xs text-amber-600 mb-3">El movimiento se va a registrar sin foto adjunta</div>
+                  <button
+                    onClick={() => fileInputRef.current?.click()}
+                    className="text-xs text-blue-accent hover:underline"
+                  >
+                    o subí una foto si la conseguís
+                  </button>
+                  <input ref={fileInputRef} type="file"
+                    accept="image/jpeg,image/png,image/webp,image/heic,image/heif,application/pdf,image/*"
+                    onChange={onFileChange} className="hidden" />
+                  <div className="mt-4">
+                    <button onClick={reset} className="text-xs text-gray-500 hover:underline">
+                      ✕ cancelar
+                    </button>
+                  </div>
+                </div>
               ) : (
                 <div>
                   {file?.type === "application/pdf" ? (
                     <div className="rounded-lg border border-gray-200 overflow-hidden bg-gray-50" style={{ height: "500px" }}>
-                      <embed src={previewUrl} type="application/pdf" className="w-full h-full" />
+                      <embed src={previewUrl || ""} type="application/pdf" className="w-full h-full" />
                     </div>
                   ) : (
                     /* eslint-disable-next-line @next/next/no-img-element */
-                    <img src={previewUrl} alt="Factura" className="max-h-[500px] w-full object-contain rounded-lg border border-gray-200" />
+                    <img src={previewUrl || ""} alt="Factura" className="max-h-[500px] w-full object-contain rounded-lg border border-gray-200" />
                   )}
                   <div className="text-xs text-gray-400 mt-1 truncate">{file?.name} · {((file?.size || 0) / 1024 / 1024).toFixed(2)} MB</div>
                   <div className="flex gap-2 mt-3">
@@ -631,7 +699,18 @@ export default function FacturasPage() {
               <h2 className="text-sm font-semibold text-navy uppercase tracking-wide mb-3">Datos extraídos</h2>
               {!editing && !loadingOcr && (
                 <div className="text-center py-12 text-gray-400 text-sm">
-                  {file ? "Procesá la imagen para extraer datos" : "Subí una factura primero"}
+                  {file ? "Procesá la imagen para extraer datos" : (
+                    <>
+                      <div>Subí una factura primero</div>
+                      <div className="text-[11px] mt-2">— o —</div>
+                      <button
+                        onClick={startManualEntry}
+                        className="text-xs text-amber-600 hover:underline mt-1"
+                      >
+                        ✏️ cargar movimiento sin factura
+                      </button>
+                    </>
+                  )}
                 </div>
               )}
               {loadingOcr && (
