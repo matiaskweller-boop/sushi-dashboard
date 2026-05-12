@@ -72,7 +72,27 @@ Schema de la tab Usuarios:
 - **Owner único**: `matiaskweller@gmail.com` (constante `OWNER_EMAIL` en `src/lib/admin-permissions.ts`). Tiene acceso a TODO siempre, incluso si no está en la tab. Es el único que puede modificar usuarios.
 
 Permisos válidos (`ALL_PERMISSIONS` en admin-permissions.ts):
-`ventas, pnl, egresos, proveedores, caja, descuentos, alertas, facturas, facturas_aprobar, consumo, stock, menu, competencia, efectivo`
+`ventas, pnl, egresos, deuda_locales, oficina, proveedores, caja, descuentos, alertas, facturas, facturas_aprobar, consumo, stock, menu, competencia, efectivo`
+
+**Permisos implícitos** (un permiso padre da acceso a sub-secciones):
+- `egresos` → implica `deuda_locales` + `oficina` (backward compat).
+- Definido en `PERM_IMPLIES` (src/lib/admin-permissions.ts). Verificado dentro de `userHasPermission()`.
+
+## ⚠️ CHECKLIST OBLIGATORIO al crear cualquier sección nueva en /administracion
+
+**Cada vez que agregues una página/módulo nuevo, hacer SIEMPRE las 5 cosas:**
+
+1. **Agregar el permiso a `ALL_PERMISSIONS`** en `src/lib/admin-permissions.ts`.
+2. **Agregar la etiqueta a `PERM_LABELS`** en `src/app/administracion/usuarios/page.tsx` — con emoji + label legible (ej: `🏢 Oficina (gastos overhead)`). Si no, aparece como string crudo en el panel de permisos del owner.
+3. **Agregar el path al `PATH_PERMS`** en `src/app/administracion/layout.tsx` mapeando prefix → permiso.
+4. **Usar `requirePermissionApi(request, "nuevo_perm")`** en cada route handler `/api/erp/*/route.ts` de la sección.
+5. **Agregar la card al landing** en `src/app/administracion/page.tsx` (`MODULES` array) con icon/title/desc/group/status.
+
+**Opcional pero recomendado:**
+- Si el módulo es una variante o sub-sección de uno existente (ej. Oficina deriva de Egresos), agregarlo a `PERM_IMPLIES` para que el padre lo otorgue automáticamente y no rompa users existentes.
+- Documentar el módulo en este CLAUDE.md con su propia sección.
+
+Si faltó cualquiera de los 5 pasos, el owner verá un permiso sin label, los users no podrán acceder, o la card no aparecerá en /administracion.
 
 Permisos especiales:
 - `_users` = puede gestionar usuarios — **solo el owner** lo tiene.

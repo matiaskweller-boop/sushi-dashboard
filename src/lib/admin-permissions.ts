@@ -10,6 +10,8 @@ export const ALL_PERMISSIONS = [
   "ventas",        // Dashboard, KPIs, Histórico (la barra "Ventas")
   "pnl",
   "egresos",
+  "deuda_locales",     // Deuda entre Locales (implicito si tiene egresos)
+  "oficina",           // Gastos de Oficina (implicito si tiene egresos)
   "proveedores",
   "caja",
   "descuentos",
@@ -234,6 +236,14 @@ export function invalidateUserCache(email?: string) {
  * - "*": acceso total
  * - cualquier otro string: ese permiso específico
  */
+// Relaciones implicitas: tener permiso A da acceso a sub-secciones B,C,D
+// (no al reves). Esto preserva backward-compat al introducir permisos
+// granulares: usuarios que tenian "egresos" siguen viendo todo lo
+// relacionado a egresos.
+const PERM_IMPLIES: Record<string, string[]> = {
+  egresos: ["deuda_locales", "oficina"],
+};
+
 export function userHasPermission(user: UserAccess | null, permission: string | "any" | "_users" | "logged_in"): boolean {
   if (!user || !user.active) return false;
   if (user.isOwner) return true;
@@ -241,7 +251,13 @@ export function userHasPermission(user: UserAccess | null, permission: string | 
   if (permission === "logged_in") return true; // cualquier user activo
   if (user.perms.includes("*")) return true;
   if (permission === "any") return user.perms.length > 0;
-  return user.perms.includes(permission);
+  if (user.perms.includes(permission)) return true;
+  // Check implicit grants (egresos grants deuda_locales + oficina, etc)
+  for (const parentPerm of user.perms) {
+    const implied = PERM_IMPLIES[parentPerm];
+    if (implied && implied.includes(permission)) return true;
+  }
+  return false;
 }
 
 /**

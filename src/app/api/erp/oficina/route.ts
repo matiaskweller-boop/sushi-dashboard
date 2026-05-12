@@ -44,7 +44,7 @@ function detectMatch(
 }
 
 export async function GET(request: NextRequest) {
-  const auth = await requirePermissionApi(request, "egresos");
+  const auth = await requirePermissionApi(request, "oficina");
   if (!auth.ok) return auth.response;
 
   try {
