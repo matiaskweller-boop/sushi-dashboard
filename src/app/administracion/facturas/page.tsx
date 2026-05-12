@@ -84,14 +84,55 @@ interface ListResponse {
 }
 
 interface ProveedorMaster {
-  proveedor: string;
-  razonSocial: string;
+  id: string;
+  rowIdx: number;
+  nombreSociedad: string;     // razón social
+  nombreFantasia: string;     // como lo conocemos
+  contacto: string;
   cuit: string;
-  alias: string;
+  formaPago: string;
+  aliasCbu: string;
+  titularCuenta: string;
   banco: string;
-  cbu: string;
-  producto: string;
+  nroCuenta: string;
+  rubro: string;              // producto
   plazoPago: string;
+  mail: string;
+  corroborado: boolean;
+  notas: string;
+}
+
+/**
+ * Parsea string de plazo de pago a número de días.
+ * Acepta: "15 dias", "30 días", "7", "1 dia", "contado" (=0), "anticipado" (=0)
+ * Devuelve null si no se puede parsear.
+ */
+function parsePlazoToDays(plazo: string): number | null {
+  if (!plazo) return null;
+  const s = plazo.trim().toLowerCase();
+  if (!s) return null;
+  if (s === "contado" || s === "anticipado" || s === "0") return 0;
+  // Look for first number in the string
+  const m = s.match(/(\d+)/);
+  if (!m) return null;
+  const n = parseInt(m[1]);
+  if (isNaN(n) || n < 0 || n > 365) return null;
+  return n;
+}
+
+/**
+ * Suma días a una fecha ISO (YYYY-MM-DD) y devuelve fecha resultante en ISO.
+ */
+function addDaysISO(iso: string, days: number): string {
+  if (!iso) return "";
+  const m = iso.match(/^(\d{4})-(\d{2})-(\d{2})/);
+  if (!m) return iso;
+  const d = new Date(parseInt(m[1]), parseInt(m[2]) - 1, parseInt(m[3]));
+  d.setDate(d.getDate() + days);
+  const yyyy = d.getFullYear();
+  const mm = String(d.getMonth() + 1).padStart(2, "0");
+  const dd = String(d.getDate()).padStart(2, "0");
+  return `${yyyy}-${mm}-${dd}`;
 }
 
 const SUC_NAMES: Record<string, string> = { palermo: "Palermo", belgrano: "Belgrano", madero: "Madero" };
@@ -147,13 +188,14 @@ function ProveedorPicker({
     const q = search.trim().toLowerCase();
     if (!q) return proveedores.slice(0, 30);
     return proveedores.filter((p) => {
-      return p.proveedor.toLowerCase().includes(q) ||
-             p.razonSocial.toLowerCase().includes(q) ||
-             p.cuit.includes(q.replace(/\D/g, ""));
+      return p.nombreFantasia.toLowerCase().includes(q) ||
+             p.nombreSociedad.toLowerCase().includes(q) ||
+             p.cuit.replace(/\D/g, "").includes(q.replace(/\D/g, "")) ||
+             p.mail.toLowerCase().includes(q);
     }).slice(0, 30);
   }, [proveedores, search]);
 
-  const exactMatch = filtered.find((p) => p.proveedor.toLowerCase() === search.trim().toLowerCase());
+  const exactMatch = filtered.find((p) => p.nombreFantasia.toLowerCase() === search.trim().toLowerCase());
   const showCreateOption = search.trim().length > 0 && !exactMatch;
 
   return (
@@ -182,16 +224,20 @@ function ProveedorPicker({
           )}
           {filtered.map((p) => (
             <button
-              key={p.proveedor}
+              key={p.id || p.nombreFantasia}
               type="button"
-              onClick={() => { onChange(p.proveedor, p); setSearch(p.proveedor); setOpen(false); }}
+              onClick={() => { onChange(p.nombreFantasia, p); setSearch(p.nombreFantasia); setOpen(false); }}
               className="block w-full text-left px-3 py-2 text-sm hover:bg-blue-50 border-b border-gray-50"
             >
-              <div className="font-medium text-navy">{p.proveedor}</div>
+              <div className="flex items-center gap-1.5 font-medium text-navy">
+                {p.nombreFantasia}
+                {p.corroborado && <span title="datos corroborados" className="text-[9px] bg-emerald-100 text-emerald-700 px-1 rounded">✓</span>}
+              </div>
               <div className="text-[11px] text-gray-500 truncate">
-                {p.razonSocial && <span>{p.razonSocial}</span>}
+                {p.nombreSociedad && <span>{p.nombreSociedad}</span>}
                 {p.cuit && <span> · CUIT {p.cuit}</span>}
-                {p.producto && <span> · {p.producto}</span>}
+                {p.rubro && <span> · {p.rubro}</span>}
+                {p.plazoPago && <span> · ⏱ {p.plazoPago}</span>}
               </div>
             </button>
           ))}
@@ -611,9 +657,16 @@ export default function FacturasPage() {
                       onChange={(name, match) => {
                         updateEditField("proveedor", name);
                         if (match) {
-                          // Si seleccionó del master, completar razon social y CUIT del master (sobrescribe OCR)
-                          if (match.razonSocial) updateEditField("razonSocial", match.razonSocial);
+                          // Si seleccionó del master, completar todo lo que sabemos
+                          if (match.nombreSociedad) updateEditField("razonSocial", match.nombreSociedad);
                           if (match.cuit) updateEditField("cuit", match.cuit);
+                          // Auto-calcular fecha de vencimiento: fechaFC + plazoPago
+                          const dias = parsePlazoToDays(match.plazoPago);
+                          const fechaFC = editing.fechaFC;
+                          if (dias !== null && fechaFC) {
+                            const newVto = addDaysISO(fechaFC, dias);
+                            updateEditField("fechaVto", newVto);
+                          }
                         }
                       }}
                       proveedores={proveedoresMaster}
@@ -623,6 +676,20 @@ export default function FacturasPage() {
                         proveedorRaw: ocrResult.proveedor,
                       } : undefined}
                     />
+                    {(() => {
+                      const matched = proveedoresMaster.find((p) => p.nombreFantasia.toLowerCase() === editing.proveedor.toLowerCase());
+                      if (!matched) return null;
+                      return (
+                        <div className="mt-1.5 text-[11px] bg-blue-50 border border-blue-100 rounded-md px-2 py-1.5 flex flex-wrap gap-x-3 gap-y-0.5 text-gray-600">
+                          {matched.plazoPago && <span>⏱ <b className="text-blue-accent">{matched.plazoPago}</b></span>}
+                          {matched.formaPago && <span>💳 {matched.formaPago}</span>}
+                          {matched.banco && <span>🏦 {matched.banco}</span>}
+                          {matched.aliasCbu && <span>📋 {matched.aliasCbu}</span>}
+                          {matched.mail && <a href={`mailto:${matched.mail}`} className="text-blue-accent hover:underline">✉ {matched.mail}</a>}
+                          {!matched.corroborado && <span className="text-amber-700">⚠️ sin corroborar</span>}
+                        </div>
+                      );
+                    })()}
                   </div>
 
                   <div className="grid grid-cols-2 gap-2">
@@ -643,11 +710,39 @@ export default function FacturasPage() {
                   <div className="grid grid-cols-2 gap-2">
                     <div>
                       <label className="text-xs text-gray-500 uppercase">Fecha FC *</label>
-                      <input type="date" value={editing.fechaFC} onChange={(e) => updateEditField("fechaFC", e.target.value)}
+                      <input type="date" value={editing.fechaFC} onChange={(e) => {
+                        const newFC = e.target.value;
+                        updateEditField("fechaFC", newFC);
+                        // Recalcular vencimiento si el proveedor matcheado tiene plazo
+                        const matched = proveedoresMaster.find((p) => p.nombreFantasia.toLowerCase() === editing.proveedor.toLowerCase());
+                        if (matched) {
+                          const dias = parsePlazoToDays(matched.plazoPago);
+                          if (dias !== null && newFC) updateEditField("fechaVto", addDaysISO(newFC, dias));
+                        }
+                      }}
                         className="w-full border border-gray-200 rounded-lg px-3 py-2 text-sm" />
                     </div>
                     <div>
-                      <label className="text-xs text-gray-500 uppercase">Vencimiento</label>
+                      <label className="text-xs text-gray-500 uppercase flex items-center justify-between">
+                        <span>Vencimiento</span>
+                        {(() => {
+                          const matched = proveedoresMaster.find((p) => p.nombreFantasia.toLowerCase() === editing.proveedor.toLowerCase());
+                          const dias = matched ? parsePlazoToDays(matched.plazoPago) : null;
+                          if (dias === null) return null;
+                          return (
+                            <button
+                              type="button"
+                              onClick={() => {
+                                if (editing.fechaFC) updateEditField("fechaVto", addDaysISO(editing.fechaFC, dias));
+                              }}
+                              className="text-[9px] text-blue-accent hover:underline normal-case"
+                              title={`Plazo del master: ${matched?.plazoPago}`}
+                            >
+                              auto (+{dias}d)
+                            </button>
+                          );
+                        })()}
+                      </label>
                       <input type="date" value={editing.fechaVto} onChange={(e) => updateEditField("fechaVto", e.target.value)}
                         className="w-full border border-gray-200 rounded-lg px-3 py-2 text-sm" />
                     </div>
@@ -1076,8 +1171,13 @@ export default function FacturasPage() {
                                         onChange={(name, match) => {
                                           updateFacturaEditField("proveedor", name);
                                           if (match) {
-                                            if (match.razonSocial) updateFacturaEditField("razonSocial", match.razonSocial);
+                                            if (match.nombreSociedad) updateFacturaEditField("razonSocial", match.nombreSociedad);
                                             if (match.cuit) updateFacturaEditField("cuit", match.cuit);
+                                            // Auto-recompute vencimiento
+                                            const dias = parsePlazoToDays(match.plazoPago);
+                                            if (dias !== null && editingFactura.fechaFC) {
+                                              updateFacturaEditField("fechaVto", addDaysISO(editingFactura.fechaFC, dias));
+                                            }
                                           }
                                         }}
                                         proveedores={proveedoresMaster}
@@ -1085,6 +1185,18 @@ export default function FacturasPage() {
                                     ) : (
                                       <div className="border border-gray-200 rounded-md px-2 py-1 text-xs font-medium bg-gray-50">{editingFactura.proveedor}</div>
                                     )}
+                                    {(() => {
+                                      const matched = proveedoresMaster.find((p) => p.nombreFantasia.toLowerCase() === editingFactura.proveedor.toLowerCase());
+                                      if (!matched) return null;
+                                      return (
+                                        <div className="mt-1 text-[10px] bg-blue-50 border border-blue-100 rounded-md px-2 py-1 flex flex-wrap gap-x-2 gap-y-0.5 text-gray-600">
+                                          {matched.plazoPago && <span>⏱ <b className="text-blue-accent">{matched.plazoPago}</b></span>}
+                                          {matched.formaPago && <span>💳 {matched.formaPago}</span>}
+                                          {matched.aliasCbu && <span>📋 {matched.aliasCbu}</span>}
+                                          {matched.mail && <span>✉ {matched.mail}</span>}
+                                        </div>
+                                      );
+                                    })()}
                                   </div>
                                   <div>
                                     <label className="text-gray-500 block">Razón social</label>
@@ -1136,11 +1248,35 @@ export default function FacturasPage() {
                                     <div>
                                       <label className="text-gray-500 block">Fecha FC</label>
                                       <input type="date" value={editingFactura.fechaFC} disabled={f.estado !== "pendiente"}
-                                        onChange={(e) => updateFacturaEditField("fechaFC", e.target.value)}
+                                        onChange={(e) => {
+                                          const newFC = e.target.value;
+                                          updateFacturaEditField("fechaFC", newFC);
+                                          const matched = proveedoresMaster.find((p) => p.nombreFantasia.toLowerCase() === editingFactura.proveedor.toLowerCase());
+                                          if (matched) {
+                                            const dias = parsePlazoToDays(matched.plazoPago);
+                                            if (dias !== null && newFC) updateFacturaEditField("fechaVto", addDaysISO(newFC, dias));
+                                          }
+                                        }}
                                         className="w-full border border-gray-200 rounded-md px-2 py-1 text-xs disabled:bg-gray-50" />
                                     </div>
                                     <div>
-                                      <label className="text-gray-500 block">Vencimiento</label>
+                                      <label className="text-gray-500 flex items-center justify-between">
+                                        <span>Vencimiento</span>
+                                        {(() => {
+                                          const matched = proveedoresMaster.find((p) => p.nombreFantasia.toLowerCase() === editingFactura.proveedor.toLowerCase());
+                                          const dias = matched ? parsePlazoToDays(matched.plazoPago) : null;
+                                          if (dias === null || f.estado !== "pendiente") return null;
+                                          return (
+                                            <button
+                                              type="button"
+                                              onClick={() => editingFactura.fechaFC && updateFacturaEditField("fechaVto", addDaysISO(editingFactura.fechaFC, dias))}
+                                              className="text-[9px] text-blue-accent hover:underline"
+                                            >
+                                              auto +{dias}d
+                                            </button>
+                                          );
+                                        })()}
+                                      </label>
                                       <input type="date" value={editingFactura.fechaVto} disabled={f.estado !== "pendiente"}
                                         onChange={(e) => updateFacturaEditField("fechaVto", e.target.value)}
                                         className="w-full border border-gray-200 rounded-md px-2 py-1 text-xs disabled:bg-gray-50" />
