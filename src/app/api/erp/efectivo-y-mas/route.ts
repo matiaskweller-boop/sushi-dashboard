@@ -243,12 +243,13 @@ export async function POST(request: NextRequest) {
       ? (typeof valorDolar === "string" ? parseFloat(valorDolar) || 0 : valorDolar)
       : 0;
 
+    // Permitimos valores negativos: representan deuda del local hacia el socio (aporte)
     const row: (string | number)[] = [
       fechaSheet,
       quien.trim(),
       local.trim().toUpperCase(),
-      pesos > 0 ? pesos : "",
-      dolar > 0 ? dolar : "",
+      pesos !== 0 ? pesos : "",
+      dolar !== 0 ? dolar : "",
       (caja || "").trim().toUpperCase(),
       (medioPago || "").trim().toUpperCase(),
       (comoSeImputa || "").trim(),

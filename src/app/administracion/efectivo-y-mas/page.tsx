@@ -91,6 +91,7 @@ export default function EfectivoYMasPage() {
   const [fCaja, setFCaja] = useState("");
   const [fMedioPago, setFMedioPago] = useState("EFECTIVO");
   const [fComoSeImputa, setFComoSeImputa] = useState("");
+  const [fTipo, setFTipo] = useState<"retiro" | "aporte">("retiro"); // retiro = el socio sacó plata. aporte = el local le debe al socio (se guarda en negativo)
   const [submitting, setSubmitting] = useState(false);
   const [submitMsg, setSubmitMsg] = useState<string | null>(null);
 
@@ -136,6 +137,13 @@ export default function EfectivoYMasPage() {
     setSubmitting(true);
     setSubmitMsg(null);
     try {
+      // Si es "aporte" (el local debe al socio), se guarda como negativo
+      const signo = fTipo === "aporte" ? -1 : 1;
+      const pesosVal = Math.abs(parseFloat(fPesos) || 0) * signo;
+      const dolarVal = Math.abs(parseFloat(fDolar) || 0) * signo;
+      const imputacion = fTipo === "aporte"
+        ? `[APORTE - LOCAL DEBE] ${fComoSeImputa}`.trim()
+        : fComoSeImputa;
       const res = await fetch("/api/erp/efectivo-y-mas", {
         method: "POST",
         headers: { "Content-Type": "application/json" },
@@ -143,22 +151,23 @@ export default function EfectivoYMasPage() {
           fecha: fFecha,
           quien: fQuien,
           local: fLocal,
-          valorPesos: parseFloat(fPesos) || 0,
-          valorDolar: parseFloat(fDolar) || 0,
+          valorPesos: pesosVal,
+          valorDolar: dolarVal,
           caja: fCaja,
           medioPago: fMedioPago,
-          comoSeImputa: fComoSeImputa,
+          comoSeImputa: imputacion,
         }),
       });
       const j = await res.json();
       if (j.error) throw new Error(j.error);
-      setSubmitMsg("✓ Movimiento agregado");
+      setSubmitMsg(fTipo === "aporte" ? "✓ Aporte registrado (en negativo)" : "✓ Retiro registrado");
       // reset partial: keep date/local
       setFQuien("");
       setFPesos("");
       setFDolar("");
       setFCaja("");
       setFComoSeImputa("");
+      setFTipo("retiro");
       // refresh
       load();
       setTimeout(() => {
@@ -332,26 +341,77 @@ export default function EfectivoYMasPage() {
                 <option value="MADERO">MADERO</option>
               </select>
             </div>
+            <div className="md:col-span-3 lg:col-span-4">
+              <label className="text-[11px] text-gray-500 uppercase block mb-1">Tipo de movimiento</label>
+              <div className="flex gap-2 flex-wrap">
+                <button
+                  type="button"
+                  onClick={() => setFTipo("retiro")}
+                  className={`flex-1 min-w-[180px] px-3 py-2.5 rounded-lg border-2 text-sm font-medium transition ${
+                    fTipo === "retiro"
+                      ? "border-blue-accent bg-blue-50 text-blue-accent"
+                      : "border-gray-200 bg-white text-gray-500 hover:border-gray-300"
+                  }`}
+                >
+                  <div className="flex items-center justify-center gap-2">
+                    <span className="text-lg">💸</span>
+                    <div className="text-left">
+                      <div className="text-sm font-semibold">Retiro del socio</div>
+                      <div className="text-[10px] opacity-75 normal-case">el socio sacó plata del local</div>
+                    </div>
+                  </div>
+                </button>
+                <button
+                  type="button"
+                  onClick={() => setFTipo("aporte")}
+                  className={`flex-1 min-w-[180px] px-3 py-2.5 rounded-lg border-2 text-sm font-medium transition ${
+                    fTipo === "aporte"
+                      ? "border-amber-500 bg-amber-50 text-amber-700"
+                      : "border-gray-200 bg-white text-gray-500 hover:border-gray-300"
+                  }`}
+                >
+                  <div className="flex items-center justify-center gap-2">
+                    <span className="text-lg">📥</span>
+                    <div className="text-left">
+                      <div className="text-sm font-semibold">Aporte — el local debe</div>
+                      <div className="text-[10px] opacity-75 normal-case">se guarda en negativo</div>
+                    </div>
+                  </div>
+                </button>
+              </div>
+            </div>
             <div>
-              <label className="text-[11px] text-gray-500 uppercase block mb-1">Valor Pesos</label>
+              <label className="text-[11px] text-gray-500 uppercase block mb-1">
+                Valor Pesos
+                {fTipo === "aporte" && <span className="text-amber-600 normal-case ml-1">(quedará en negativo)</span>}
+              </label>
               <input
                 type="number"
                 step="0.01"
+                min="0"
                 value={fPesos}
                 onChange={(e) => setFPesos(e.target.value)}
                 placeholder="200000"
-                className="w-full border border-gray-200 rounded-lg px-3 py-2 text-sm focus:outline-none focus:border-blue-accent"
+                className={`w-full border-2 rounded-lg px-3 py-2 text-sm focus:outline-none ${
+                  fTipo === "aporte" ? "border-amber-200 focus:border-amber-500 bg-amber-50/30" : "border-gray-200 focus:border-blue-accent"
+                }`}
               />
             </div>
             <div>
-              <label className="text-[11px] text-gray-500 uppercase block mb-1">Valor Dólar</label>
+              <label className="text-[11px] text-gray-500 uppercase block mb-1">
+                Valor Dólar
+                {fTipo === "aporte" && <span className="text-amber-600 normal-case ml-1">(neg.)</span>}
+              </label>
               <input
                 type="number"
                 step="0.01"
+                min="0"
                 value={fDolar}
                 onChange={(e) => setFDolar(e.target.value)}
                 placeholder="0"
-                className="w-full border border-gray-200 rounded-lg px-3 py-2 text-sm focus:outline-none focus:border-blue-accent"
+                className={`w-full border-2 rounded-lg px-3 py-2 text-sm focus:outline-none ${
+                  fTipo === "aporte" ? "border-amber-200 focus:border-amber-500 bg-amber-50/30" : "border-gray-200 focus:border-blue-accent"
+                }`}
               />
             </div>
             <div className="md:col-span-3 lg:col-span-2">
@@ -509,9 +569,14 @@ export default function EfectivoYMasPage() {
                       </div>
 
                       <div className="mb-3">
-                        <div className="text-2xl font-bold text-navy">{fmtK(s.totalPesos)}</div>
-                        {s.totalDolar > 0 && (
-                          <div className="text-sm text-gray-500">{fmtUSD(s.totalDolar)}</div>
+                        <div className={`text-2xl font-bold ${s.totalPesos < 0 ? "text-amber-600" : "text-navy"}`}>
+                          {fmtK(s.totalPesos)}
+                          {s.totalPesos < 0 && <span className="text-[10px] ml-2 font-normal">(local debe)</span>}
+                        </div>
+                        {s.totalDolar !== 0 && (
+                          <div className={`text-sm ${s.totalDolar < 0 ? "text-amber-500" : "text-gray-500"}`}>
+                            {fmtUSD(s.totalDolar)}
+                          </div>
                         )}
                       </div>
 
@@ -602,8 +667,8 @@ export default function EfectivoYMasPage() {
                                       {m.local}
                                     </span>
                                   </td>
-                                  <td className="px-2 py-1.5 text-right font-medium">{m.valorPesos > 0 ? fmt(m.valorPesos) : "—"}</td>
-                                  <td className="px-2 py-1.5 text-right text-gray-500">{m.valorDolar > 0 ? fmtUSD(m.valorDolar) : "—"}</td>
+                                  <td className={`px-2 py-1.5 text-right font-medium ${m.valorPesos < 0 ? "text-amber-600" : ""}`}>{m.valorPesos !== 0 ? fmt(m.valorPesos) : "—"}</td>
+                                  <td className={`px-2 py-1.5 text-right ${m.valorDolar < 0 ? "text-amber-500" : "text-gray-500"}`}>{m.valorDolar !== 0 ? fmtUSD(m.valorDolar) : "—"}</td>
                                   <td className="px-2 py-1.5 text-gray-600">{m.caja}</td>
                                   <td className="px-2 py-1.5 text-gray-600">{m.medioPago}</td>
                                   <td className="px-2 py-1.5 text-gray-500 max-w-xs truncate">{m.comoSeImputa}</td>
