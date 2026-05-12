@@ -51,11 +51,15 @@ interface ProveedorMaster {
   centralizado?: boolean;          // este proveedor aparece en >1 sucursal con mismos montos
   centralizadoMontoExtra?: number; // suma de duplicados detectados
   centralizadoCount?: number;      // cuántas veces se duplicó
-  // Datos del MASTER PROVEEDORES (info adicional editable):
+  // Datos del MASTER PROVEEDORES (sheet DATOS, tab DATOS PROVEEDORES, cols A-K):
   masterId?: string;
   masterRowIdx?: number;
-  contacto?: string;
   cuit?: string;
+  nombreFantasiaFormal?: string;
+  nroCuentaTradicional?: string;
+  cbu2?: string;
+  // Campos legacy no persistidos en DATOS (compat con código viejo):
+  contacto?: string;
   formaPago?: string;
   titularCuenta?: string;
   mail?: string;
@@ -208,7 +212,7 @@ export async function GET(request: NextRequest) {
       masterList = await getAllMasterProveedores();
       const lookup = buildLookupByName(masterList);
 
-      // 1. Enriquecer existentes con datos del master
+      // 1. Enriquecer existentes con datos del master (cols A-K de DATOS PROVEEDORES)
       for (const key of Object.keys(master)) {
         const m = master[key];
         const mp = lookup.get(m.proveedor.toUpperCase().trim())
@@ -219,17 +223,13 @@ export async function GET(request: NextRequest) {
           if (mp.nombreSociedad) m.razonSocial = mp.nombreSociedad;
           if (mp.aliasCbu) m.alias = mp.aliasCbu;
           if (mp.banco) m.banco = mp.banco;
-          if (mp.nroCuenta) m.cbu = mp.nroCuenta;
-          if (mp.titularCuenta) m.agendado = mp.titularCuenta;
+          if (mp.cbu) m.cbu = mp.cbu;
           if (mp.rubro) m.producto = mp.rubro;
           if (mp.plazoPago) m.plazoPago = mp.plazoPago;
-          m.contacto = mp.contacto;
           m.cuit = mp.cuit;
-          m.formaPago = mp.formaPago;
-          m.titularCuenta = mp.titularCuenta;
-          m.mail = mp.mail;
-          m.corroborado = mp.corroborado;
-          m.notas = mp.notas;
+          m.nombreFantasiaFormal = mp.nombreFantasiaFormal;
+          m.nroCuentaTradicional = mp.nroCuentaTradicional;
+          m.cbu2 = mp.cbu2;
         }
       }
 
@@ -242,8 +242,8 @@ export async function GET(request: NextRequest) {
             razonSocial: mp.nombreSociedad,
             alias: mp.aliasCbu,
             banco: mp.banco,
-            cbu: mp.nroCuenta,
-            agendado: mp.titularCuenta,
+            cbu: mp.cbu,
+            agendado: "",
             producto: mp.rubro,
             plazoPago: mp.plazoPago,
             aclaracion: "",
@@ -254,13 +254,10 @@ export async function GET(request: NextRequest) {
             sucursalesConDeuda: 0,
             masterId: mp.id,
             masterRowIdx: mp.rowIdx,
-            contacto: mp.contacto,
             cuit: mp.cuit,
-            formaPago: mp.formaPago,
-            titularCuenta: mp.titularCuenta,
-            mail: mp.mail,
-            corroborado: mp.corroborado,
-            notas: mp.notas,
+            nombreFantasiaFormal: mp.nombreFantasiaFormal,
+            nroCuentaTradicional: mp.nroCuentaTradicional,
+            cbu2: mp.cbu2,
           };
         }
       }
@@ -324,11 +321,11 @@ export async function GET(request: NextRequest) {
       }
     }
 
-    // Stats del master
+    // Stats del master (sheet DATOS)
     const enMaster = proveedores.filter((p) => p.masterId).length;
     const sinMaster = proveedores.length - enMaster;
-    const corroborados = proveedores.filter((p) => p.corroborado).length;
-    const sinCorroborar = enMaster - corroborados;
+    const conCuit = proveedores.filter((p) => p.cuit && p.cuit.length > 5).length;
+    const sinCuit = enMaster - conCuit;
 
     return NextResponse.json({
       year,
@@ -345,8 +342,8 @@ export async function GET(request: NextRequest) {
         totalEnMaster: masterList.length,
         enMaster,
         sinMaster,
-        corroborados,
-        sinCorroborar,
+        conCuit,
+        sinCuit,
       },
     });
   } catch (e) {

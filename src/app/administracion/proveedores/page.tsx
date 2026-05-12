@@ -18,11 +18,15 @@ interface ProveedorMaster {
   totalDeuda2026: number;
   totalDeuda2025: number;
   sucursalesConDeuda: number;
-  // Master fields:
+  // Master fields desde DATOS / DATOS PROVEEDORES:
   masterId?: string;
   masterRowIdx?: number;
-  contacto?: string;
   cuit?: string;
+  nombreFantasiaFormal?: string;
+  nroCuentaTradicional?: string;
+  cbu2?: string;
+  // Campos no persistidos en DATOS (compat con código viejo, vienen vacíos):
+  contacto?: string;
   formaPago?: string;
   titularCuenta?: string;
   mail?: string;
@@ -34,8 +38,8 @@ interface MasterStats {
   totalEnMaster: number;
   enMaster: number;
   sinMaster: number;
-  corroborados: number;
-  sinCorroborar: number;
+  conCuit: number;
+  sinCuit: number;
 }
 
 interface InterSucursalSummary {
@@ -93,42 +97,36 @@ export default function ProveedoresPage() {
   const [expanded, setExpanded] = useState<string | null>(null);
   const [copied, setCopied] = useState<string | null>(null);
 
-  // Edit modal state
+  // Edit modal state — schema sigue el sheet DATOS / DATOS PROVEEDORES (cols A-K)
   const [editing, setEditing] = useState<ProveedorMaster | null>(null);
   const [editForm, setEditForm] = useState<{
     nombreSociedad: string;
     nombreFantasia: string;
-    contacto: string;
+    nombreFantasiaFormal: string;
     cuit: string;
-    formaPago: string;
     aliasCbu: string;
-    titularCuenta: string;
     banco: string;
-    nroCuenta: string;
+    nroCuentaTradicional: string;
+    cbu: string;
+    cbu2: string;
     rubro: string;
     plazoPago: string;
-    mail: string;
-    corroborado: boolean;
-    notas: string;
   }>({
     nombreSociedad: "",
     nombreFantasia: "",
-    contacto: "",
+    nombreFantasiaFormal: "",
     cuit: "",
-    formaPago: "",
     aliasCbu: "",
-    titularCuenta: "",
     banco: "",
-    nroCuenta: "",
+    nroCuentaTradicional: "",
+    cbu: "",
+    cbu2: "",
     rubro: "",
     plazoPago: "",
-    mail: "",
-    corroborado: false,
-    notas: "",
   });
   const [saving, setSaving] = useState(false);
   const [saveMsg, setSaveMsg] = useState<string | null>(null);
-  const [soloSinCorroborar, setSoloSinCorroborar] = useState(false);
+  const [soloSinCuit, setSoloSinCuit] = useState(false);
 
   const openEdit = (p: ProveedorMaster | null) => {
     if (p) {
@@ -136,18 +134,15 @@ export default function ProveedoresPage() {
       setEditForm({
         nombreSociedad: p.razonSocial || "",
         nombreFantasia: p.proveedor,
-        contacto: p.contacto || "",
+        nombreFantasiaFormal: p.nombreFantasiaFormal || "",
         cuit: p.cuit || "",
-        formaPago: p.formaPago || "",
         aliasCbu: p.alias || "",
-        titularCuenta: p.titularCuenta || p.agendado || "",
         banco: p.banco || "",
-        nroCuenta: p.cbu || "",
+        nroCuentaTradicional: p.nroCuentaTradicional || "",
+        cbu: p.cbu || "",
+        cbu2: p.cbu2 || "",
         rubro: p.producto || "",
         plazoPago: p.plazoPago || "",
-        mail: p.mail || "",
-        corroborado: p.corroborado || false,
-        notas: p.notas || "",
       });
     } else {
       // New
@@ -155,18 +150,15 @@ export default function ProveedoresPage() {
       setEditForm({
         nombreSociedad: "",
         nombreFantasia: "",
-        contacto: "",
+        nombreFantasiaFormal: "",
         cuit: "",
-        formaPago: "",
         aliasCbu: "",
-        titularCuenta: "",
         banco: "",
-        nroCuenta: "",
+        nroCuentaTradicional: "",
+        cbu: "",
+        cbu2: "",
         rubro: "",
         plazoPago: "",
-        mail: "",
-        corroborado: false,
-        notas: "",
       });
     }
     setSaveMsg(null);
@@ -184,21 +176,17 @@ export default function ProveedoresPage() {
         method: "POST",
         headers: { "Content-Type": "application/json" },
         body: JSON.stringify({
-          id: editing?.masterId,
           nombreSociedad: editForm.nombreSociedad.trim(),
           nombreFantasia: editForm.nombreFantasia.trim(),
-          contacto: editForm.contacto.trim(),
+          nombreFantasiaFormal: editForm.nombreFantasiaFormal.trim(),
           cuit: editForm.cuit.trim(),
-          formaPago: editForm.formaPago.trim(),
           aliasCbu: editForm.aliasCbu.trim(),
-          titularCuenta: editForm.titularCuenta.trim(),
           banco: editForm.banco.trim(),
-          nroCuenta: editForm.nroCuenta.trim(),
+          nroCuentaTradicional: editForm.nroCuentaTradicional.trim(),
+          cbu: editForm.cbu.trim(),
+          cbu2: editForm.cbu2.trim(),
           rubro: editForm.rubro.trim(),
           plazoPago: editForm.plazoPago.trim(),
-          mail: editForm.mail.trim(),
-          corroborado: editForm.corroborado,
-          notas: editForm.notas.trim(),
         }),
       });
       const j = await res.json();
@@ -238,15 +226,15 @@ export default function ProveedoresPage() {
       if (filtro === "sinDeuda" && p.totalDeuda > 0) return false;
       if (search) {
         const q = search.toLowerCase();
-        const haystack = `${p.proveedor} ${p.razonSocial} ${p.alias} ${p.cbu} ${p.producto} ${p.banco} ${p.agendado} ${p.cuit || ""} ${p.mail || ""} ${p.contacto || ""}`.toLowerCase();
+        const haystack = `${p.proveedor} ${p.razonSocial} ${p.alias} ${p.cbu} ${p.producto} ${p.banco} ${p.cuit || ""} ${p.nombreFantasiaFormal || ""}`.toLowerCase();
         if (!haystack.includes(q)) return false;
       }
       if (plazoFilter && (p.plazoPago || "").toLowerCase().trim() !== plazoFilter.toLowerCase()) return false;
       if (bancoFilter && !(p.banco || "").toUpperCase().includes(bancoFilter.toUpperCase())) return false;
-      if (soloSinCorroborar && p.corroborado) return false;
+      if (soloSinCuit && p.cuit && p.cuit.length > 5) return false;
       return true;
     });
-  }, [data, filtro, search, plazoFilter, bancoFilter, soloSinCorroborar]);
+  }, [data, filtro, search, plazoFilter, bancoFilter, soloSinCuit]);
 
   const filteredTotal = useMemo(() => filtered.reduce((s, p) => s + p.totalDeuda, 0), [filtered]);
 
@@ -299,30 +287,40 @@ export default function ProveedoresPage() {
 
       {data && !loading && (
         <>
-          {/* Master coverage banner */}
+          {/* Master coverage banner — fuente: sheet DATOS / DATOS PROVEEDORES */}
           {data.master && (
             <div className="bg-white border border-blue-100 rounded-xl p-3 mb-4 flex items-center justify-between flex-wrap gap-3">
               <div className="flex items-center gap-4 flex-wrap">
                 <div>
-                  <div className="text-[10px] text-gray-500 uppercase">En master</div>
+                  <div className="text-[10px] text-gray-500 uppercase">En master (DATOS)</div>
                   <div className="text-lg font-bold text-blue-accent">{data.master.enMaster}/{data.total}</div>
                 </div>
                 <div>
-                  <div className="text-[10px] text-gray-500 uppercase">Corroborados</div>
-                  <div className="text-lg font-bold text-emerald-600">{data.master.corroborados}</div>
+                  <div className="text-[10px] text-gray-500 uppercase">Con CUIT</div>
+                  <div className="text-lg font-bold text-emerald-600">{data.master.conCuit}</div>
                 </div>
                 <div>
-                  <div className="text-[10px] text-gray-500 uppercase">Sin corroborar</div>
-                  <div className="text-lg font-bold text-amber-600">{data.master.sinCorroborar}</div>
+                  <div className="text-[10px] text-gray-500 uppercase">Sin CUIT</div>
+                  <div className="text-lg font-bold text-amber-600">{data.master.sinCuit}</div>
                 </div>
                 <div>
                   <div className="text-[10px] text-gray-500 uppercase">Solo en deuda (sin master)</div>
                   <div className="text-lg font-bold text-red-500">{data.master.sinMaster}</div>
                 </div>
               </div>
-              <p className="text-[11px] text-gray-500 max-w-md">
-                Cada proveedor tiene una ficha editable: CUIT, mail, contacto, banco, alias, etc. Click "✏️ Editar" en cualquier fila.
-              </p>
+              <div className="text-right">
+                <a
+                  href="https://docs.google.com/spreadsheets/d/1DuEAFK3MxUZalMPzIfpT9ofrIuThOgu8bSvfbDWRBXk/edit#gid=281222263"
+                  target="_blank"
+                  rel="noopener noreferrer"
+                  className="text-xs text-blue-accent hover:underline font-medium"
+                >
+                  📄 Abrir DATOS en Drive →
+                </a>
+                <p className="text-[11px] text-gray-500 max-w-xs mt-1">
+                  Tab "DATOS PROVEEDORES". Click "✏️ Editar" en cualquier fila para modificarla.
+                </p>
+              </div>
             </div>
           )}
 
@@ -449,12 +447,12 @@ export default function ProveedoresPage() {
               {bancoOptions.map((b) => <option key={b} value={b}>{b}</option>)}
             </select>
             <label className="flex items-center gap-1.5 text-xs text-gray-700 bg-yellow-50 border border-yellow-200 rounded-lg px-2.5 py-2 cursor-pointer">
-              <input type="checkbox" checked={soloSinCorroborar} onChange={(e) => setSoloSinCorroborar(e.target.checked)} className="cursor-pointer" />
-              <span>⚠️ sin corroborar</span>
+              <input type="checkbox" checked={soloSinCuit} onChange={(e) => setSoloSinCuit(e.target.checked)} className="cursor-pointer" />
+              <span>⚠️ sin CUIT</span>
             </label>
-            {(search || plazoFilter || bancoFilter || filtro !== "conDeuda" || soloSinCorroborar) && (
+            {(search || plazoFilter || bancoFilter || filtro !== "conDeuda" || soloSinCuit) && (
               <button
-                onClick={() => { setSearch(""); setPlazoFilter(""); setBancoFilter(""); setFiltro("conDeuda"); setSoloSinCorroborar(false); }}
+                onClick={() => { setSearch(""); setPlazoFilter(""); setBancoFilter(""); setFiltro("conDeuda"); setSoloSinCuit(false); }}
                 className="text-xs text-red-500 hover:underline"
               >
                 Limpiar
@@ -496,13 +494,13 @@ export default function ProveedoresPage() {
                             <div className="flex items-center gap-1.5 flex-wrap">
                               <span className="text-gray-400 text-xs">{isExpanded ? "▼" : "▶"}</span>
                               <span>{p.proveedor}</span>
-                              {p.corroborado && (
-                                <span title="Datos corroborados" className="text-[10px] bg-emerald-100 text-emerald-700 px-1.5 py-0.5 rounded font-medium">
-                                  ✓
+                              {p.masterId && p.cuit && (
+                                <span title={`CUIT ${p.cuit}`} className="text-[10px] bg-emerald-100 text-emerald-700 px-1.5 py-0.5 rounded font-medium">
+                                  ✓ DATOS
                                 </span>
                               )}
                               {!p.masterId && (
-                                <span title="No está en MASTER PROVEEDORES — solo en DEUDA AL DIA" className="text-[10px] bg-red-100 text-red-700 px-1.5 py-0.5 rounded font-medium">
+                                <span title="No está en DATOS / DATOS PROVEEDORES — solo aparece en DEUDA AL DIA de alguna sucursal" className="text-[10px] bg-red-100 text-red-700 px-1.5 py-0.5 rounded font-medium">
                                   ⚠️ sin master
                                 </span>
                               )}
@@ -567,52 +565,26 @@ export default function ProveedoresPage() {
                                   ✏️ {p.masterId ? "Editar ficha master" : "Crear ficha master"}
                                 </button>
                               </div>
-                              <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-4 text-sm">
-                                {/* Datos comerciales */}
+                              <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4 text-sm">
+                                {/* Datos comerciales (cols A-D + I-K de DATOS PROVEEDORES) */}
                                 <div>
                                   <div className="text-xs font-semibold text-gray-500 uppercase mb-2">Datos comerciales</div>
                                   <div className="space-y-1 text-xs">
                                     <div><span className="text-gray-500">Razón social:</span> <span className="text-navy">{p.razonSocial || "—"}</span></div>
                                     <div><span className="text-gray-500">Nombre fantasía:</span> <span className="text-navy">{p.proveedor}</span></div>
+                                    {p.nombreFantasiaFormal && p.nombreFantasiaFormal !== p.proveedor && (
+                                      <div><span className="text-gray-500">Fantasía formal:</span> <span className="text-navy">{p.nombreFantasiaFormal}</span></div>
+                                    )}
                                     <div><span className="text-gray-500">CUIT:</span> <span className="text-navy font-mono">{p.cuit || <span className="text-gray-300">— sin cargar</span>}</span></div>
-                                    <div><span className="text-gray-500">Rubro:</span> <span className="text-navy">{p.producto || "—"}</span></div>
+                                    <div><span className="text-gray-500">Rubro / Producto:</span> <span className="text-navy">{p.producto || "—"}</span></div>
                                     <div><span className="text-gray-500">Plazo de pago:</span> <span className="text-navy">{p.plazoPago || "—"}</span></div>
-                                    <div><span className="text-gray-500">Forma de pago:</span> <span className="text-navy">{p.formaPago || <span className="text-gray-300">— sin cargar</span>}</span></div>
                                     {p.aclaracion && <div><span className="text-gray-500">Aclaración:</span> <span className="text-navy">{p.aclaracion}</span></div>}
                                   </div>
                                 </div>
 
-                                {/* Contacto */}
+                                {/* Banking info (cols C, E-H de DATOS) */}
                                 <div>
-                                  <div className="text-xs font-semibold text-gray-500 uppercase mb-2">Contacto</div>
-                                  <div className="space-y-1 text-xs">
-                                    <div><span className="text-gray-500">Contacto:</span> <span className="text-navy">{p.contacto || <span className="text-gray-300">— sin cargar</span>}</span></div>
-                                    <div className="flex items-center gap-2">
-                                      <span className="text-gray-500">Mail:</span>
-                                      {p.mail ? (
-                                        <a href={`mailto:${p.mail}`} className="text-blue-accent hover:underline">{p.mail}</a>
-                                      ) : <span className="text-gray-300">— sin cargar</span>}
-                                    </div>
-                                    <div className="flex items-center gap-2 pt-1.5 border-t border-gray-200 mt-1.5">
-                                      <span className="text-gray-500">Corroborado:</span>
-                                      {p.corroborado ? (
-                                        <span className="text-emerald-600 font-medium">✓ sí</span>
-                                      ) : (
-                                        <span className="text-amber-600">⚠️ pendiente</span>
-                                      )}
-                                    </div>
-                                    {p.notas && (
-                                      <div className="pt-1.5">
-                                        <span className="text-gray-500">Notas:</span>
-                                        <div className="text-navy mt-0.5 bg-yellow-50 p-1.5 rounded text-[11px]">{p.notas}</div>
-                                      </div>
-                                    )}
-                                  </div>
-                                </div>
-
-                                {/* Banking info */}
-                                <div>
-                                  <div className="text-xs font-semibold text-gray-500 uppercase mb-2">Banco</div>
+                                  <div className="text-xs font-semibold text-gray-500 uppercase mb-2">Datos bancarios</div>
                                   <div className="space-y-1 text-xs">
                                     <div><span className="text-gray-500">Banco:</span> <span className="text-navy">{p.banco || "—"}</span></div>
                                     <div className="flex items-center gap-2">
@@ -626,8 +598,14 @@ export default function ProveedoresPage() {
                                         </button>
                                       ) : <span className="text-gray-300">—</span>}
                                     </div>
+                                    {p.nroCuentaTradicional && (
+                                      <div className="flex items-center gap-2">
+                                        <span className="text-gray-500">Nro cuenta:</span>
+                                        <span className="font-mono text-navy">{p.nroCuentaTradicional}</span>
+                                      </div>
+                                    )}
                                     <div className="flex items-center gap-2">
-                                      <span className="text-gray-500">CBU:</span>
+                                      <span className="text-gray-500">CBU 1:</span>
                                       {p.cbu ? (
                                         <button
                                           onClick={() => copyToClipboard(p.cbu, `e-cbu-${p.proveedor}`)}
@@ -637,6 +615,17 @@ export default function ProveedoresPage() {
                                         </button>
                                       ) : <span className="text-gray-300">—</span>}
                                     </div>
+                                    {p.cbu2 && (
+                                      <div className="flex items-center gap-2">
+                                        <span className="text-gray-500">CBU 2:</span>
+                                        <button
+                                          onClick={() => copyToClipboard(p.cbu2 || "", `e-cbu2-${p.proveedor}`)}
+                                          className="font-mono text-navy hover:bg-blue-50 px-1.5 py-0.5 rounded transition-colors text-[11px]"
+                                        >
+                                          {p.cbu2} {copied === `e-cbu2-${p.proveedor}` ? "✓" : "📋"}
+                                        </button>
+                                      </div>
+                                    )}
                                   </div>
                                 </div>
 
@@ -746,7 +735,7 @@ export default function ProveedoresPage() {
                   />
                 </div>
                 <div>
-                  <label className="text-[11px] text-gray-500 uppercase block mb-1">Rubro</label>
+                  <label className="text-[11px] text-gray-500 uppercase block mb-1">Rubro / Producto</label>
                   <input
                     type="text"
                     value={editForm.rubro}
@@ -765,13 +754,15 @@ export default function ProveedoresPage() {
                     className="w-full border border-gray-200 rounded-lg px-3 py-2 text-sm focus:outline-none focus:border-blue-accent"
                   />
                 </div>
-                <div>
-                  <label className="text-[11px] text-gray-500 uppercase block mb-1">Forma de pago</label>
+                <div className="md:col-span-2">
+                  <label className="text-[11px] text-gray-500 uppercase block mb-1">
+                    Nombre Fantasía formal <span className="text-[10px] text-gray-400 normal-case">— opcional, columna I del sheet</span>
+                  </label>
                   <input
                     type="text"
-                    value={editForm.formaPago}
-                    onChange={(e) => setEditForm((f) => ({ ...f, formaPago: e.target.value }))}
-                    placeholder="Transferencia / E-check / etc"
+                    value={editForm.nombreFantasiaFormal}
+                    onChange={(e) => setEditForm((f) => ({ ...f, nombreFantasiaFormal: e.target.value }))}
+                    placeholder="Nombre comercial largo (si difiere del corto)"
                     className="w-full border border-gray-200 rounded-lg px-3 py-2 text-sm focus:outline-none focus:border-blue-accent"
                   />
                 </div>
@@ -787,22 +778,12 @@ export default function ProveedoresPage() {
                       type="text"
                       value={editForm.banco}
                       onChange={(e) => setEditForm((f) => ({ ...f, banco: e.target.value }))}
-                      placeholder="BBVA / Santander / etc"
+                      placeholder="Galicia / Santander / BBVA / etc"
                       className="w-full border border-gray-200 rounded-lg px-3 py-2 text-sm focus:outline-none focus:border-blue-accent"
                     />
                   </div>
                   <div>
-                    <label className="text-[11px] text-gray-500 uppercase block mb-1">Titular cuenta</label>
-                    <input
-                      type="text"
-                      value={editForm.titularCuenta}
-                      onChange={(e) => setEditForm((f) => ({ ...f, titularCuenta: e.target.value }))}
-                      placeholder="A quien pertenece la cuenta"
-                      className="w-full border border-gray-200 rounded-lg px-3 py-2 text-sm focus:outline-none focus:border-blue-accent"
-                    />
-                  </div>
-                  <div>
-                    <label className="text-[11px] text-gray-500 uppercase block mb-1">Alias o CBU</label>
+                    <label className="text-[11px] text-gray-500 uppercase block mb-1">Alias</label>
                     <input
                       type="text"
                       value={editForm.aliasCbu}
@@ -812,68 +793,45 @@ export default function ProveedoresPage() {
                     />
                   </div>
                   <div>
-                    <label className="text-[11px] text-gray-500 uppercase block mb-1">Nro cuenta bancaria</label>
+                    <label className="text-[11px] text-gray-500 uppercase block mb-1">
+                      Nro cuenta <span className="text-[10px] text-gray-400 normal-case">— tradicional</span>
+                    </label>
                     <input
                       type="text"
-                      value={editForm.nroCuenta}
-                      onChange={(e) => setEditForm((f) => ({ ...f, nroCuenta: e.target.value }))}
-                      placeholder="22 dígitos del CBU"
+                      value={editForm.nroCuentaTradicional}
+                      onChange={(e) => setEditForm((f) => ({ ...f, nroCuentaTradicional: e.target.value }))}
+                      placeholder="ej 217-008023-7"
+                      className="w-full border border-gray-200 rounded-lg px-3 py-2 text-sm font-mono focus:outline-none focus:border-blue-accent"
+                    />
+                  </div>
+                  <div>
+                    <label className="text-[11px] text-gray-500 uppercase block mb-1">CBU 1</label>
+                    <input
+                      type="text"
+                      value={editForm.cbu}
+                      onChange={(e) => setEditForm((f) => ({ ...f, cbu: e.target.value }))}
+                      placeholder="22 dígitos"
+                      className="w-full border border-gray-200 rounded-lg px-3 py-2 text-sm font-mono focus:outline-none focus:border-blue-accent"
+                    />
+                  </div>
+                  <div className="md:col-span-2">
+                    <label className="text-[11px] text-gray-500 uppercase block mb-1">
+                      CBU 2 <span className="text-[10px] text-gray-400 normal-case">— opcional, cuenta secundaria</span>
+                    </label>
+                    <input
+                      type="text"
+                      value={editForm.cbu2}
+                      onChange={(e) => setEditForm((f) => ({ ...f, cbu2: e.target.value }))}
+                      placeholder="22 dígitos"
                       className="w-full border border-gray-200 rounded-lg px-3 py-2 text-sm font-mono focus:outline-none focus:border-blue-accent"
                     />
                   </div>
                 </div>
               </div>
 
-              {/* Contacto */}
-              <div className="border-t border-gray-100 pt-3">
-                <div className="text-xs font-semibold text-gray-500 uppercase mb-2">Contacto</div>
-                <div className="grid grid-cols-1 md:grid-cols-2 gap-3">
-                  <div>
-                    <label className="text-[11px] text-gray-500 uppercase block mb-1">Contacto (nombre/teléfono)</label>
-                    <input
-                      type="text"
-                      value={editForm.contacto}
-                      onChange={(e) => setEditForm((f) => ({ ...f, contacto: e.target.value }))}
-                      placeholder="Juan Pérez · +54 11 1234-5678"
-                      className="w-full border border-gray-200 rounded-lg px-3 py-2 text-sm focus:outline-none focus:border-blue-accent"
-                    />
-                  </div>
-                  <div>
-                    <label className="text-[11px] text-gray-500 uppercase block mb-1">Mail</label>
-                    <input
-                      type="email"
-                      value={editForm.mail}
-                      onChange={(e) => setEditForm((f) => ({ ...f, mail: e.target.value }))}
-                      placeholder="proveedor@empresa.com"
-                      className="w-full border border-gray-200 rounded-lg px-3 py-2 text-sm focus:outline-none focus:border-blue-accent"
-                    />
-                  </div>
-                </div>
-              </div>
-
-              {/* Notas + corroborado */}
-              <div className="border-t border-gray-100 pt-3">
-                <div className="grid grid-cols-1 gap-3">
-                  <div>
-                    <label className="text-[11px] text-gray-500 uppercase block mb-1">Notas</label>
-                    <textarea
-                      value={editForm.notas}
-                      onChange={(e) => setEditForm((f) => ({ ...f, notas: e.target.value }))}
-                      rows={2}
-                      placeholder="Notas internas, aclaraciones, etc"
-                      className="w-full border border-gray-200 rounded-lg px-3 py-2 text-sm focus:outline-none focus:border-blue-accent resize-y"
-                    />
-                  </div>
-                  <label className="flex items-center gap-2 cursor-pointer bg-emerald-50 border border-emerald-200 rounded-lg px-3 py-2 self-start">
-                    <input
-                      type="checkbox"
-                      checked={editForm.corroborado}
-                      onChange={(e) => setEditForm((f) => ({ ...f, corroborado: e.target.checked }))}
-                      className="cursor-pointer"
-                    />
-                    <span className="text-sm text-emerald-700 font-medium">✓ Datos corroborados</span>
-                  </label>
-                </div>
+              <div className="text-[11px] text-gray-500 bg-gray-50 border border-gray-200 rounded-lg p-3 mt-3">
+                💡 Esta ficha se guarda en el sheet <b>DATOS</b> de Drive, tab <b>DATOS PROVEEDORES</b> (cols A-K).
+                Si necesitás agregar campos extras (contacto, mail, notas), agregalos manualmente en columnas L+ del sheet.
               </div>
 
               {saveMsg && (
