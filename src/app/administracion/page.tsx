@@ -62,6 +62,14 @@ const MODULES: ModuleCard[] = [
     group: "ERP",
   },
   {
+    icon: "🏢",
+    title: "Oficina",
+    desc: "Gastos de oficina y overhead por sucursal — buscá keywords libres",
+    href: "/administracion/oficina",
+    status: "activo",
+    group: "ERP",
+  },
+  {
     icon: "🔔",
     title: "Alertas",
     desc: "Vencimientos, facturas sin pagar, deudas vencidas",
