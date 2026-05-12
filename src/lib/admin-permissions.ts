@@ -20,6 +20,7 @@ export const ALL_PERMISSIONS = [
   "stock",
   "menu",
   "competencia",
+  "efectivo",          // Efectivo y mas — retiros + consumos de socios
 ] as const;
 
 export type Permission = typeof ALL_PERMISSIONS[number];

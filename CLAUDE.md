@@ -72,7 +72,7 @@ Schema de la tab Usuarios:
 - **Owner único**: `matiaskweller@gmail.com` (constante `OWNER_EMAIL` en `src/lib/admin-permissions.ts`). Tiene acceso a TODO siempre, incluso si no está en la tab. Es el único que puede modificar usuarios.
 
 Permisos válidos (`ALL_PERMISSIONS` en admin-permissions.ts):
-`ventas, pnl, egresos, proveedores, caja, descuentos, alertas, facturas, facturas_aprobar, consumo, stock, menu, competencia`
+`ventas, pnl, egresos, proveedores, caja, descuentos, alertas, facturas, facturas_aprobar, consumo, stock, menu, competencia, efectivo`
 
 Permisos especiales:
 - `_users` = puede gestionar usuarios — **solo el owner** lo tiene.
@@ -163,6 +163,29 @@ Convenciones:
 - `moneda` se guarda como string "ARS" o "USD" (col AE)
 - `tipoCambio` se guarda como número (col AF). Default 1 para ARS.
 - Aplica a TODOS los montos: items, impuestos, totales.
+
+### Efectivo y más — retiros + consumos de socios (`/administracion/efectivo-y-mas`)
+
+Modulo para visualizar y cargar movimientos de socios (retiros en efectivo, consumos en el restaurante, transferencias). Toma datos del archivo Google Drive **"efectivo y mas"** (`1x8ZI8qIDcHitHJA6Hadd3VtdZNwPL4h0pwOxyUghdw0`), tab **`RETIROS+CONSUMOS SOCIOS`**.
+
+Schema del sheet (cols A-H):
+| FECHA | QUIEN HIZO EN MOV | LOCAL | VALOR PESOS | VALOR DOLAR | CAJA | MEDIO DE PAGO | COMO SE IMPUTA |
+
+Socios usuales: MATIAS KWELLER, VALENTIN TOBAL, LUCAS TOBAL, Agustin Tobal, ENRICO MARTELLA, GABRIELA GERENTE.
+
+API:
+- `GET /api/erp/efectivo-y-mas?from=YYYY-MM-DD&to=YYYY-MM-DD` — lista movimientos filtrados + cards por socio con totales/desgloses.
+- `POST /api/erp/efectivo-y-mas` — agrega un nuevo movimiento al sheet (append en cols A-H, formato fecha D/M/YYYY).
+
+UI:
+- Filtros por rango de fechas (default mes actual) + filtro por sucursal.
+- Cards por socio: total pesos, total dólar, mini desglose por sucursal (Palermo/Belgrano/Madero).
+- Click en card → expande mostrando desglose por caja, medio de pago, y tabla detallada de todos los movimientos del socio.
+- Botón "+ Nuevo movimiento" → form con autocomplete (datalists con socios/cajas/medios existentes).
+
+Permisos: requiere permiso `efectivo`. Owner y `*` lo tienen implícito.
+
+Variable de entorno opcional: `SHEET_EFECTIVO_Y_MAS` (si no se setea, usa el ID hardcodeado).
 
 ### Editor de carta (`/menu`) — etiquetas/badges por item
 

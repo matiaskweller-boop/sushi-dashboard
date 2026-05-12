@@ -54,6 +54,14 @@ const MODULES: ModuleCard[] = [
     group: "ERP",
   },
   {
+    icon: "💵",
+    title: "Efectivo y más",
+    desc: "Retiros y consumos de socios — totales por socio y sucursal",
+    href: "/administracion/efectivo-y-mas",
+    status: "activo",
+    group: "ERP",
+  },
+  {
     icon: "🔔",
     title: "Alertas",
     desc: "Vencimientos, facturas sin pagar, deudas vencidas",
