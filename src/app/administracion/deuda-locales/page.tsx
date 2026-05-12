@@ -57,9 +57,11 @@ export default function DeudaLocalesPage() {
   const [data, setData] = useState<ApiResponse | null>(null);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
-  const [view, setView] = useState<"resumen" | "movimientos">("resumen");
+  const [view, setView] = useState<"resumen" | "movimientos" | "apertura">("resumen");
   const [filterSuc, setFilterSuc] = useState<Sucursal | "">("");
   const [search, setSearch] = useState("");
+  const [expandedFlow, setExpandedFlow] = useState<string | null>(null); // key "deudor->acreedor"
+  const [expandedCell, setExpandedCell] = useState<string | null>(null); // key "origen->dst" (matriz)
 
   useEffect(() => {
     setLoading(true);
@@ -112,6 +114,7 @@ export default function DeudaLocalesPage() {
         <div className="flex gap-1 bg-white border border-gray-200 rounded-lg p-1 ml-auto">
           {([
             { id: "resumen", label: "📊 Resumen" },
+            { id: "apertura", label: "🔍 Apertura por par" },
             { id: "movimientos", label: "📋 Movimientos" },
           ] as const).map((v) => (
             <button key={v.id} onClick={() => setView(v.id as typeof view)}
@@ -139,27 +142,83 @@ export default function DeudaLocalesPage() {
                   <div className="text-sm text-gray-400 italic">No hay saldos netos detectados (todos compensados o sin movimientos).</div>
                 ) : (
                   <div className="space-y-3">
-                    {data.saldosNetos.map((s, i) => (
-                      <div key={i} className="flex items-center gap-3 bg-gray-50 rounded-lg p-3">
-                        <div className="flex items-center gap-2">
-                          <span className="text-xs text-gray-500">debe</span>
-                          <span
-                            className="text-base font-bold px-3 py-1 rounded-md text-white"
-                            style={{ backgroundColor: SUC_COLORS[s.deudor] }}
+                    {data.saldosNetos.map((s, i) => {
+                      const flowKey = `${s.deudor}->${s.acreedor}`;
+                      const isExpanded = expandedFlow === flowKey;
+                      // Movimientos del deudor hacia el acreedor (origen=deudor, contraparte=acreedor)
+                      const movsAB = data.movimientos.filter(
+                        (m) => m.sucursalOrigen === s.deudor && m.sucursalContraparte === s.acreedor
+                      );
+                      // Compensación inversa
+                      const movsBA = data.movimientos.filter(
+                        (m) => m.sucursalOrigen === s.acreedor && m.sucursalContraparte === s.deudor
+                      );
+                      const brutoAB = movsAB.reduce((acc, m) => acc + m.total, 0);
+                      const brutoBA = movsBA.reduce((acc, m) => acc + m.total, 0);
+                      return (
+                        <div key={i}>
+                          <button
+                            onClick={() => setExpandedFlow(isExpanded ? null : flowKey)}
+                            className="w-full flex items-center gap-3 bg-gray-50 hover:bg-gray-100 rounded-lg p-3 cursor-pointer transition text-left"
                           >
-                            {SUC_NAMES[s.deudor]}
-                          </span>
-                          <span className="text-gray-500">→</span>
-                          <span className="text-base font-bold px-3 py-1 rounded-md text-white"
-                            style={{ backgroundColor: SUC_COLORS[s.acreedor] }}>
-                            {SUC_NAMES[s.acreedor]}
-                          </span>
+                            <span className="text-gray-400 text-xs">{isExpanded ? "▼" : "▶"}</span>
+                            <div className="flex items-center gap-2">
+                              <span className="text-xs text-gray-500">debe</span>
+                              <span
+                                className="text-base font-bold px-3 py-1 rounded-md text-white"
+                                style={{ backgroundColor: SUC_COLORS[s.deudor] }}
+                              >
+                                {SUC_NAMES[s.deudor]}
+                              </span>
+                              <span className="text-gray-500">→</span>
+                              <span className="text-base font-bold px-3 py-1 rounded-md text-white"
+                                style={{ backgroundColor: SUC_COLORS[s.acreedor] }}>
+                                {SUC_NAMES[s.acreedor]}
+                              </span>
+                            </div>
+                            <div className="ml-auto text-right">
+                              <div className="text-2xl font-bold font-mono text-red-700">{fmt(s.monto)}</div>
+                              <div className="text-[10px] text-gray-400">
+                                {movsAB.length} mov{movsAB.length !== 1 ? "s" : ""} · click para ver detalle
+                              </div>
+                            </div>
+                          </button>
+
+                          {isExpanded && (
+                            <div className="mt-2 bg-white border border-gray-200 rounded-lg overflow-hidden">
+                              <div className="bg-gray-50 px-3 py-2 border-b border-gray-100 flex items-center gap-3 text-xs">
+                                <span className="text-gray-500">Cálculo neto:</span>
+                                <span className="font-mono">
+                                  {fmt(brutoAB)} <span className="text-gray-400">({SUC_NAMES[s.deudor]} → {SUC_NAMES[s.acreedor]})</span>
+                                  {brutoBA > 0 && (
+                                    <> − {fmt(brutoBA)} <span className="text-gray-400">({SUC_NAMES[s.acreedor]} → {SUC_NAMES[s.deudor]})</span></>
+                                  )}
+                                  <span className="text-gray-500"> = </span>
+                                  <span className="font-bold text-red-700">{fmt(s.monto)}</span>
+                                </span>
+                              </div>
+
+                              {movsAB.length > 0 && (
+                                <div>
+                                  <div className="bg-gray-50/50 px-3 py-1.5 text-[10px] uppercase text-gray-500 font-medium border-b border-gray-100">
+                                    {SUC_NAMES[s.deudor]} → {SUC_NAMES[s.acreedor]} ({movsAB.length} mov · {fmt(brutoAB)})
+                                  </div>
+                                  <FlowMovsTable movs={movsAB} />
+                                </div>
+                              )}
+                              {movsBA.length > 0 && (
+                                <div>
+                                  <div className="bg-emerald-50 px-3 py-1.5 text-[10px] uppercase text-emerald-700 font-medium border-b border-emerald-100">
+                                    Compensación inversa: {SUC_NAMES[s.acreedor]} → {SUC_NAMES[s.deudor]} ({movsBA.length} mov · -{fmt(brutoBA)})
+                                  </div>
+                                  <FlowMovsTable movs={movsBA} />
+                                </div>
+                              )}
+                            </div>
+                          )}
                         </div>
-                        <div className="ml-auto text-2xl font-bold font-mono text-red-700">
-                          {fmt(s.monto)}
-                        </div>
-                      </div>
-                    ))}
+                      );
+                    })}
                   </div>
                 )}
                 {data.totalSinDireccion > 0 && (
@@ -194,19 +253,53 @@ export default function DeudaLocalesPage() {
                     {SUCURSALES.map((origen) => {
                       const total = SUCURSALES.reduce((s, dst) => s + (data.matriz[origen][dst] || 0), 0);
                       return (
-                        <tr key={origen} className="border-t border-gray-100">
-                          <td className="px-3 py-2 font-medium" style={{ color: SUC_COLORS[origen] }}>{SUC_NAMES[origen]}</td>
+                        <Fragment key={origen}>
+                          <tr className="border-t border-gray-100">
+                            <td className="px-3 py-2 font-medium" style={{ color: SUC_COLORS[origen] }}>{SUC_NAMES[origen]}</td>
+                            {SUCURSALES.map((dst) => {
+                              const v = data.matriz[origen][dst];
+                              const isSelf = origen === dst;
+                              const cellKey = `${origen}->${dst}`;
+                              const isExpandedCell = expandedCell === cellKey;
+                              if (isSelf) {
+                                return <td key={dst} className="text-right px-3 py-2 font-mono text-gray-300">—</td>;
+                              }
+                              if (v === 0) {
+                                return <td key={dst} className="text-right px-3 py-2 font-mono text-gray-300">$0</td>;
+                              }
+                              return (
+                                <td key={dst} className="text-right px-3 py-2 font-mono">
+                                  <button
+                                    onClick={() => setExpandedCell(isExpandedCell ? null : cellKey)}
+                                    className="text-red-600 hover:bg-red-50 px-1.5 py-0.5 rounded transition"
+                                    title="Click para ver el detalle"
+                                  >
+                                    {fmt(v)} {isExpandedCell ? "▼" : "▶"}
+                                  </button>
+                                </td>
+                              );
+                            })}
+                            <td className="text-right px-3 py-2 font-mono font-semibold text-navy bg-gray-50">{fmt(total)}</td>
+                          </tr>
+                          {/* Drill-down de celda expandida */}
                           {SUCURSALES.map((dst) => {
-                            const v = data.matriz[origen][dst];
-                            const isSelf = origen === dst;
+                            const cellKey = `${origen}->${dst}`;
+                            if (expandedCell !== cellKey) return null;
+                            const movs = data.movimientos.filter(
+                              (m) => m.sucursalOrigen === origen && m.sucursalContraparte === dst
+                            );
                             return (
-                              <td key={dst} className={`text-right px-3 py-2 font-mono ${isSelf ? "text-gray-300" : v > 0 ? "text-red-600" : "text-gray-300"}`}>
-                                {isSelf ? "—" : v > 0 ? fmt(v) : "$0"}
-                              </td>
+                              <tr key={`${origen}-${dst}-drill`} className="bg-gray-50">
+                                <td colSpan={SUCURSALES.length + 2} className="px-3 py-2">
+                                  <div className="text-xs text-gray-600 mb-1.5">
+                                    Detalle: <b>{SUC_NAMES[origen]} → {SUC_NAMES[dst]}</b> · {movs.length} mov · {fmt(movs.reduce((s, m) => s + m.total, 0))}
+                                  </div>
+                                  <FlowMovsTable movs={movs} />
+                                </td>
+                              </tr>
                             );
                           })}
-                          <td className="text-right px-3 py-2 font-mono font-semibold text-navy bg-gray-50">{fmt(total)}</td>
-                        </tr>
+                        </Fragment>
                       );
                     })}
                   </tbody>
@@ -235,6 +328,86 @@ export default function DeudaLocalesPage() {
                 })}
               </div>
 
+            </>
+          )}
+
+          {/* ═══════════════ APERTURA POR PAR ═══════════════ */}
+          {view === "apertura" && (
+            <>
+              <div className="bg-white rounded-xl border border-gray-100 p-4 mb-3">
+                <h2 className="text-sm font-semibold text-navy uppercase tracking-wide mb-1">
+                  🔍 Apertura por par de sucursales
+                </h2>
+                <p className="text-xs text-gray-500">
+                  Todos los movimientos brutos agrupados por dirección (origen → contraparte).
+                  Útil para entender qué compone cada saldo neto sin tener que cruzar tablas.
+                </p>
+              </div>
+
+              <div className="space-y-4">
+                {SUCURSALES.map((origen) =>
+                  SUCURSALES.filter((d) => d !== origen).map((dst) => {
+                    const movs = data.movimientos.filter(
+                      (m) => m.sucursalOrigen === origen && m.sucursalContraparte === dst
+                    );
+                    if (movs.length === 0) return null;
+                    const totalAB = movs.reduce((s, m) => s + m.total, 0);
+                    return (
+                      <div key={`${origen}-${dst}`} className="bg-white rounded-xl border border-gray-200 overflow-hidden">
+                        <div className="px-4 py-3 border-b border-gray-100 flex items-center gap-3 flex-wrap">
+                          <span className="text-xs text-gray-500">debe</span>
+                          <span
+                            className="text-sm font-bold px-2.5 py-1 rounded-md text-white"
+                            style={{ backgroundColor: SUC_COLORS[origen] }}
+                          >
+                            {SUC_NAMES[origen]}
+                          </span>
+                          <span className="text-gray-400">→</span>
+                          <span
+                            className="text-sm font-bold px-2.5 py-1 rounded-md text-white"
+                            style={{ backgroundColor: SUC_COLORS[dst] }}
+                          >
+                            {SUC_NAMES[dst]}
+                          </span>
+                          <span className="text-xs text-gray-400 ml-2">
+                            {movs.length} movimiento{movs.length !== 1 ? "s" : ""}
+                          </span>
+                          <div className="ml-auto font-mono font-bold text-red-700 text-lg">
+                            {fmt(totalAB)}
+                          </div>
+                        </div>
+                        <FlowMovsTable movs={movs} />
+                      </div>
+                    );
+                  })
+                )}
+                {data.movimientos.filter((m) => m.sucursalContraparte).length === 0 && (
+                  <div className="bg-white border border-gray-200 rounded-xl p-8 text-center text-sm text-gray-400">
+                    No hay movimientos con contraparte específica detectada.
+                  </div>
+                )}
+
+                {/* Sin contraparte (uber/envios genéricos) */}
+                {(() => {
+                  const sinContraparte = data.movimientos.filter((m) => !m.sucursalContraparte);
+                  if (sinContraparte.length === 0) return null;
+                  return (
+                    <div className="bg-amber-50 rounded-xl border border-amber-200 overflow-hidden">
+                      <div className="px-4 py-3 border-b border-amber-100 flex items-center gap-3 flex-wrap">
+                        <span className="text-base">⚠️</span>
+                        <span className="text-sm font-semibold text-amber-900">Sin contraparte específica</span>
+                        <span className="text-xs text-amber-700">
+                          {sinContraparte.length} mov · uber entre locales, envío sin sucursal mencionada, etc.
+                        </span>
+                        <div className="ml-auto font-mono font-bold text-amber-700">
+                          {fmt(sinContraparte.reduce((s, m) => s + m.total, 0))}
+                        </div>
+                      </div>
+                      <FlowMovsTable movs={sinContraparte} showOrigen />
+                    </div>
+                  );
+                })()}
+              </div>
             </>
           )}
 
@@ -317,6 +490,66 @@ export default function DeudaLocalesPage() {
 
         </>
       )}
+    </div>
+  );
+}
+
+/**
+ * Tabla compacta de movimientos para usar en drill-downs.
+ * Cuando `showOrigen` es true muestra la columna Origen (útil cuando los movimientos
+ * son de múltiples sucursales, ej "sin contraparte").
+ */
+function FlowMovsTable({ movs, showOrigen }: { movs: Movimiento[]; showOrigen?: boolean }) {
+  if (movs.length === 0) {
+    return <div className="px-3 py-4 text-center text-xs text-gray-400">Sin movimientos</div>;
+  }
+  return (
+    <div className="overflow-x-auto">
+      <table className="w-full text-xs">
+        <thead className="bg-gray-50 border-b border-gray-100">
+          <tr>
+            {showOrigen && <th className="text-left px-2 py-1.5 text-[10px] font-semibold text-gray-500 uppercase">Origen</th>}
+            <th className="text-left px-2 py-1.5 text-[10px] font-semibold text-gray-500 uppercase">Fecha</th>
+            <th className="text-left px-2 py-1.5 text-[10px] font-semibold text-gray-500 uppercase">Proveedor</th>
+            <th className="text-left px-2 py-1.5 text-[10px] font-semibold text-gray-500 uppercase">Rubro</th>
+            <th className="text-left px-2 py-1.5 text-[10px] font-semibold text-gray-500 uppercase">Insumo</th>
+            <th className="text-right px-2 py-1.5 text-[10px] font-semibold text-gray-500 uppercase">Total</th>
+            <th className="text-left px-2 py-1.5 text-[10px] font-semibold text-gray-500 uppercase">Estado</th>
+            <th className="text-left px-2 py-1.5 text-[10px] font-semibold text-gray-500 uppercase">Detección</th>
+          </tr>
+        </thead>
+        <tbody>
+          {movs.map((m, i) => (
+            <tr key={i} className="border-b border-gray-50 hover:bg-gray-50">
+              {showOrigen && (
+                <td className="px-2 py-1.5">
+                  <span
+                    className="inline-block px-1.5 py-0.5 rounded text-[9px] font-medium text-white"
+                    style={{ background: SUC_COLORS[m.sucursalOrigen] }}
+                  >
+                    {SUC_NAMES[m.sucursalOrigen]}
+                  </span>
+                </td>
+              )}
+              <td className="px-2 py-1.5 text-gray-600 whitespace-nowrap">{m.fecha}</td>
+              <td className="px-2 py-1.5 text-navy font-medium">{m.proveedor || "—"}</td>
+              <td className="px-2 py-1.5 text-gray-500 max-w-[180px] truncate" title={m.rubro}>{m.rubro || "—"}</td>
+              <td className="px-2 py-1.5 text-gray-500 max-w-[200px] truncate" title={m.insumo}>{m.insumo || "—"}</td>
+              <td className="px-2 py-1.5 text-right font-mono font-semibold text-navy whitespace-nowrap">{fmt(m.total)}</td>
+              <td className="px-2 py-1.5">
+                {m.estadoPago === "pagado" ? (
+                  <span className="text-[10px] bg-emerald-50 text-emerald-700 px-1.5 py-0.5 rounded-md">✓ pagado</span>
+                ) : (
+                  <span className="text-[10px] bg-amber-50 text-amber-700 px-1.5 py-0.5 rounded-md">⏳ pendiente</span>
+                )}
+              </td>
+              <td className="px-2 py-1.5 text-[10px] text-gray-400 italic max-w-[160px] truncate" title={m.notaDeteccion}>
+                {m.notaDeteccion}
+              </td>
+            </tr>
+          ))}
+        </tbody>
+      </table>
     </div>
   );
 }
