@@ -22,6 +22,8 @@ export interface MasterProveedor {
   notas: string;
   actualizadoEn: string;
   actualizadoPor: string;
+  centralizado: boolean;          // factura una sola vez pero se loguea en multiples sucursales
+  notaCentralizado: string;       // ej "100% Palermo paga", "compartido entre las 3"
 }
 
 const COLS = {
@@ -42,6 +44,8 @@ const COLS = {
   NOTAS: 14,
   ACTUALIZADO_EN: 15,
   ACTUALIZADO_POR: 16,
+  CENTRALIZADO: 17,
+  NOTA_CENTRALIZADO: 18,
 };
 
 function parseBool(v: string): boolean {
@@ -69,6 +73,8 @@ function rowToProveedor(row: string[], rowIdx: number): MasterProveedor {
     notas: (row[COLS.NOTAS] || "").trim(),
     actualizadoEn: (row[COLS.ACTUALIZADO_EN] || "").trim(),
     actualizadoPor: (row[COLS.ACTUALIZADO_POR] || "").trim(),
+    centralizado: parseBool(row[COLS.CENTRALIZADO] || ""),
+    notaCentralizado: (row[COLS.NOTA_CENTRALIZADO] || "").trim(),
   };
 }
 
@@ -121,6 +127,8 @@ function toRow(p: Partial<MasterProveedor>, actualizadoPor: string): (string | b
     p.notas || "",
     now,
     actualizadoPor || "",
+    p.centralizado ? "TRUE" : "FALSE",
+    p.notaCentralizado || "",
   ];
 }
 
@@ -180,6 +188,8 @@ export async function upsertMasterProveedor(
       notas: data.notas || "",
       actualizadoEn: new Date().toISOString(),
       actualizadoPor,
+      centralizado: data.centralizado || false,
+      notaCentralizado: data.notaCentralizado || "",
     };
     const res = await sheets.spreadsheets.values.append({
       spreadsheetId: ERP_CONFIG,

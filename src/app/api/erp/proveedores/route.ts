@@ -270,51 +270,27 @@ export async function GET(request: NextRequest) {
 
     let proveedores = Object.values(master).sort((a, b) => b.totalDeuda - a.totalDeuda);
 
-    // ─── Integracion con deuda-locales ───
-    // Para cada proveedor, ver si aparece en `centralizados` (mismo monto+fecha
-    // en >1 sucursal). Marcamos con badge y monto duplicado detectado.
+    // ─── Movimientos explicitos entre locales ───
+    // Solo cargamos los movimientos explicitos (PAGO POR GASTO HECHO POR X,
+    // envios entre sucursales, fletes). NO hacemos auto-deteccion de
+    // "centralizados/duplicados" por nombre+fecha+monto: cada sucursal opera
+    // de forma independiente y comparten proveedores pero pagan cada uno
+    // su propia factura.
     let interSucursalSummary: {
       saldosNetos: Array<{ deudor: string; acreedor: string; monto: number }>;
       totalMovimientos: number;
       totalMonto: number;
       totalSinDireccion: number;
-      totalCentralizadosCount: number;
-      montoCentralizadosDuplicado: number;
     } | null = null;
 
     try {
       const analisis = await analyzeDeudaLocales(year);
-      // Agregar flags a cada proveedor
-      const centralizadosByProv: Record<string, { count: number; montoExtra: number }> = {};
-      for (const c of analisis.centralizados) {
-        const key = c.proveedor.trim().toLowerCase();
-        if (!centralizadosByProv[key]) centralizadosByProv[key] = { count: 0, montoExtra: 0 };
-        centralizadosByProv[key].count += 1;
-        // Cada copia extra (más allá de la primera) duplica el gasto
-        centralizadosByProv[key].montoExtra += c.total * (c.sucursalesIncluidas.length - 1);
-      }
-      proveedores = proveedores.map((p) => {
-        const key = p.proveedor.trim().toLowerCase();
-        const c = centralizadosByProv[key];
-        if (c) {
-          return {
-            ...p,
-            centralizado: true,
-            centralizadoCount: c.count,
-            centralizadoMontoExtra: c.montoExtra,
-          };
-        }
-        return p;
-      });
-
       const totalMovimientos = analisis.movimientos.reduce((s, m) => s + m.total, 0);
       interSucursalSummary = {
         saldosNetos: analisis.saldosNetos.map((s) => ({ deudor: s.deudor, acreedor: s.acreedor, monto: s.monto })),
         totalMovimientos: analisis.movimientos.length,
         totalMonto: totalMovimientos,
         totalSinDireccion: analisis.totalSinDireccion,
-        totalCentralizadosCount: analisis.totalCentralizados,
-        montoCentralizadosDuplicado: analisis.montoCentralizadosDuplicado,
       };
     } catch (e) {
       console.warn("[proveedores] no se pudo cargar análisis de deuda-locales:", e);

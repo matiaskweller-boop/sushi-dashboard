@@ -57,7 +57,7 @@ export default function DeudaLocalesPage() {
   const [data, setData] = useState<ApiResponse | null>(null);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
-  const [view, setView] = useState<"resumen" | "movimientos" | "duplicados">("resumen");
+  const [view, setView] = useState<"resumen" | "movimientos">("resumen");
   const [filterSuc, setFilterSuc] = useState<Sucursal | "">("");
   const [search, setSearch] = useState("");
 
@@ -95,7 +95,7 @@ export default function DeudaLocalesPage() {
         <h1 className="text-2xl font-bold text-navy mt-2">Deuda entre locales · {year}</h1>
         <p className="text-xs text-gray-400 mt-1">
           Movimientos entre Palermo, Belgrano y Madero detectados en EGRESOS por patrones explícitos
-          (PAGO POR GASTO HECHO POR…, deuda con…, envío de mercadería, flete) + duplicados centralizados.
+          (PAGO POR GASTO HECHO POR…, deuda con…, envío de mercadería, flete entre locales).
         </p>
       </div>
 
@@ -113,7 +113,6 @@ export default function DeudaLocalesPage() {
           {([
             { id: "resumen", label: "📊 Resumen" },
             { id: "movimientos", label: "📋 Movimientos" },
-            { id: "duplicados", label: "⚠️ Duplicados" },
           ] as const).map((v) => (
             <button key={v.id} onClick={() => setView(v.id as typeof view)}
               className={`px-3 py-1.5 rounded-md text-sm font-medium transition-all ${view === v.id ? "bg-blue-50 text-blue-accent" : "text-gray-600 hover:bg-gray-50"}`}>
@@ -236,27 +235,6 @@ export default function DeudaLocalesPage() {
                 })}
               </div>
 
-              {/* Alerta de duplicados */}
-              {data.totalCentralizados > 0 && (
-                <div className="bg-amber-50 border border-amber-200 rounded-xl p-4">
-                  <div className="flex items-start gap-3">
-                    <div className="text-2xl">⚠️</div>
-                    <div className="flex-1">
-                      <h3 className="text-sm font-semibold text-amber-900 mb-1">
-                        Posibles gastos centralizados duplicados
-                      </h3>
-                      <p className="text-xs text-amber-800 mb-2">
-                        Detecté <b>{data.totalCentralizados}</b> grupos de filas con mismo proveedor + fecha + monto en más de una sucursal.
-                        Suelen ser servicios pagados centralmente y replicados (WOKI, FUDO, ALLIANZ, etc.) — cada copia en una sucursal extra
-                        suma <b>{fmt(data.montoCentralizadosDuplicado)}</b> de gasto duplicado en el P&L consolidado.
-                      </p>
-                      <button onClick={() => setView("duplicados")} className="text-xs text-amber-900 font-semibold hover:underline">
-                        Ver detalle →
-                      </button>
-                    </div>
-                  </div>
-                </div>
-              )}
             </>
           )}
 
@@ -337,54 +315,6 @@ export default function DeudaLocalesPage() {
             </>
           )}
 
-          {/* ═══════════════ DUPLICADOS CENTRALIZADOS ═══════════════ */}
-          {view === "duplicados" && (
-            <>
-              <div className="bg-amber-50 border border-amber-200 rounded-xl p-4 mb-4">
-                <h2 className="text-sm font-semibold text-amber-900 mb-1">⚠️ Gastos centralizados (mismo monto + fecha + proveedor en más de una sucursal)</h2>
-                <p className="text-xs text-amber-800">
-                  Estos suelen ser servicios centralizados (WOKI, FUDO, ALLIANZ, etc.) cargados en varias sucursales para repartir el costo.
-                  Cada copia EXTRA suma al P&L consolidado: total duplicado = <b>{fmt(data.montoCentralizadosDuplicado)}</b>.
-                </p>
-              </div>
-
-              <div className="bg-white rounded-xl border border-gray-100 overflow-hidden">
-                <table className="w-full text-sm">
-                  <thead className="bg-gray-50 border-b border-gray-100">
-                    <tr>
-                      <th className="text-left px-3 py-2 text-xs font-semibold text-gray-600 uppercase">Fecha</th>
-                      <th className="text-left px-3 py-2 text-xs font-semibold text-gray-600 uppercase">Proveedor</th>
-                      <th className="text-right px-3 py-2 text-xs font-semibold text-gray-600 uppercase">Monto</th>
-                      <th className="text-left px-3 py-2 text-xs font-semibold text-gray-600 uppercase">Sucursales</th>
-                      <th className="text-right px-3 py-2 text-xs font-semibold text-gray-600 uppercase">Duplicado extra</th>
-                    </tr>
-                  </thead>
-                  <tbody>
-                    {data.centralizados.map((c, i) => (
-                      <tr key={i} className="border-b border-gray-50 hover:bg-gray-50">
-                        <td className="px-3 py-2 text-xs text-gray-500 whitespace-nowrap">{c.fecha}</td>
-                        <td className="px-3 py-2 text-sm text-navy font-medium">{c.proveedor}</td>
-                        <td className="px-3 py-2 text-right font-mono text-navy">{fmt(c.total)}</td>
-                        <td className="px-3 py-2">
-                          <div className="flex flex-wrap gap-1">
-                            {c.sucursalesIncluidas.map((s) => (
-                              <span key={s} className="text-[10px] font-semibold px-1.5 py-0.5 rounded-md text-white"
-                                style={{ backgroundColor: SUC_COLORS[s] }}>
-                                {SUC_NAMES[s]}
-                              </span>
-                            ))}
-                          </div>
-                        </td>
-                        <td className="px-3 py-2 text-right font-mono text-amber-700">
-                          + {fmt(c.total * (c.sucursalesIncluidas.length - 1))}
-                        </td>
-                      </tr>
-                    ))}
-                  </tbody>
-                </table>
-              </div>
-            </>
-          )}
         </>
       )}
     </div>

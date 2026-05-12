@@ -140,14 +140,11 @@ Variable de entorno opcional: `ERP_CONFIG_SHEET_ID` (ya existe, mismo sheet que 
 
 ### Integración Proveedores ↔ Deuda Locales
 
-`/administracion/proveedores` consume el mismo análisis (`analyzeDeudaLocales` desde `lib/deuda-locales.ts`) que `/deuda-locales` y muestra:
-- Header con resumen `🔁 Movimientos entre locales`: cant. movimientos, total, sin contraparte, servicios duplicados, saldos netos en mini-cards.
+`/administracion/proveedores` consume `analyzeDeudaLocales` desde `lib/deuda-locales.ts` y muestra al tope:
+- `🔁 Movimientos entre locales`: cant. movimientos, total, sin contraparte, saldos netos.
 - Saldos netos destacados (deudor → acreedor con colores) con link a la página dedicada.
-- Badge `🔁 Nx duplicado` en cada proveedor que aparece como "centralizado" (aparece en >1 sucursal con mismo monto+fecha). Tooltip explica qué significa.
-- Línea adicional debajo del nombre: `+$X duplicado en P&L` cuando aplica.
-- Toggle filter `🔁 solo duplicados` para ver solo proveedores afectados.
 
-Esto permite identificar al instante en el panel de Proveedores qué proveedores son servicios centralizados (WOKI, FUDO, ALLIANZ, etc.) que están inflando el P&L consolidado.
+**⚠️ Importante — no hay auto-detección de "duplicados" o "centralizados":** Cada sucursal opera independientemente, paga sus propias facturas y registra sus propios egresos. Aunque compartan proveedores (NUNOS, PESCE, FUDO, etc.), no hay duplicación contable. La detección automática vieja basada en `mismo proveedor + fecha + monto` producía falsos positivos y fue removida.
 
 ### Deuda entre locales (`/administracion/deuda-locales`)
 
@@ -168,12 +165,11 @@ Para cada movimiento detectado:
 - `movimientos`: lista de filas inter-sucursal con monto, fechas, estadoPago
 - `matriz[origen][destino]`: total bruto registrado de A → B
 - `saldosNetos`: si A→B = X y B→A = Y, neto = max(0, X - Y) hacia el ganador
-- `centralizados`: filas con mismo proveedor + fecha + monto que aparecen en >1 sucursal (servicios pagados centralmente que se replican, ej WOKI/FUDO/ALLIANZ). Sirve para detectar el monto duplicado en el P&L consolidado.
+- ~~`centralizados`~~: **deprecado**. `lib/deuda-locales.ts` aún lo computa internamente pero ninguna UI lo usa. Cada sucursal paga independientemente sus facturas; misma fecha+monto+proveedor en >1 sucursal es coincidencia (precios estandarizados), no duplicación.
 
-**Vista de la página** tiene 3 tabs:
-- **Resumen**: saldos netos destacados (deudor → acreedor), matriz 3×3, stats por sucursal, alerta de duplicados
+**Vista de la página** tiene 2 tabs:
+- **Resumen**: saldos netos destacados (deudor → acreedor), matriz 3×3, stats por sucursal
 - **Movimientos**: tabla detallada con filtros (search, sucursal)
-- **Duplicados**: lista de gastos centralizados con monto extra que suman al P&L
 
 Permisos: requiere `egresos`. Solo el aprobador / admin debería verlo.
 

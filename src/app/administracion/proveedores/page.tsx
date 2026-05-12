@@ -18,9 +18,6 @@ interface ProveedorMaster {
   totalDeuda2026: number;
   totalDeuda2025: number;
   sucursalesConDeuda: number;
-  centralizado?: boolean;
-  centralizadoCount?: number;
-  centralizadoMontoExtra?: number;
   // Master fields:
   masterId?: string;
   masterRowIdx?: number;
@@ -46,8 +43,6 @@ interface InterSucursalSummary {
   totalMovimientos: number;
   totalMonto: number;
   totalSinDireccion: number;
-  totalCentralizadosCount: number;
-  montoCentralizadosDuplicado: number;
 }
 
 interface ApiResponse {
@@ -93,7 +88,6 @@ export default function ProveedoresPage() {
   // Filters
   const [search, setSearch] = useState("");
   const [filtro, setFiltro] = useState<"todos" | "conDeuda" | "sinDeuda">("conDeuda");
-  const [soloDuplicados, setSoloDuplicados] = useState(false);
   const [plazoFilter, setPlazoFilter] = useState<string>("");
   const [bancoFilter, setBancoFilter] = useState<string>("");
   const [expanded, setExpanded] = useState<string | null>(null);
@@ -249,11 +243,10 @@ export default function ProveedoresPage() {
       }
       if (plazoFilter && (p.plazoPago || "").toLowerCase().trim() !== plazoFilter.toLowerCase()) return false;
       if (bancoFilter && !(p.banco || "").toUpperCase().includes(bancoFilter.toUpperCase())) return false;
-      if (soloDuplicados && !p.centralizado) return false;
       if (soloSinCorroborar && p.corroborado) return false;
       return true;
     });
-  }, [data, filtro, search, plazoFilter, bancoFilter, soloDuplicados, soloSinCorroborar]);
+  }, [data, filtro, search, plazoFilter, bancoFilter, soloSinCorroborar]);
 
   const filteredTotal = useMemo(() => filtered.reduce((s, p) => s + p.totalDeuda, 0), [filtered]);
 
@@ -368,7 +361,7 @@ export default function ProveedoresPage() {
                 </Link>
               </div>
 
-              <div className="grid grid-cols-2 lg:grid-cols-4 gap-3 mb-3">
+              <div className="grid grid-cols-2 lg:grid-cols-3 gap-3 mb-3">
                 <div className="bg-gray-50 rounded-lg p-3">
                   <div className="text-[10px] text-gray-500 uppercase">Movimientos</div>
                   <div className="text-lg font-bold text-navy">{data.interSucursal.totalMovimientos}</div>
@@ -378,11 +371,6 @@ export default function ProveedoresPage() {
                   <div className="text-[10px] text-amber-700 uppercase">Sin contraparte</div>
                   <div className="text-lg font-bold text-amber-700">{fmt(data.interSucursal.totalSinDireccion)}</div>
                   <div className="text-xs text-amber-600 mt-0.5">uber/envíos genéricos</div>
-                </div>
-                <div className="bg-red-50 rounded-lg p-3">
-                  <div className="text-[10px] text-red-700 uppercase">Servicios duplicados</div>
-                  <div className="text-lg font-bold text-red-700">{fmt(data.interSucursal.montoCentralizadosDuplicado)}</div>
-                  <div className="text-xs text-red-600 mt-0.5">{data.interSucursal.totalCentralizadosCount} grupos</div>
                 </div>
                 <div className="bg-blue-50 rounded-lg p-3">
                   <div className="text-[10px] text-blue-accent uppercase">Saldos netos</div>
@@ -460,17 +448,13 @@ export default function ProveedoresPage() {
               <option value="">Todos los bancos</option>
               {bancoOptions.map((b) => <option key={b} value={b}>{b}</option>)}
             </select>
-            <label className="flex items-center gap-1.5 text-xs text-gray-700 bg-amber-50 border border-amber-200 rounded-lg px-2.5 py-2 cursor-pointer">
-              <input type="checkbox" checked={soloDuplicados} onChange={(e) => setSoloDuplicados(e.target.checked)} className="cursor-pointer" />
-              <span>🔁 solo duplicados</span>
-            </label>
             <label className="flex items-center gap-1.5 text-xs text-gray-700 bg-yellow-50 border border-yellow-200 rounded-lg px-2.5 py-2 cursor-pointer">
               <input type="checkbox" checked={soloSinCorroborar} onChange={(e) => setSoloSinCorroborar(e.target.checked)} className="cursor-pointer" />
               <span>⚠️ sin corroborar</span>
             </label>
-            {(search || plazoFilter || bancoFilter || filtro !== "conDeuda" || soloDuplicados || soloSinCorroborar) && (
+            {(search || plazoFilter || bancoFilter || filtro !== "conDeuda" || soloSinCorroborar) && (
               <button
-                onClick={() => { setSearch(""); setPlazoFilter(""); setBancoFilter(""); setFiltro("conDeuda"); setSoloDuplicados(false); setSoloSinCorroborar(false); }}
+                onClick={() => { setSearch(""); setPlazoFilter(""); setBancoFilter(""); setFiltro("conDeuda"); setSoloSinCorroborar(false); }}
                 className="text-xs text-red-500 hover:underline"
               >
                 Limpiar
@@ -522,22 +506,9 @@ export default function ProveedoresPage() {
                                   ⚠️ sin master
                                 </span>
                               )}
-                              {p.centralizado && (
-                                <span
-                                  title={`Servicio centralizado: ${p.centralizadoCount} grupos duplicados, ${fmt(p.centralizadoMontoExtra || 0)} de gasto extra en P&L consolidado`}
-                                  className="text-[10px] bg-amber-100 text-amber-700 px-1.5 py-0.5 rounded font-medium"
-                                >
-                                  🔁 {p.centralizadoCount}× duplicado
-                                </span>
-                              )}
                             </div>
                             {p.razonSocial && p.razonSocial.toUpperCase() !== p.proveedor.toUpperCase() && (
                               <div className="text-xs text-gray-400 ml-3 truncate max-w-[180px]" title={p.razonSocial}>{p.razonSocial}</div>
-                            )}
-                            {p.centralizado && (p.centralizadoMontoExtra || 0) > 0 && (
-                              <div className="text-[10px] text-amber-600 ml-3 mt-0.5">
-                                +{fmt(p.centralizadoMontoExtra || 0)} duplicado en P&L
-                              </div>
                             )}
                           </td>
                           <td className="px-3 py-2.5 text-gray-500 text-xs max-w-[160px] truncate" title={p.producto}>{p.producto || "—"}</td>
