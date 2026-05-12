@@ -21,6 +21,24 @@ interface ProveedorMaster {
   centralizado?: boolean;
   centralizadoCount?: number;
   centralizadoMontoExtra?: number;
+  // Master fields:
+  masterId?: string;
+  masterRowIdx?: number;
+  contacto?: string;
+  cuit?: string;
+  formaPago?: string;
+  titularCuenta?: string;
+  mail?: string;
+  corroborado?: boolean;
+  notas?: string;
+}
+
+interface MasterStats {
+  totalEnMaster: number;
+  enMaster: number;
+  sinMaster: number;
+  corroborados: number;
+  sinCorroborar: number;
 }
 
 interface InterSucursalSummary {
@@ -43,6 +61,7 @@ interface ApiResponse {
   plazos: Record<string, number>;
   porSucursal: Record<string, { totalDeuda: number; conDeuda: number }>;
   interSucursal: InterSucursalSummary | null;
+  master?: MasterStats;
 }
 
 const SUC_NAMES: Record<string, string> = {
@@ -80,6 +99,131 @@ export default function ProveedoresPage() {
   const [expanded, setExpanded] = useState<string | null>(null);
   const [copied, setCopied] = useState<string | null>(null);
 
+  // Edit modal state
+  const [editing, setEditing] = useState<ProveedorMaster | null>(null);
+  const [editForm, setEditForm] = useState<{
+    nombreSociedad: string;
+    nombreFantasia: string;
+    contacto: string;
+    cuit: string;
+    formaPago: string;
+    aliasCbu: string;
+    titularCuenta: string;
+    banco: string;
+    nroCuenta: string;
+    rubro: string;
+    plazoPago: string;
+    mail: string;
+    corroborado: boolean;
+    notas: string;
+  }>({
+    nombreSociedad: "",
+    nombreFantasia: "",
+    contacto: "",
+    cuit: "",
+    formaPago: "",
+    aliasCbu: "",
+    titularCuenta: "",
+    banco: "",
+    nroCuenta: "",
+    rubro: "",
+    plazoPago: "",
+    mail: "",
+    corroborado: false,
+    notas: "",
+  });
+  const [saving, setSaving] = useState(false);
+  const [saveMsg, setSaveMsg] = useState<string | null>(null);
+  const [soloSinCorroborar, setSoloSinCorroborar] = useState(false);
+
+  const openEdit = (p: ProveedorMaster | null) => {
+    if (p) {
+      setEditing(p);
+      setEditForm({
+        nombreSociedad: p.razonSocial || "",
+        nombreFantasia: p.proveedor,
+        contacto: p.contacto || "",
+        cuit: p.cuit || "",
+        formaPago: p.formaPago || "",
+        aliasCbu: p.alias || "",
+        titularCuenta: p.titularCuenta || p.agendado || "",
+        banco: p.banco || "",
+        nroCuenta: p.cbu || "",
+        rubro: p.producto || "",
+        plazoPago: p.plazoPago || "",
+        mail: p.mail || "",
+        corroborado: p.corroborado || false,
+        notas: p.notas || "",
+      });
+    } else {
+      // New
+      setEditing({ proveedor: "", razonSocial: "", alias: "", banco: "", cbu: "", agendado: "", producto: "", plazoPago: "", aclaracion: "", porSucursal: {}, totalDeuda: 0, totalDeuda2026: 0, totalDeuda2025: 0, sucursalesConDeuda: 0 });
+      setEditForm({
+        nombreSociedad: "",
+        nombreFantasia: "",
+        contacto: "",
+        cuit: "",
+        formaPago: "",
+        aliasCbu: "",
+        titularCuenta: "",
+        banco: "",
+        nroCuenta: "",
+        rubro: "",
+        plazoPago: "",
+        mail: "",
+        corroborado: false,
+        notas: "",
+      });
+    }
+    setSaveMsg(null);
+  };
+
+  const saveMaster = async () => {
+    if (!editForm.nombreFantasia.trim()) {
+      setSaveMsg("✗ Nombre fantasía es requerido");
+      return;
+    }
+    setSaving(true);
+    setSaveMsg(null);
+    try {
+      const res = await fetch("/api/erp/proveedores/master", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({
+          id: editing?.masterId,
+          nombreSociedad: editForm.nombreSociedad.trim(),
+          nombreFantasia: editForm.nombreFantasia.trim(),
+          contacto: editForm.contacto.trim(),
+          cuit: editForm.cuit.trim(),
+          formaPago: editForm.formaPago.trim(),
+          aliasCbu: editForm.aliasCbu.trim(),
+          titularCuenta: editForm.titularCuenta.trim(),
+          banco: editForm.banco.trim(),
+          nroCuenta: editForm.nroCuenta.trim(),
+          rubro: editForm.rubro.trim(),
+          plazoPago: editForm.plazoPago.trim(),
+          mail: editForm.mail.trim(),
+          corroborado: editForm.corroborado,
+          notas: editForm.notas.trim(),
+        }),
+      });
+      const j = await res.json();
+      if (j.error) throw new Error(j.error);
+      setSaveMsg(j.created ? "✓ Proveedor creado" : "✓ Proveedor actualizado");
+      // refresh data
+      const refreshed = await fetch(`/api/erp/proveedores?year=${year}&_=${Date.now()}`).then((r) => r.json());
+      if (!refreshed.error) setData(refreshed);
+      setTimeout(() => {
+        setEditing(null);
+        setSaveMsg(null);
+      }, 1200);
+    } catch (e) {
+      setSaveMsg("✗ " + (e instanceof Error ? e.message : "Error"));
+    } finally {
+      setSaving(false);
+    }
+  };
+
   useEffect(() => {
     setLoading(true);
     setError(null);
@@ -100,15 +244,16 @@ export default function ProveedoresPage() {
       if (filtro === "sinDeuda" && p.totalDeuda > 0) return false;
       if (search) {
         const q = search.toLowerCase();
-        const haystack = `${p.proveedor} ${p.razonSocial} ${p.alias} ${p.cbu} ${p.producto} ${p.banco} ${p.agendado}`.toLowerCase();
+        const haystack = `${p.proveedor} ${p.razonSocial} ${p.alias} ${p.cbu} ${p.producto} ${p.banco} ${p.agendado} ${p.cuit || ""} ${p.mail || ""} ${p.contacto || ""}`.toLowerCase();
         if (!haystack.includes(q)) return false;
       }
       if (plazoFilter && (p.plazoPago || "").toLowerCase().trim() !== plazoFilter.toLowerCase()) return false;
       if (bancoFilter && !(p.banco || "").toUpperCase().includes(bancoFilter.toUpperCase())) return false;
       if (soloDuplicados && !p.centralizado) return false;
+      if (soloSinCorroborar && p.corroborado) return false;
       return true;
     });
-  }, [data, filtro, search, plazoFilter, bancoFilter, soloDuplicados]);
+  }, [data, filtro, search, plazoFilter, bancoFilter, soloDuplicados, soloSinCorroborar]);
 
   const filteredTotal = useMemo(() => filtered.reduce((s, p) => s + p.totalDeuda, 0), [filtered]);
 
@@ -140,10 +285,20 @@ export default function ProveedoresPage() {
         <Link href="/administracion" className="text-sm text-gray-400 hover:text-blue-accent">
           ← Volver a Administración
         </Link>
-        <h1 className="text-2xl font-bold text-navy mt-2">Proveedores · Master {year}</h1>
-        <p className="text-xs text-gray-400 mt-1">
-          Lectura de tab DEUDA AL DIA · CBUs, alias, plazos de pago · deuda agregada de las 3 sucursales
-        </p>
+        <div className="flex items-start justify-between flex-wrap gap-3 mt-2">
+          <div>
+            <h1 className="text-2xl font-bold text-navy">Proveedores · Master {year}</h1>
+            <p className="text-xs text-gray-400 mt-1">
+              MASTER PROVEEDORES (info editable: CUIT, mail, contacto, banco, etc) + deuda agregada de las 3 sucursales
+            </p>
+          </div>
+          <button
+            onClick={() => openEdit(null)}
+            className="bg-blue-accent text-white px-4 py-2 rounded-lg text-sm font-medium hover:bg-blue-accent/90 transition"
+          >
+            + Nuevo proveedor
+          </button>
+        </div>
       </div>
 
       {loading && <div className="text-center py-20 text-gray-400">Cargando proveedores...</div>}
@@ -151,6 +306,33 @@ export default function ProveedoresPage() {
 
       {data && !loading && (
         <>
+          {/* Master coverage banner */}
+          {data.master && (
+            <div className="bg-white border border-blue-100 rounded-xl p-3 mb-4 flex items-center justify-between flex-wrap gap-3">
+              <div className="flex items-center gap-4 flex-wrap">
+                <div>
+                  <div className="text-[10px] text-gray-500 uppercase">En master</div>
+                  <div className="text-lg font-bold text-blue-accent">{data.master.enMaster}/{data.total}</div>
+                </div>
+                <div>
+                  <div className="text-[10px] text-gray-500 uppercase">Corroborados</div>
+                  <div className="text-lg font-bold text-emerald-600">{data.master.corroborados}</div>
+                </div>
+                <div>
+                  <div className="text-[10px] text-gray-500 uppercase">Sin corroborar</div>
+                  <div className="text-lg font-bold text-amber-600">{data.master.sinCorroborar}</div>
+                </div>
+                <div>
+                  <div className="text-[10px] text-gray-500 uppercase">Solo en deuda (sin master)</div>
+                  <div className="text-lg font-bold text-red-500">{data.master.sinMaster}</div>
+                </div>
+              </div>
+              <p className="text-[11px] text-gray-500 max-w-md">
+                Cada proveedor tiene una ficha editable: CUIT, mail, contacto, banco, alias, etc. Click "✏️ Editar" en cualquier fila.
+              </p>
+            </div>
+          )}
+
           {/* KPI cards */}
           <div className="grid grid-cols-2 lg:grid-cols-5 gap-3 mb-4">
             <div className="bg-white rounded-xl border border-gray-100 p-4">
@@ -282,9 +464,13 @@ export default function ProveedoresPage() {
               <input type="checkbox" checked={soloDuplicados} onChange={(e) => setSoloDuplicados(e.target.checked)} className="cursor-pointer" />
               <span>🔁 solo duplicados</span>
             </label>
-            {(search || plazoFilter || bancoFilter || filtro !== "conDeuda" || soloDuplicados) && (
+            <label className="flex items-center gap-1.5 text-xs text-gray-700 bg-yellow-50 border border-yellow-200 rounded-lg px-2.5 py-2 cursor-pointer">
+              <input type="checkbox" checked={soloSinCorroborar} onChange={(e) => setSoloSinCorroborar(e.target.checked)} className="cursor-pointer" />
+              <span>⚠️ sin corroborar</span>
+            </label>
+            {(search || plazoFilter || bancoFilter || filtro !== "conDeuda" || soloDuplicados || soloSinCorroborar) && (
               <button
-                onClick={() => { setSearch(""); setPlazoFilter(""); setBancoFilter(""); setFiltro("conDeuda"); setSoloDuplicados(false); }}
+                onClick={() => { setSearch(""); setPlazoFilter(""); setBancoFilter(""); setFiltro("conDeuda"); setSoloDuplicados(false); setSoloSinCorroborar(false); }}
                 className="text-xs text-red-500 hover:underline"
               >
                 Limpiar
@@ -326,6 +512,16 @@ export default function ProveedoresPage() {
                             <div className="flex items-center gap-1.5 flex-wrap">
                               <span className="text-gray-400 text-xs">{isExpanded ? "▼" : "▶"}</span>
                               <span>{p.proveedor}</span>
+                              {p.corroborado && (
+                                <span title="Datos corroborados" className="text-[10px] bg-emerald-100 text-emerald-700 px-1.5 py-0.5 rounded font-medium">
+                                  ✓
+                                </span>
+                              )}
+                              {!p.masterId && (
+                                <span title="No está en MASTER PROVEEDORES — solo en DEUDA AL DIA" className="text-[10px] bg-red-100 text-red-700 px-1.5 py-0.5 rounded font-medium">
+                                  ⚠️ sin master
+                                </span>
+                              )}
                               {p.centralizado && (
                                 <span
                                   title={`Servicio centralizado: ${p.centralizadoCount} grupos duplicados, ${fmt(p.centralizadoMontoExtra || 0)} de gasto extra en P&L consolidado`}
@@ -385,16 +581,61 @@ export default function ProveedoresPage() {
                         {isExpanded && (
                           <tr className="border-b border-gray-100 bg-gray-50">
                             <td colSpan={9} className="px-6 py-4">
-                              <div className="grid grid-cols-1 lg:grid-cols-3 gap-4 text-sm">
+                              <div className="flex items-center justify-between mb-3">
+                                <div className="flex items-center gap-2 text-xs text-gray-500">
+                                  {p.masterId ? (
+                                    <span className="bg-emerald-50 text-emerald-700 px-2 py-0.5 rounded">en master</span>
+                                  ) : (
+                                    <span className="bg-red-50 text-red-700 px-2 py-0.5 rounded">solo en deuda — agregar al master</span>
+                                  )}
+                                </div>
+                                <button
+                                  onClick={(e) => { e.stopPropagation(); openEdit(p); }}
+                                  className="bg-blue-accent text-white px-3 py-1.5 rounded-lg text-xs font-medium hover:bg-blue-accent/90 transition"
+                                >
+                                  ✏️ {p.masterId ? "Editar ficha master" : "Crear ficha master"}
+                                </button>
+                              </div>
+                              <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-4 text-sm">
                                 {/* Datos comerciales */}
                                 <div>
                                   <div className="text-xs font-semibold text-gray-500 uppercase mb-2">Datos comerciales</div>
                                   <div className="space-y-1 text-xs">
                                     <div><span className="text-gray-500">Razón social:</span> <span className="text-navy">{p.razonSocial || "—"}</span></div>
-                                    <div><span className="text-gray-500">Producto:</span> <span className="text-navy">{p.producto || "—"}</span></div>
+                                    <div><span className="text-gray-500">Nombre fantasía:</span> <span className="text-navy">{p.proveedor}</span></div>
+                                    <div><span className="text-gray-500">CUIT:</span> <span className="text-navy font-mono">{p.cuit || <span className="text-gray-300">— sin cargar</span>}</span></div>
+                                    <div><span className="text-gray-500">Rubro:</span> <span className="text-navy">{p.producto || "—"}</span></div>
                                     <div><span className="text-gray-500">Plazo de pago:</span> <span className="text-navy">{p.plazoPago || "—"}</span></div>
-                                    <div><span className="text-gray-500">Agendado:</span> <span className="text-navy">{p.agendado || "—"}</span></div>
+                                    <div><span className="text-gray-500">Forma de pago:</span> <span className="text-navy">{p.formaPago || <span className="text-gray-300">— sin cargar</span>}</span></div>
                                     {p.aclaracion && <div><span className="text-gray-500">Aclaración:</span> <span className="text-navy">{p.aclaracion}</span></div>}
+                                  </div>
+                                </div>
+
+                                {/* Contacto */}
+                                <div>
+                                  <div className="text-xs font-semibold text-gray-500 uppercase mb-2">Contacto</div>
+                                  <div className="space-y-1 text-xs">
+                                    <div><span className="text-gray-500">Contacto:</span> <span className="text-navy">{p.contacto || <span className="text-gray-300">— sin cargar</span>}</span></div>
+                                    <div className="flex items-center gap-2">
+                                      <span className="text-gray-500">Mail:</span>
+                                      {p.mail ? (
+                                        <a href={`mailto:${p.mail}`} className="text-blue-accent hover:underline">{p.mail}</a>
+                                      ) : <span className="text-gray-300">— sin cargar</span>}
+                                    </div>
+                                    <div className="flex items-center gap-2 pt-1.5 border-t border-gray-200 mt-1.5">
+                                      <span className="text-gray-500">Corroborado:</span>
+                                      {p.corroborado ? (
+                                        <span className="text-emerald-600 font-medium">✓ sí</span>
+                                      ) : (
+                                        <span className="text-amber-600">⚠️ pendiente</span>
+                                      )}
+                                    </div>
+                                    {p.notas && (
+                                      <div className="pt-1.5">
+                                        <span className="text-gray-500">Notas:</span>
+                                        <div className="text-navy mt-0.5 bg-yellow-50 p-1.5 rounded text-[11px]">{p.notas}</div>
+                                      </div>
+                                    )}
                                   </div>
                                 </div>
 
@@ -470,9 +711,224 @@ export default function ProveedoresPage() {
           </div>
 
           <div className="text-xs text-gray-400 mt-3">
-            Click en una fila para expandir · click en alias o CBU para copiar
+            Click en una fila para expandir · click en alias o CBU para copiar · click "✏️ Editar ficha master" para editar
           </div>
         </>
+      )}
+
+      {/* Modal de edición */}
+      {editing && (
+        <div className="fixed inset-0 bg-black/50 z-50 flex items-center justify-center p-4 overflow-y-auto">
+          <div className="bg-white rounded-2xl w-full max-w-3xl max-h-[90vh] overflow-y-auto shadow-2xl">
+            <div className="sticky top-0 bg-white border-b border-gray-100 px-6 py-4 flex items-center justify-between">
+              <div>
+                <h2 className="text-lg font-bold text-navy">
+                  {editing.masterId ? "Editar proveedor" : "Nuevo proveedor"}
+                </h2>
+                <p className="text-xs text-gray-400">Master proveedores · MASUNORI_ERP_CONFIG</p>
+              </div>
+              <button
+                onClick={() => setEditing(null)}
+                className="text-gray-400 hover:text-gray-700 text-2xl leading-none"
+                aria-label="cerrar"
+              >
+                ×
+              </button>
+            </div>
+
+            <div className="px-6 py-4 space-y-3">
+              {/* Sociedad + fantasia */}
+              <div className="grid grid-cols-1 md:grid-cols-2 gap-3">
+                <div>
+                  <label className="text-[11px] text-gray-500 uppercase block mb-1">Nombre sociedad</label>
+                  <input
+                    type="text"
+                    value={editForm.nombreSociedad}
+                    onChange={(e) => setEditForm((f) => ({ ...f, nombreSociedad: e.target.value }))}
+                    placeholder="Razón social legal"
+                    className="w-full border border-gray-200 rounded-lg px-3 py-2 text-sm focus:outline-none focus:border-blue-accent"
+                  />
+                </div>
+                <div>
+                  <label className="text-[11px] text-gray-500 uppercase block mb-1">Nombre fantasía *</label>
+                  <input
+                    type="text"
+                    value={editForm.nombreFantasia}
+                    onChange={(e) => setEditForm((f) => ({ ...f, nombreFantasia: e.target.value }))}
+                    required
+                    placeholder="Como lo conocemos"
+                    className="w-full border border-gray-200 rounded-lg px-3 py-2 text-sm focus:outline-none focus:border-blue-accent"
+                  />
+                </div>
+              </div>
+
+              {/* CUIT + Rubro + Plazo + Forma pago */}
+              <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-3">
+                <div>
+                  <label className="text-[11px] text-gray-500 uppercase block mb-1">CUIT</label>
+                  <input
+                    type="text"
+                    value={editForm.cuit}
+                    onChange={(e) => setEditForm((f) => ({ ...f, cuit: e.target.value }))}
+                    placeholder="30-12345678-9"
+                    className="w-full border border-gray-200 rounded-lg px-3 py-2 text-sm font-mono focus:outline-none focus:border-blue-accent"
+                  />
+                </div>
+                <div>
+                  <label className="text-[11px] text-gray-500 uppercase block mb-1">Rubro</label>
+                  <input
+                    type="text"
+                    value={editForm.rubro}
+                    onChange={(e) => setEditForm((f) => ({ ...f, rubro: e.target.value }))}
+                    placeholder="ej Pesca blanca, Almacén..."
+                    className="w-full border border-gray-200 rounded-lg px-3 py-2 text-sm focus:outline-none focus:border-blue-accent"
+                  />
+                </div>
+                <div>
+                  <label className="text-[11px] text-gray-500 uppercase block mb-1">Plazo de pago</label>
+                  <input
+                    type="text"
+                    value={editForm.plazoPago}
+                    onChange={(e) => setEditForm((f) => ({ ...f, plazoPago: e.target.value }))}
+                    placeholder="ej 15 dias"
+                    className="w-full border border-gray-200 rounded-lg px-3 py-2 text-sm focus:outline-none focus:border-blue-accent"
+                  />
+                </div>
+                <div>
+                  <label className="text-[11px] text-gray-500 uppercase block mb-1">Forma de pago</label>
+                  <input
+                    type="text"
+                    value={editForm.formaPago}
+                    onChange={(e) => setEditForm((f) => ({ ...f, formaPago: e.target.value }))}
+                    placeholder="Transferencia / E-check / etc"
+                    className="w-full border border-gray-200 rounded-lg px-3 py-2 text-sm focus:outline-none focus:border-blue-accent"
+                  />
+                </div>
+              </div>
+
+              {/* Banco datos */}
+              <div className="border-t border-gray-100 pt-3">
+                <div className="text-xs font-semibold text-gray-500 uppercase mb-2">Datos bancarios</div>
+                <div className="grid grid-cols-1 md:grid-cols-2 gap-3">
+                  <div>
+                    <label className="text-[11px] text-gray-500 uppercase block mb-1">Banco</label>
+                    <input
+                      type="text"
+                      value={editForm.banco}
+                      onChange={(e) => setEditForm((f) => ({ ...f, banco: e.target.value }))}
+                      placeholder="BBVA / Santander / etc"
+                      className="w-full border border-gray-200 rounded-lg px-3 py-2 text-sm focus:outline-none focus:border-blue-accent"
+                    />
+                  </div>
+                  <div>
+                    <label className="text-[11px] text-gray-500 uppercase block mb-1">Titular cuenta</label>
+                    <input
+                      type="text"
+                      value={editForm.titularCuenta}
+                      onChange={(e) => setEditForm((f) => ({ ...f, titularCuenta: e.target.value }))}
+                      placeholder="A quien pertenece la cuenta"
+                      className="w-full border border-gray-200 rounded-lg px-3 py-2 text-sm focus:outline-none focus:border-blue-accent"
+                    />
+                  </div>
+                  <div>
+                    <label className="text-[11px] text-gray-500 uppercase block mb-1">Alias o CBU</label>
+                    <input
+                      type="text"
+                      value={editForm.aliasCbu}
+                      onChange={(e) => setEditForm((f) => ({ ...f, aliasCbu: e.target.value }))}
+                      placeholder="alias.del.banco"
+                      className="w-full border border-gray-200 rounded-lg px-3 py-2 text-sm font-mono focus:outline-none focus:border-blue-accent"
+                    />
+                  </div>
+                  <div>
+                    <label className="text-[11px] text-gray-500 uppercase block mb-1">Nro cuenta bancaria</label>
+                    <input
+                      type="text"
+                      value={editForm.nroCuenta}
+                      onChange={(e) => setEditForm((f) => ({ ...f, nroCuenta: e.target.value }))}
+                      placeholder="22 dígitos del CBU"
+                      className="w-full border border-gray-200 rounded-lg px-3 py-2 text-sm font-mono focus:outline-none focus:border-blue-accent"
+                    />
+                  </div>
+                </div>
+              </div>
+
+              {/* Contacto */}
+              <div className="border-t border-gray-100 pt-3">
+                <div className="text-xs font-semibold text-gray-500 uppercase mb-2">Contacto</div>
+                <div className="grid grid-cols-1 md:grid-cols-2 gap-3">
+                  <div>
+                    <label className="text-[11px] text-gray-500 uppercase block mb-1">Contacto (nombre/teléfono)</label>
+                    <input
+                      type="text"
+                      value={editForm.contacto}
+                      onChange={(e) => setEditForm((f) => ({ ...f, contacto: e.target.value }))}
+                      placeholder="Juan Pérez · +54 11 1234-5678"
+                      className="w-full border border-gray-200 rounded-lg px-3 py-2 text-sm focus:outline-none focus:border-blue-accent"
+                    />
+                  </div>
+                  <div>
+                    <label className="text-[11px] text-gray-500 uppercase block mb-1">Mail</label>
+                    <input
+                      type="email"
+                      value={editForm.mail}
+                      onChange={(e) => setEditForm((f) => ({ ...f, mail: e.target.value }))}
+                      placeholder="proveedor@empresa.com"
+                      className="w-full border border-gray-200 rounded-lg px-3 py-2 text-sm focus:outline-none focus:border-blue-accent"
+                    />
+                  </div>
+                </div>
+              </div>
+
+              {/* Notas + corroborado */}
+              <div className="border-t border-gray-100 pt-3">
+                <div className="grid grid-cols-1 gap-3">
+                  <div>
+                    <label className="text-[11px] text-gray-500 uppercase block mb-1">Notas</label>
+                    <textarea
+                      value={editForm.notas}
+                      onChange={(e) => setEditForm((f) => ({ ...f, notas: e.target.value }))}
+                      rows={2}
+                      placeholder="Notas internas, aclaraciones, etc"
+                      className="w-full border border-gray-200 rounded-lg px-3 py-2 text-sm focus:outline-none focus:border-blue-accent resize-y"
+                    />
+                  </div>
+                  <label className="flex items-center gap-2 cursor-pointer bg-emerald-50 border border-emerald-200 rounded-lg px-3 py-2 self-start">
+                    <input
+                      type="checkbox"
+                      checked={editForm.corroborado}
+                      onChange={(e) => setEditForm((f) => ({ ...f, corroborado: e.target.checked }))}
+                      className="cursor-pointer"
+                    />
+                    <span className="text-sm text-emerald-700 font-medium">✓ Datos corroborados</span>
+                  </label>
+                </div>
+              </div>
+
+              {saveMsg && (
+                <div className={`text-sm rounded-lg px-3 py-2 ${saveMsg.startsWith("✓") ? "bg-emerald-50 text-emerald-700" : "bg-red-50 text-red-700"}`}>
+                  {saveMsg}
+                </div>
+              )}
+            </div>
+
+            <div className="sticky bottom-0 bg-white border-t border-gray-100 px-6 py-3 flex items-center justify-between gap-3">
+              <button
+                onClick={() => setEditing(null)}
+                className="text-sm text-gray-500 hover:text-gray-700"
+              >
+                Cancelar
+              </button>
+              <button
+                onClick={saveMaster}
+                disabled={saving || !editForm.nombreFantasia.trim()}
+                className="bg-blue-accent text-white px-5 py-2 rounded-lg text-sm font-medium hover:bg-blue-accent/90 transition disabled:opacity-50"
+              >
+                {saving ? "Guardando..." : (editing.masterId ? "Actualizar" : "Crear")}
+              </button>
+            </div>
+          </div>
+        </div>
       )}
     </div>
   );

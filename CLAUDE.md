@@ -111,6 +111,33 @@ OCR (Gemini) extrae además:
 - fechaVto si aparece
 - **moneda** ("ARS" / "USD") y **tipoCambio** si la factura está en USD
 
+### MASTER PROVEEDORES (ficha editable por proveedor)
+
+Tab `MASTER PROVEEDORES` dentro de `MASUNORI_ERP_CONFIG` (sheet `1YMIE_t1O5RBfXGwFQf7xzh-TeuPUV6SfIl4Smj2mk1g`). Es la fuente de verdad de la info comercial/contacto/banco de cada proveedor.
+
+Schema (17 cols A-Q):
+| ID | Nombre Sociedad | Nombre Fantasia | Contacto | CUIT | Forma de Pago | Alias o CBU | Titular Cuenta | Banco | Nro Cuenta Bancaria | Rubro | Plazo de Pago | Mail | Corroborado | Notas | ActualizadoEn | ActualizadoPor |
+
+Inicialmente se migran 88 proveedores desde `MADERO DEUDA AL DIA` (la fuente que el equipo replica manualmente a las otras sucursales). Una vez creado el MASTER, el panel `/administracion/proveedores`:
+- Hace JOIN entre la deuda agregada (DEUDA AL DIA de las 3 sucursales) y el MASTER por `nombreFantasia`/`razonSocial`.
+- Muestra info enriquecida (CUIT, mail, contacto, etc) en el expandido de cada fila.
+- Permite **editar la ficha master** desde el botón "✏️ Editar ficha master" o crear nueva ficha con "+ Nuevo proveedor".
+- Marca proveedores que están en deuda pero NO en master con badge "⚠️ sin master".
+- Tilde `Corroborado` para validar manualmente.
+- Filtro `⚠️ sin corroborar` para encontrar fichas pendientes.
+- Badge "✓" verde cuando los datos están corroborados.
+
+APIs:
+- `GET /api/erp/proveedores/master` — lista completa del master (cache 5 min). Requiere `facturas` o `proveedores`.
+- `POST /api/erp/proveedores/master` — upsert por id o por nombreFantasia. Requiere `proveedores`. Body completo de la ficha.
+- `DELETE /api/erp/proveedores/master?id=PROV-XXX` — limpia la fila (no la borra para mantener row indices).
+
+El picker de proveedores en `/administracion/facturas` ahora también lee de este master.
+
+Cache: 5 minutos in-memory. Cualquier upsert/delete invalida el cache automáticamente.
+
+Variable de entorno opcional: `ERP_CONFIG_SHEET_ID` (ya existe, mismo sheet que Usuarios y demás).
+
 ### Integración Proveedores ↔ Deuda Locales
 
 `/administracion/proveedores` consume el mismo análisis (`analyzeDeudaLocales` desde `lib/deuda-locales.ts`) que `/deuda-locales` y muestra:

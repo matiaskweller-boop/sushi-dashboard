@@ -2,6 +2,7 @@ import { NextRequest, NextResponse } from "next/server";
 import { requirePermissionApi } from "@/lib/admin-permissions";
 import { readSheetRaw, parseArs } from "@/lib/google";
 import { analyzeDeudaLocales } from "@/lib/deuda-locales";
+import { getAllMasterProveedores, buildLookupByName, MasterProveedor } from "@/lib/master-proveedores";
 
 const SHEET_IDS: Record<string, Record<string, string>> = {
   "2025": {
@@ -50,6 +51,16 @@ interface ProveedorMaster {
   centralizado?: boolean;          // este proveedor aparece en >1 sucursal con mismos montos
   centralizadoMontoExtra?: number; // suma de duplicados detectados
   centralizadoCount?: number;      // cuántas veces se duplicó
+  // Datos del MASTER PROVEEDORES (info adicional editable):
+  masterId?: string;
+  masterRowIdx?: number;
+  contacto?: string;
+  cuit?: string;
+  formaPago?: string;
+  titularCuenta?: string;
+  mail?: string;
+  corroborado?: boolean;
+  notas?: string;
 }
 
 function parseDeudaRows(rows: string[][]): ProveedorRow[] {
@@ -191,6 +202,72 @@ export async function GET(request: NextRequest) {
       }
     }
 
+    // ─── Enrich con MASTER PROVEEDORES (info adicional + proveedores sin deuda) ───
+    let masterList: MasterProveedor[] = [];
+    try {
+      masterList = await getAllMasterProveedores();
+      const lookup = buildLookupByName(masterList);
+
+      // 1. Enriquecer existentes con datos del master
+      for (const key of Object.keys(master)) {
+        const m = master[key];
+        const mp = lookup.get(m.proveedor.toUpperCase().trim())
+                  || lookup.get(m.razonSocial.toUpperCase().trim());
+        if (mp) {
+          m.masterId = mp.id;
+          m.masterRowIdx = mp.rowIdx;
+          if (mp.nombreSociedad) m.razonSocial = mp.nombreSociedad;
+          if (mp.aliasCbu) m.alias = mp.aliasCbu;
+          if (mp.banco) m.banco = mp.banco;
+          if (mp.nroCuenta) m.cbu = mp.nroCuenta;
+          if (mp.titularCuenta) m.agendado = mp.titularCuenta;
+          if (mp.rubro) m.producto = mp.rubro;
+          if (mp.plazoPago) m.plazoPago = mp.plazoPago;
+          m.contacto = mp.contacto;
+          m.cuit = mp.cuit;
+          m.formaPago = mp.formaPago;
+          m.titularCuenta = mp.titularCuenta;
+          m.mail = mp.mail;
+          m.corroborado = mp.corroborado;
+          m.notas = mp.notas;
+        }
+      }
+
+      // 2. Agregar proveedores que solo están en MASTER (sin deuda en ningún sheet)
+      for (const mp of masterList) {
+        const key = normalizeProveedor(mp.nombreFantasia);
+        if (key && !master[key]) {
+          master[key] = {
+            proveedor: mp.nombreFantasia,
+            razonSocial: mp.nombreSociedad,
+            alias: mp.aliasCbu,
+            banco: mp.banco,
+            cbu: mp.nroCuenta,
+            agendado: mp.titularCuenta,
+            producto: mp.rubro,
+            plazoPago: mp.plazoPago,
+            aclaracion: "",
+            porSucursal: {},
+            totalDeuda: 0,
+            totalDeuda2026: 0,
+            totalDeuda2025: 0,
+            sucursalesConDeuda: 0,
+            masterId: mp.id,
+            masterRowIdx: mp.rowIdx,
+            contacto: mp.contacto,
+            cuit: mp.cuit,
+            formaPago: mp.formaPago,
+            titularCuenta: mp.titularCuenta,
+            mail: mp.mail,
+            corroborado: mp.corroborado,
+            notas: mp.notas,
+          };
+        }
+      }
+    } catch (e) {
+      console.warn("[proveedores] no se pudo cargar master:", e);
+    }
+
     let proveedores = Object.values(master).sort((a, b) => b.totalDeuda - a.totalDeuda);
 
     // ─── Integracion con deuda-locales ───
@@ -271,6 +348,12 @@ export async function GET(request: NextRequest) {
       }
     }
 
+    // Stats del master
+    const enMaster = proveedores.filter((p) => p.masterId).length;
+    const sinMaster = proveedores.length - enMaster;
+    const corroborados = proveedores.filter((p) => p.corroborado).length;
+    const sinCorroborar = enMaster - corroborados;
+
     return NextResponse.json({
       year,
       proveedores,
@@ -282,6 +365,13 @@ export async function GET(request: NextRequest) {
       plazos,
       porSucursal,
       interSucursal: interSucursalSummary, // null si falla
+      master: {
+        totalEnMaster: masterList.length,
+        enMaster,
+        sinMaster,
+        corroborados,
+        sinCorroborar,
+      },
     });
   } catch (e) {
     console.error("ERP proveedores error:", e);

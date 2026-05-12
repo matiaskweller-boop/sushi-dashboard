@@ -1,91 +1,82 @@
 import { NextRequest, NextResponse } from "next/server";
 import { requirePermissionApi } from "@/lib/admin-permissions";
-import { readSheetRaw } from "@/lib/google";
+import {
+  getAllMasterProveedores,
+  upsertMasterProveedor,
+  deleteMasterProveedor,
+  MasterProveedor,
+} from "@/lib/master-proveedores";
 
 export const runtime = "nodejs";
-
-const SHEET_IDS_2026: Record<string, string> = {
-  palermo: process.env.SHEET_PALERMO_2026 || "",
-  belgrano: process.env.SHEET_BELGRANO_2026 || "",
-  madero: process.env.SHEET_MADERO_2026 || "",
-};
-
-interface ProveedorMaster {
-  proveedor: string;       // nombre comercial / display name
-  razonSocial: string;
-  cuit: string;
-  alias: string;
-  banco: string;
-  cbu: string;
-  producto: string;
-  plazoPago: string;
-}
-
-let cache: { list: ProveedorMaster[]; expiresAt: number } | null = null;
-const TTL = 10 * 60 * 1000;
 
 /**
  * GET /api/erp/proveedores/master
  *
- * Devuelve lista deduplicada de proveedores conocidos desde DEUDA AL DIA
- * de las 3 sucursales. Útil para el combobox/picker en /administracion/facturas.
+ * Devuelve TODOS los proveedores del MASTER PROVEEDORES (tab del
+ * workbook MASUNORI_ERP_CONFIG). Schema completo con CUIT, mail,
+ * contacto, banco, alias, etc.
  *
- * NOTA: difiere de /api/erp/proveedores (que da deuda agregada) — esta es
- * solo el master simple para el picker, sin cálculos de deuda.
+ * Usado por: picker en /administracion/facturas + panel proveedores.
  */
 export async function GET(request: NextRequest) {
-  // Disponible para cualquier user con `facturas` permission
+  // `facturas` permission cubre el caso del picker en facturas.
+  // Si el user llega desde panel proveedores tambien lo deja pasar via proveedores.
   const auth = await requirePermissionApi(request, "facturas");
-  if (!auth.ok) return auth.response;
-
-  if (cache && cache.expiresAt > Date.now()) {
-    return NextResponse.json({ proveedores: cache.list, cached: true });
+  if (!auth.ok) {
+    const authAlt = await requirePermissionApi(request, "proveedores");
+    if (!authAlt.ok) return authAlt.response;
   }
 
   try {
-    const map = new Map<string, ProveedorMaster>();
-
-    await Promise.all(
-      Object.values(SHEET_IDS_2026).map(async (sheetId) => {
-        if (!sheetId) return;
-        try {
-          const rows = await readSheetRaw(sheetId, "DEUDA AL DIA!A1:L200");
-          // Skip header rows (row 0 = banner, row 1 = headers)
-          for (const row of rows.slice(2)) {
-            const proveedor = (row[0] || "").toString().trim();
-            if (!proveedor || proveedor.length < 2) continue;
-
-            const key = proveedor.toUpperCase();
-            const existing = map.get(key);
-            const data: ProveedorMaster = {
-              proveedor,
-              razonSocial: (row[6] || existing?.razonSocial || "").toString().trim(),
-              cuit: extractCuit((row[6] || "").toString() + " " + (row[7] || "").toString()) || existing?.cuit || "",
-              alias: (row[5] || existing?.alias || "").toString().trim(),
-              banco: (row[7] || existing?.banco || "").toString().trim(),
-              cbu: (row[8] || existing?.cbu || "").toString().trim(),
-              producto: (row[10] || existing?.producto || "").toString().trim(),
-              plazoPago: (row[11] || existing?.plazoPago || "").toString().trim(),
-            };
-            map.set(key, data);
-          }
-        } catch (e) {
-          console.warn("master proveedores", e);
-        }
-      })
-    );
-
-    const list = Array.from(map.values()).sort((a, b) => a.proveedor.localeCompare(b.proveedor));
-    cache = { list, expiresAt: Date.now() + TTL };
-    return NextResponse.json({ proveedores: list, cached: false });
+    const all = await getAllMasterProveedores();
+    return NextResponse.json({ proveedores: all, total: all.length });
   } catch (e) {
-    console.error("master proveedores error:", e);
+    console.error("master proveedores GET:", e);
     return NextResponse.json({ error: e instanceof Error ? e.message : "Error" }, { status: 500 });
   }
 }
 
-function extractCuit(text: string): string {
-  const m = text.match(/(\d{2})[\s-]?(\d{8})[\s-]?(\d{1})/);
-  if (m) return `${m[1]}-${m[2]}-${m[3]}`;
-  return "";
+/**
+ * POST /api/erp/proveedores/master
+ *
+ * Crea o actualiza un proveedor en el MASTER.
+ * Match por id (si se manda) o por nombreFantasia (case-insensitive).
+ */
+export async function POST(request: NextRequest) {
+  const auth = await requirePermissionApi(request, "proveedores");
+  if (!auth.ok) return auth.response;
+
+  try {
+    const body = await request.json();
+    if (!body.nombreFantasia || body.nombreFantasia.trim().length < 2) {
+      return NextResponse.json({ error: "nombreFantasia es requerido" }, { status: 400 });
+    }
+    const result = await upsertMasterProveedor(body as Partial<MasterProveedor> & { nombreFantasia: string }, auth.user.email);
+    return NextResponse.json(result);
+  } catch (e) {
+    console.error("master proveedores POST:", e);
+    return NextResponse.json({ error: e instanceof Error ? e.message : "Error" }, { status: 500 });
+  }
+}
+
+/**
+ * DELETE /api/erp/proveedores/master?id=PROV-XXX
+ *
+ * Borra (limpia la fila) del MASTER.
+ */
+export async function DELETE(request: NextRequest) {
+  const auth = await requirePermissionApi(request, "proveedores");
+  if (!auth.ok) return auth.response;
+
+  try {
+    const url = new URL(request.url);
+    const id = url.searchParams.get("id");
+    if (!id) return NextResponse.json({ error: "id requerido" }, { status: 400 });
+    const ok = await deleteMasterProveedor(id);
+    if (!ok) return NextResponse.json({ error: `Proveedor ${id} no encontrado` }, { status: 404 });
+    return NextResponse.json({ success: true, deleted: id });
+  } catch (e) {
+    console.error("master proveedores DELETE:", e);
+    return NextResponse.json({ error: e instanceof Error ? e.message : "Error" }, { status: 500 });
+  }
 }
