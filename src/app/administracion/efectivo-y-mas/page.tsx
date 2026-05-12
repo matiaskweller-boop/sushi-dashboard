@@ -285,20 +285,39 @@ export default function EfectivoYMasPage() {
                 className="w-full border border-gray-200 rounded-lg px-3 py-2 text-sm focus:outline-none focus:border-blue-accent"
               />
             </div>
-            <div>
+            <div className="md:col-span-2 lg:col-span-2">
               <label className="text-[11px] text-gray-500 uppercase block mb-1">Quién hizo *</label>
               <input
                 type="text"
                 value={fQuien}
                 onChange={(e) => setFQuien(e.target.value)}
                 required
-                list="socios-list"
-                placeholder="ej MATIAS KWELLER"
+                placeholder="o escribí el nombre"
                 className="w-full border border-gray-200 rounded-lg px-3 py-2 text-sm uppercase focus:outline-none focus:border-blue-accent"
               />
-              <datalist id="socios-list">
-                {data?.socios.map((s) => <option key={s} value={s} />)}
-              </datalist>
+              <div className="flex flex-wrap gap-1.5 mt-1.5">
+                {(() => {
+                  const presets = ["MATIAS KWELLER", "VALENTIN TOBAL", "LUCAS TOBAL", "AGUSTIN TOBAL", "ENRICO MARTELLA", "GABRIELA GERENTE"];
+                  const merged = Array.from(new Set([
+                    ...presets,
+                    ...(data?.socios || []).map((s) => s.toUpperCase()),
+                  ]));
+                  return merged.map((s) => (
+                    <button
+                      key={s}
+                      type="button"
+                      onClick={() => setFQuien(s)}
+                      className={`text-[11px] px-2 py-1 rounded-md border transition ${
+                        fQuien.toUpperCase() === s
+                          ? "bg-blue-accent text-white border-blue-accent"
+                          : "bg-gray-50 text-gray-600 border-gray-200 hover:border-blue-accent hover:text-blue-accent"
+                      }`}
+                    >
+                      {s}
+                    </button>
+                  ));
+                })()}
+              </div>
             </div>
             <div>
               <label className="text-[11px] text-gray-500 uppercase block mb-1">Local *</label>
@@ -335,33 +354,89 @@ export default function EfectivoYMasPage() {
                 className="w-full border border-gray-200 rounded-lg px-3 py-2 text-sm focus:outline-none focus:border-blue-accent"
               />
             </div>
-            <div>
+            <div className="md:col-span-3 lg:col-span-2">
               <label className="text-[11px] text-gray-500 uppercase block mb-1">Caja</label>
               <input
                 type="text"
                 value={fCaja}
                 onChange={(e) => setFCaja(e.target.value)}
-                list="cajas-list"
-                placeholder="PALERMO / PEZ / CONSUMO"
+                placeholder="o escribí la tuya"
                 className="w-full border border-gray-200 rounded-lg px-3 py-2 text-sm uppercase focus:outline-none focus:border-blue-accent"
               />
-              <datalist id="cajas-list">
-                {data?.cajas.map((c) => <option key={c} value={c} />)}
-              </datalist>
+              <div className="flex flex-wrap gap-1.5 mt-1.5">
+                {(() => {
+                  const presets = ["PALERMO", "BELGRANO", "MADERO", "PEZ", "CONSUMO"];
+                  const merged = Array.from(new Set([
+                    ...presets,
+                    ...(data?.cajas || []),
+                  ].map((s) => s.toUpperCase())));
+                  return merged.map((c) => (
+                    <button
+                      key={c}
+                      type="button"
+                      onClick={() => setFCaja(c)}
+                      className={`text-[11px] px-2 py-1 rounded-md border transition ${
+                        fCaja.toUpperCase() === c
+                          ? "bg-blue-accent text-white border-blue-accent"
+                          : "bg-gray-50 text-gray-600 border-gray-200 hover:border-blue-accent hover:text-blue-accent"
+                      }`}
+                    >
+                      {c}
+                    </button>
+                  ));
+                })()}
+                {fCaja && (
+                  <button
+                    type="button"
+                    onClick={() => setFCaja("")}
+                    className="text-[11px] px-2 py-1 rounded-md text-gray-400 hover:text-red-500"
+                  >
+                    ✕ limpiar
+                  </button>
+                )}
+              </div>
             </div>
-            <div>
+            <div className="md:col-span-3 lg:col-span-2">
               <label className="text-[11px] text-gray-500 uppercase block mb-1">Medio de Pago</label>
               <input
                 type="text"
                 value={fMedioPago}
                 onChange={(e) => setFMedioPago(e.target.value)}
-                list="medios-list"
-                placeholder="EFECTIVO / BBVA / etc"
+                placeholder="o escribí el tuyo"
                 className="w-full border border-gray-200 rounded-lg px-3 py-2 text-sm uppercase focus:outline-none focus:border-blue-accent"
               />
-              <datalist id="medios-list">
-                {data?.mediosPago.map((m) => <option key={m} value={m} />)}
-              </datalist>
+              <div className="flex flex-wrap gap-1.5 mt-1.5">
+                {(() => {
+                  const presets = ["EFECTIVO", "CC", "CASH", "TRANSFERENCIA", "BBVA", "MERCADO PAGO", "CONSUMO"];
+                  const merged = Array.from(new Set([
+                    ...presets,
+                    ...(data?.mediosPago || []),
+                  ].map((s) => s.toUpperCase())));
+                  return merged.map((m) => (
+                    <button
+                      key={m}
+                      type="button"
+                      onClick={() => setFMedioPago(m)}
+                      className={`text-[11px] px-2 py-1 rounded-md border transition ${
+                        fMedioPago.toUpperCase() === m
+                          ? "bg-blue-accent text-white border-blue-accent"
+                          : "bg-gray-50 text-gray-600 border-gray-200 hover:border-blue-accent hover:text-blue-accent"
+                      }`}
+                    >
+                      {m}
+                    </button>
+                  ));
+                })()}
+                {fMedioPago && (
+                  <button
+                    type="button"
+                    onClick={() => setFMedioPago("")}
+                    className="text-[11px] px-2 py-1 rounded-md text-gray-400 hover:text-red-500"
+                  >
+                    ✕ limpiar
+                  </button>
+                )}
+              </div>
             </div>
             <div className="md:col-span-3 lg:col-span-4">
               <label className="text-[11px] text-gray-500 uppercase block mb-1">Cómo se imputa</label>
