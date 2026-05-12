@@ -162,14 +162,17 @@ function ProveedorPicker({
   onChange,
   proveedores,
   ocrSuggestion,
+  onCreated,
 }: {
   value: string;
   onChange: (proveedor: string, match?: ProveedorMaster) => void;
   proveedores: ProveedorMaster[];
   ocrSuggestion?: { razonSocial: string; cuit: string; proveedorRaw: string };
+  onCreated?: () => void;
 }) {
   const [open, setOpen] = useState(false);
   const [search, setSearch] = useState(value);
+  const [creating, setCreating] = useState(false);
   const containerRef = useRef<HTMLDivElement>(null);
 
   useEffect(() => { setSearch(value); }, [value]);
@@ -244,11 +247,146 @@ function ProveedorPicker({
           {showCreateOption && (
             <button
               type="button"
-              onClick={() => { onChange(search.trim()); setOpen(false); }}
-              className="block w-full text-left px-3 py-2 text-sm hover:bg-emerald-50 bg-emerald-50/30 border-t border-emerald-200"
+              disabled={creating}
+              onClick={async () => {
+                const name = search.trim();
+                if (!name) return;
+                setCreating(true);
+                try {
+                  const res = await fetch("/api/erp/proveedores/master", {
+                    method: "POST",
+                    headers: { "Content-Type": "application/json" },
+                    body: JSON.stringify({
+                      nombreFantasia: name,
+                      nombreSociedad: ocrSuggestion?.razonSocial || "",
+                      cuit: ocrSuggestion?.cuit || "",
+                    }),
+                  });
+                  const j = await res.json();
+                  if (j.error) throw new Error(j.error);
+                  // j.proveedor tiene el master completo
+                  const master = j.proveedor as ProveedorMaster;
+                  onChange(master.nombreFantasia, master);
+                  setSearch(master.nombreFantasia);
+                  setOpen(false);
+                  onCreated?.();
+                } catch (e) {
+                  alert("Error creando proveedor: " + (e instanceof Error ? e.message : "Error"));
+                } finally {
+                  setCreating(false);
+                }
+              }}
+              className="block w-full text-left px-3 py-2 text-sm hover:bg-emerald-50 bg-emerald-50/30 border-t border-emerald-200 disabled:opacity-50"
             >
-              <span className="text-emerald-700 font-medium">+ Usar como proveedor nuevo: </span>
+              <span className="text-emerald-700 font-medium">
+                {creating ? "Creando..." : "+ Crear proveedor nuevo: "}
+              </span>
               <span className="text-emerald-700 font-mono">{search.trim()}</span>
+              <div className="text-[10px] text-emerald-600 mt-0.5">se guarda en MASTER PROVEEDORES (después completá los datos desde Proveedores)</div>
+            </button>
+          )}
+        </div>
+      )}
+    </div>
+  );
+}
+
+/**
+ * Combobox de rubro: busca en el MASTER RUBROS, permite crear uno nuevo
+ * (se persiste al master via API). El callback onChange recibe el nombre.
+ */
+function RubroPicker({
+  value,
+  onChange,
+  rubros,
+  onCreated,
+}: {
+  value: string;
+  onChange: (rubro: string) => void;
+  rubros: string[];
+  onCreated?: (newRubro: string) => void;
+}) {
+  const [open, setOpen] = useState(false);
+  const [search, setSearch] = useState(value);
+  const [creating, setCreating] = useState(false);
+  const containerRef = useRef<HTMLDivElement>(null);
+  useEffect(() => { setSearch(value); }, [value]);
+  useEffect(() => {
+    function onClick(e: MouseEvent) {
+      if (containerRef.current && !containerRef.current.contains(e.target as Node)) setOpen(false);
+    }
+    document.addEventListener("mousedown", onClick);
+    return () => document.removeEventListener("mousedown", onClick);
+  }, []);
+
+  const filtered = useMemo(() => {
+    const q = search.trim().toLowerCase();
+    if (!q) return rubros.slice(0, 60);
+    return rubros.filter((r) => r.toLowerCase().includes(q)).slice(0, 60);
+  }, [rubros, search]);
+  const exact = filtered.find((r) => r.toLowerCase() === search.trim().toLowerCase());
+  const showCreate = search.trim().length >= 2 && !exact;
+
+  const createRubro = async () => {
+    const name = search.trim();
+    if (!name) return;
+    setCreating(true);
+    try {
+      const res = await fetch("/api/erp/rubros", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ rubro: name }),
+      });
+      const j = await res.json();
+      if (j.error) throw new Error(j.error);
+      onChange(j.rubro.rubro);
+      setSearch(j.rubro.rubro);
+      setOpen(false);
+      onCreated?.(j.rubro.rubro);
+    } catch (e) {
+      alert("Error creando rubro: " + (e instanceof Error ? e.message : "Error"));
+    } finally {
+      setCreating(false);
+    }
+  };
+
+  return (
+    <div ref={containerRef} className="relative">
+      <input
+        type="text"
+        value={search}
+        onChange={(e) => { setSearch(e.target.value); onChange(e.target.value); setOpen(true); }}
+        onFocus={() => setOpen(true)}
+        placeholder="Buscar rubro existente o crear uno nuevo..."
+        className="w-full border border-gray-200 rounded-lg px-3 py-2 text-sm"
+      />
+      {open && (
+        <div className="absolute z-50 w-full mt-1 bg-white border border-gray-200 rounded-lg shadow-lg max-h-72 overflow-y-auto">
+          {filtered.length === 0 && !showCreate && (
+            <div className="px-3 py-2 text-xs text-gray-400">No hay rubros en el master</div>
+          )}
+          {filtered.map((r) => (
+            <button
+              key={r}
+              type="button"
+              onClick={() => { onChange(r); setSearch(r); setOpen(false); }}
+              className="block w-full text-left px-3 py-2 text-sm hover:bg-blue-50 border-b border-gray-50"
+            >
+              {r}
+            </button>
+          ))}
+          {showCreate && (
+            <button
+              type="button"
+              onClick={createRubro}
+              disabled={creating}
+              className="block w-full text-left px-3 py-2 text-sm hover:bg-emerald-50 bg-emerald-50/30 border-t border-emerald-200 disabled:opacity-50"
+            >
+              <span className="text-emerald-700 font-medium">
+                {creating ? "Creando..." : "+ Crear rubro nuevo: "}
+              </span>
+              <span className="text-emerald-700 font-mono">{search.trim()}</span>
+              <div className="text-[10px] text-emerald-600 mt-0.5">se guarda en MASTER RUBROS</div>
             </button>
           )}
         </div>
@@ -279,6 +417,34 @@ export default function FacturasPage() {
 
   // Proveedores master (cargados de DEUDA AL DIA, cache 10 min server-side)
   const [proveedoresMaster, setProveedoresMaster] = useState<ProveedorMaster[]>([]);
+
+  // Rubros master (cargados al montar)
+  const [rubrosMaster, setRubrosMaster] = useState<string[]>([]);
+  const fetchRubros = () => {
+    fetch("/api/erp/rubros")
+      .then((r) => r.json())
+      .then((d) => {
+        if (Array.isArray(d.rubros)) {
+          const activos = d.rubros.filter((r: { activo: boolean }) => r.activo).map((r: { rubro: string }) => r.rubro);
+          // Merge con hardcoded fallback (para que no falte ninguno)
+          const merged = Array.from(new Set([...activos, ...RUBROS]));
+          merged.sort((a, b) => a.localeCompare(b));
+          setRubrosMaster(merged);
+        }
+      })
+      .catch((e) => {
+        console.warn("rubros master:", e);
+        setRubrosMaster([...RUBROS].sort());
+      });
+  };
+  const fetchProveedores = () => {
+    fetch("/api/erp/proveedores/master")
+      .then((r) => r.json())
+      .then((d) => {
+        if (Array.isArray(d.proveedores)) setProveedoresMaster(d.proveedores);
+      })
+      .catch((e) => console.warn("master proveedores:", e));
+  };
 
   // List/queue state
   const [listData, setListData] = useState<ListResponse | null>(null);
@@ -311,14 +477,11 @@ export default function FacturasPage() {
     fetchList(); /* eslint-disable-next-line react-hooks/exhaustive-deps */
   }, [scope, estadoFilter]);
 
-  // Cargar master de proveedores una vez al montar
+  // Cargar masters (proveedores + rubros) al montar
   useEffect(() => {
-    fetch("/api/erp/proveedores/master")
-      .then((r) => r.json())
-      .then((d) => {
-        if (Array.isArray(d.proveedores)) setProveedoresMaster(d.proveedores);
-      })
-      .catch((e) => console.warn("master proveedores:", e));
+    fetchProveedores();
+    fetchRubros();
+    // eslint-disable-next-line react-hooks/exhaustive-deps
   }, []);
 
   // Auto-default scope basado en si es approver
@@ -754,6 +917,7 @@ export default function FacturasPage() {
                         cuit: ocrResult.cuit,
                         proveedorRaw: ocrResult.proveedor,
                       } : undefined}
+                      onCreated={() => fetchProveedores()}
                     />
                     {(() => {
                       const matched = proveedoresMaster.find((p) => p.nombreFantasia.toLowerCase() === editing.proveedor.toLowerCase());
@@ -828,12 +992,15 @@ export default function FacturasPage() {
                   </div>
 
                   <div>
-                    <label className="text-xs text-gray-500 uppercase">Rubro *</label>
-                    <select value={editing.rubro} onChange={(e) => updateEditField("rubro", e.target.value)}
-                      className="w-full border border-gray-200 rounded-lg px-3 py-2 text-sm bg-white">
-                      <option value="">— Seleccionar —</option>
-                      {RUBROS.map((r) => <option key={r} value={r}>{r}</option>)}
-                    </select>
+                    <label className="text-xs text-gray-500 uppercase">
+                      Rubro * <span className="text-[10px] text-gray-400 normal-case">— buscá del master o creá uno nuevo</span>
+                    </label>
+                    <RubroPicker
+                      value={editing.rubro}
+                      onChange={(r) => updateEditField("rubro", r)}
+                      rubros={rubrosMaster}
+                      onCreated={() => fetchRubros()}
+                    />
                   </div>
 
                   <div>
@@ -1260,6 +1427,7 @@ export default function FacturasPage() {
                                           }
                                         }}
                                         proveedores={proveedoresMaster}
+                                        onCreated={() => fetchProveedores()}
                                       />
                                     ) : (
                                       <div className="border border-gray-200 rounded-md px-2 py-1 text-xs font-medium bg-gray-50">{editingFactura.proveedor}</div>
@@ -1307,11 +1475,16 @@ export default function FacturasPage() {
                                   </div>
                                   <div>
                                     <label className="text-gray-500 block">Rubro</label>
-                                    <select value={editingFactura.rubro} disabled={f.estado !== "pendiente"}
-                                      onChange={(e) => updateFacturaEditField("rubro", e.target.value)}
-                                      className="w-full border border-gray-200 rounded-md px-2 py-1 text-xs disabled:bg-gray-50">
-                                      {RUBROS.map((r) => <option key={r}>{r}</option>)}
-                                    </select>
+                                    {f.estado === "pendiente" ? (
+                                      <RubroPicker
+                                        value={editingFactura.rubro}
+                                        onChange={(r) => updateFacturaEditField("rubro", r)}
+                                        rubros={rubrosMaster}
+                                        onCreated={() => fetchRubros()}
+                                      />
+                                    ) : (
+                                      <div className="border border-gray-200 rounded-md px-2 py-1 text-xs bg-gray-50 text-gray-600">{editingFactura.rubro}</div>
+                                    )}
                                   </div>
                                   <div>
                                     <label className="text-gray-500 block">Insumo</label>
