@@ -972,6 +972,33 @@ export default function FacturasPage() {
                     })()}
                   </div>
 
+                  {/* Razón social + CUIT del CLIENTE (proveedor emisor) — editables */}
+                  <div className="grid grid-cols-1 md:grid-cols-2 gap-2">
+                    <div>
+                      <label className="text-xs text-gray-500 uppercase">
+                        Razón social cliente
+                        <span className="text-[10px] text-gray-400 normal-case"> — legal del proveedor</span>
+                      </label>
+                      <input
+                        type="text"
+                        value={editing.razonSocial}
+                        onChange={(e) => updateEditField("razonSocial", e.target.value)}
+                        placeholder="ej MERCADOLIBRE S.R.L."
+                        className="w-full border border-gray-200 rounded-lg px-3 py-2 text-sm"
+                      />
+                    </div>
+                    <div>
+                      <label className="text-xs text-gray-500 uppercase">CUIT</label>
+                      <input
+                        type="text"
+                        value={editing.cuit}
+                        onChange={(e) => updateEditField("cuit", e.target.value)}
+                        placeholder="30-12345678-9"
+                        className="w-full border border-gray-200 rounded-lg px-3 py-2 text-sm font-mono"
+                      />
+                    </div>
+                  </div>
+
                   {/* Razón social del RECEPTOR (la sociedad NUESTRA: Tobet/Pro Vegan/Icono) */}
                   <div>
                     <label className="text-xs text-gray-500 uppercase">

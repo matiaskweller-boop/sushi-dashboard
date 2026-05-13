@@ -63,15 +63,34 @@ async function smartAppendToEgresos(
   const lastDataRow = await findLastDataRow(spreadsheetId, tabName, "E", 2);
   const startRow = lastDataRow + 1;
   const endRow = startRow + values.length - 1;
-  // Cols A-V (22 cols, incluyendo nueva V = RAZON SOCIAL PROPIA)
-  const range = `'${tabName}'!A${startRow}:V${endRow}`;
+
+  // Las filas vienen con 23 elementos:
+  //   índice 0-21 (cols A-V): datos principales + RAZON SOCIAL PROPIA en V
+  //   índice 22 (col X): RAZON SOCIAL CLIENTE
+  // Saltamos col W porque Palermo la usa para "Numeracion" (formula). Si pisaramos W
+  // con un valor o vacio, romperíamos la secuencia/formula de Palermo.
+  // Por eso hacemos DOS escrituras separadas: A:V y luego X:X.
+  const rowsAV = values.map((r) => r.slice(0, 22)); // cols A-V (22 valores)
+  const rowsX = values.map((r) => [r[22] || ""]);   // col X (1 valor)
+
+  // 1. Write A:V (22 cols principales incluyendo razon social propia)
   await sheets.spreadsheets.values.update({
     spreadsheetId,
-    range,
+    range: `'${tabName}'!A${startRow}:V${endRow}`,
     valueInputOption: "USER_ENTERED",
-    requestBody: { values },
+    requestBody: { values: rowsAV },
   });
-  return range;
+
+  // 2. Write X:X (razon social cliente) — separado para no tocar W
+  await sheets.spreadsheets.values.update({
+    spreadsheetId,
+    range: `'${tabName}'!X${startRow}:X${endRow}`,
+    valueInputOption: "USER_ENTERED",
+    requestBody: { values: rowsX },
+  });
+
+  // Range principal para el coloring (A:V de la primera fila)
+  return `'${tabName}'!A${startRow}:V${endRow}`;
 }
 
 const MES_NOMBRES = [
@@ -357,22 +376,25 @@ function buildEgresosRows(
   const tipo = f.tipoComprobante || "";
   const nro = f.nroComprobante || "";
   const proveedor = proveedorCanonico;
-  // Razón social propia (NUESTRA): Tobet / Pro Vegan / Icono. La toma directo
-  // del campo razonSocialReceptor de la factura (extraído por OCR), y como
-  // fallback usa el mapeo según la sucursal.
-  const SUC_TO_SOCIEDAD_LOCAL: Record<string, string> = {
-    palermo: "Tobet",
-    belgrano: "Pro Vegan",
-    madero: "Icono",
-  };
-  const razonSocialPropia = (f.razonSocialReceptor && f.razonSocialReceptor.trim())
-    || SUC_TO_SOCIEDAD_LOCAL[f.sucursal]
-    || "";
+
+  // Razón social propia (NUESTRA): Tobet / Pro Vegan / Icono.
+  // CRITICO: usamos EXACTAMENTE lo que el OCR detectó (o lo que el user
+  // edito en el panel). NO hacemos fallback al mapeo de sucursal porque
+  // queremos que si hay mismatch (factura Tobet cargada en Madero) se
+  // vea TOBET en el sheet en lugar de ICONO. Asi el error queda visible
+  // para auditar y corregir manualmente.
+  const razonSocialPropia = (f.razonSocialReceptor || "").trim();
+
+  // Razón social del CLIENTE (el proveedor que emite la factura).
+  // Preferir el master DATOS (legal completo) si hicimos match, sino lo
+  // que vino de la factura (OCR).
+  const razonSocialCliente = (masterMatch?.nombreSociedad || f.razonSocial || "").trim();
 
   const validItems = (f.items || []).filter((i) => i.descripcion && (i.subtotal > 0 || i.cantidad > 0));
 
-  // Helper para construir una fila completa con 22 columnas (A-V).
-  // Col V = RAZON SOCIAL PROPIA (nueva, agregada 2026-05-13)
+  // Helper para construir una fila completa con 23 columnas (A-W).
+  // Col V = RAZON SOCIAL PROPIA (Tobet/Pro Vegan/Icono — NUESTRA, receptor)
+  // Col W = RAZON SOCIAL CLIENTE (legal completa del proveedor emisor)
   const makeRow = (
     rubro: string,
     insumo: string,
@@ -403,7 +425,8 @@ function buildEgresosRows(
       "$1,00",                            // S UM (constante del sheet)
       "",                                 // T INGRESO SUCURSAL (vacio, fórmula del sheet)
       formatArs(precioConIva),            // U precio Un con IVA
-      razonSocialPropia,                  // V RAZON SOCIAL PROPIA (Tobet/Pro Vegan/Icono)
+      razonSocialPropia,                  // V RAZON SOCIAL PROPIA (lo que dice la factura)
+      razonSocialCliente,                 // W RAZON SOCIAL CLIENTE (legal del proveedor)
     ];
   };
 
