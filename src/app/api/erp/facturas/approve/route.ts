@@ -56,6 +56,7 @@ async function smartAppendToEgresos(
   // eslint-disable-next-line @typescript-eslint/no-unused-vars
   _hint: string,
   values: string[][],
+  razonSocialPropia?: string,
 ): Promise<string> {
   const sheets = getSheets();
   const tabName = await resolveEgresosTabName(spreadsheetId);
@@ -64,33 +65,32 @@ async function smartAppendToEgresos(
   const startRow = lastDataRow + 1;
   const endRow = startRow + values.length - 1;
 
-  // Las filas vienen con 23 elementos:
-  //   índice 0-21 (cols A-V): datos principales + RAZON SOCIAL PROPIA en V
-  //   índice 22 (col X): RAZON SOCIAL CLIENTE
-  // Saltamos col W porque Palermo la usa para "Numeracion" (formula). Si pisaramos W
-  // con un valor o vacio, romperíamos la secuencia/formula de Palermo.
-  // Por eso hacemos DOS escrituras separadas: A:V y luego X:X.
-  const rowsAV = values.map((r) => r.slice(0, 22)); // cols A-V (22 valores)
-  const rowsX = values.map((r) => [r[22] || ""]);   // col X (1 valor)
+  // Hacemos DOS escrituras separadas para no pisar la col W (Palermo tiene
+  // formulas de "Numeracion" ahi):
+  //   1. A:U → 21 cols principales con datos de la factura
+  //   2. X:X → RAZON SOCIAL PROPIA (Tobet SRL / Pro Vegan SAS / Icono SAS)
 
-  // 1. Write A:V (22 cols principales incluyendo razon social propia)
+  // 1. Write A:U
   await sheets.spreadsheets.values.update({
     spreadsheetId,
-    range: `'${tabName}'!A${startRow}:V${endRow}`,
+    range: `'${tabName}'!A${startRow}:U${endRow}`,
     valueInputOption: "USER_ENTERED",
-    requestBody: { values: rowsAV },
+    requestBody: { values },
   });
 
-  // 2. Write X:X (razon social cliente) — separado para no tocar W
-  await sheets.spreadsheets.values.update({
-    spreadsheetId,
-    range: `'${tabName}'!X${startRow}:X${endRow}`,
-    valueInputOption: "USER_ENTERED",
-    requestBody: { values: rowsX },
-  });
+  // 2. Write X:X con razon social propia (misma en todas las filas de la factura)
+  if (razonSocialPropia) {
+    const rowsX = values.map(() => [razonSocialPropia]);
+    await sheets.spreadsheets.values.update({
+      spreadsheetId,
+      range: `'${tabName}'!X${startRow}:X${endRow}`,
+      valueInputOption: "USER_ENTERED",
+      requestBody: { values: rowsX },
+    });
+  }
 
-  // Range principal para el coloring (A:V de la primera fila)
-  return `'${tabName}'!A${startRow}:V${endRow}`;
+  // Range principal para el coloring (solo cols A:U de la primera fila)
+  return `'${tabName}'!A${startRow}:U${endRow}`;
 }
 
 const MES_NOMBRES = [
@@ -310,43 +310,32 @@ function buildEgresosRows(
   datosss: DatosssLists,
   masterProveedores: MasterProveedor[],
 ): string[][] {
-  // ─── Lookup en DATOS master: matchear proveedor por nombre/razón social ───
-  // Esto nos da el nombre canónico que coincide con el dropdown del sheet de
-  // sucursal, además del rubro/producto asociado y el plazo de pago.
+  // ─── Lookup en DATOS master: matchear SOLO por exact match ───
+  // CRITICO: solo exact match (case-insensitive). Antes había fuzzy/contains
+  // que producía falsos positivos espectaculares (ej. SLAKE → BORDADOS ZETA).
+  // Si no hay match exacto, NO replaceamos el proveedor — usamos lo que vino
+  // exacto de la factura/del user.
   const provInput = (f.proveedor || "").toUpperCase().trim();
   const razonInput = (f.razonSocial || "").toUpperCase().trim();
   let masterMatch: MasterProveedor | null = null;
   for (const mp of masterProveedores) {
-    const nf = mp.nombreFantasia.toUpperCase();
-    const ns = mp.nombreSociedad.toUpperCase();
-    if (provInput && (nf === provInput || ns === provInput || nf.includes(provInput) || provInput.includes(nf))) {
+    const nf = mp.nombreFantasia.toUpperCase().trim();
+    const ns = mp.nombreSociedad.toUpperCase().trim();
+    // Solo match EXACTO — no contains, no fuzzy
+    if (provInput && (nf === provInput || ns === provInput)) {
       masterMatch = mp;
       break;
     }
-    if (razonInput && (ns === razonInput || nf === razonInput || ns.includes(razonInput) || razonInput.includes(ns))) {
+    if (razonInput && (ns === razonInput || nf === razonInput)) {
       masterMatch = mp;
       break;
-    }
-  }
-  // Si no hay match exacto, fuzzy por palabras
-  if (!masterMatch && provInput) {
-    const inputWords = provInput.split(/\s+/).filter((w) => w.length > 2);
-    let bestScore = 0;
-    for (const mp of masterProveedores) {
-      const nfWords = mp.nombreFantasia.toUpperCase().split(/\s+/);
-      const nsWords = mp.nombreSociedad.toUpperCase().split(/\s+/);
-      const allWords = new Set([...nfWords, ...nsWords]);
-      const matches = inputWords.filter((w) => allWords.has(w)).length;
-      if (matches > bestScore && matches >= 1) {
-        bestScore = matches;
-        masterMatch = mp;
-      }
     }
   }
 
-  // Proveedor canónico: el nombre del master si lo encontramos, sino lo que vino
-  const proveedorCanonico = masterMatch ? masterMatch.nombreFantasia : (f.proveedor || "");
-  // Rubro: si la factura no lo trae o no matchea, usar el del master
+  // Proveedor: SIEMPRE lo que vino de la factura. Si hay match exacto en master,
+  // los valores son iguales de todas formas. Si no hay match, NO cambiamos nada.
+  const proveedorCanonico = f.proveedor || "";
+  // Rubro: si la factura no lo trae, usar el del master (solo si exact match)
   const rubroFromMaster = masterMatch ? masterMatch.rubro : "";
   const rubroInput = f.rubro || rubroFromMaster || "";
   // Plazo: si el master lo tiene, preferirlo sobre el plazos viejo
@@ -377,24 +366,20 @@ function buildEgresosRows(
   const nro = f.nroComprobante || "";
   const proveedor = proveedorCanonico;
 
-  // Razón social propia (NUESTRA): Tobet / Pro Vegan / Icono.
+  // Razón social PROPIA (NUESTRA empresa, receptor de la factura: Tobet SRL /
+  // Pro Vegan SAS / Icono Sushi SAS — como aparece textual en la factura).
   // CRITICO: usamos EXACTAMENTE lo que el OCR detectó (o lo que el user
-  // edito en el panel). NO hacemos fallback al mapeo de sucursal porque
-  // queremos que si hay mismatch (factura Tobet cargada en Madero) se
-  // vea TOBET en el sheet en lugar de ICONO. Asi el error queda visible
-  // para auditar y corregir manualmente.
+  // editó). NO hacemos fallback al mapeo de sucursal porque si hay mismatch
+  // (factura de Tobet cargada en Madero por error), queremos que se vea
+  // TOBET en el sheet en lugar de ICONO, para detectar el error.
+  // Esto se va a escribir en col X = "RAZON SOCIAL PROPIA".
   const razonSocialPropia = (f.razonSocialReceptor || "").trim();
-
-  // Razón social del CLIENTE (el proveedor que emite la factura).
-  // Preferir el master DATOS (legal completo) si hicimos match, sino lo
-  // que vino de la factura (OCR).
-  const razonSocialCliente = (masterMatch?.nombreSociedad || f.razonSocial || "").trim();
 
   const validItems = (f.items || []).filter((i) => i.descripcion && (i.subtotal > 0 || i.cantidad > 0));
 
-  // Helper para construir una fila completa con 23 columnas (A-W).
-  // Col V = RAZON SOCIAL PROPIA (Tobet/Pro Vegan/Icono — NUESTRA, receptor)
-  // Col W = RAZON SOCIAL CLIENTE (legal completa del proveedor emisor)
+  // Helper para construir una fila con 21 columnas (A-U).
+  // La col X "RAZON SOCIAL PROPIA" se escribe SEPARADO en smartAppend para
+  // no pisar la col W (donde Palermo tiene formulas de "Numeracion").
   const makeRow = (
     rubro: string,
     insumo: string,
@@ -425,8 +410,6 @@ function buildEgresosRows(
       "$1,00",                            // S UM (constante del sheet)
       "",                                 // T INGRESO SUCURSAL (vacio, fórmula del sheet)
       formatArs(precioConIva),            // U precio Un con IVA
-      razonSocialPropia,                  // V RAZON SOCIAL PROPIA (lo que dice la factura)
-      razonSocialCliente,                 // W RAZON SOCIAL CLIENTE (legal del proveedor)
     ];
   };
 
@@ -478,10 +461,10 @@ function buildEgresosRows(
   for (const imp of impuestosToWrite) {
     if (!imp.monto || imp.monto === 0) continue;
     const label = normalizeImpuestoLabel(imp.tipo, imp.alicuota, datosss.rubros);
-    // Para impuestos: el Rubro se mantiene como el del proveedor (Equipamiento, Almacen, etc),
-    // el insumo describe el impuesto (IVA 21%, IIBB, etc). Antes ambas columnas tenían
-    // el label del impuesto, lo que pisaba el rubro real.
-    rows.push(makeRow(rubroMatched, label, convert(imp.monto), "1,00", convert(imp.monto)));
+    // Para impuestos: tanto el Rubro como el INSUMO son el label del impuesto
+    // (IVA 21%, IIBB, Percep. IVA, etc). Es el formato que ya usaban en el
+    // sheet historicamente y el que Daniela pidió.
+    rows.push(makeRow(label, label, convert(imp.monto), "1,00", convert(imp.monto)));
   }
 
   // Edge case: si no hay items NI impuestos, usar total
@@ -512,7 +495,10 @@ async function exportToEgresos(f: FacturaQueue): Promise<{ rowCount: number }> {
   // Usamos smartAppend en lugar de appendToSheet con INSERT_ROWS porque el
   // sheet EGRESOS tiene fórmulas/defaults en filas vacías que confunden al
   // auto-detect del API y generan gaps.
-  const updatedRange = await smartAppendToEgresos(sheetId, "EGRESOS", rows);
+  // Pasamos razonSocialReceptor (Tobet SRL / Pro Vegan SAS / Icono SAS) para
+  // que smartAppend lo escriba en col X (separada de A:U para no pisar W).
+  const razonSocialPropia = (f.razonSocialReceptor || "").trim();
+  const updatedRange = await smartAppendToEgresos(sheetId, "EGRESOS", rows, razonSocialPropia);
 
   // Pintar la PRIMERA fila de la factura en rosa (estilo del sheet existente).
   // Las siguientes filas (más items + impuestos) quedan en blanco.
