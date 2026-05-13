@@ -1510,6 +1510,59 @@ export default function FacturasPage() {
                                       ⚠️ Sucursal cambiada de <b>{SUC_NAMES[f.sucursal]}</b> a <b>{SUC_NAMES[editingFactura.sucursal]}</b>
                                     </div>
                                   )}
+                                  {/* CHEQUEO DE RAZÓN SOCIAL — banner grande, fácil de ver al aprobar */}
+                                  {(() => {
+                                    const receptor = editingFactura.razonSocialReceptor || "";
+                                    const expected = SUC_TO_SOCIEDAD[editingFactura.sucursal] || "";
+                                    const detectedSuc = detectSucursalFromReceptor(receptor);
+                                    if (!receptor.trim()) {
+                                      return (
+                                        <div className="mt-2 bg-amber-50 border border-amber-200 rounded-md px-3 py-2 text-sm">
+                                          <div className="font-semibold text-amber-900">⚠️ Sin razón social receptora detectada</div>
+                                          <div className="text-xs text-amber-700 mt-0.5">
+                                            La factura debería estar a nombre de <b>{expected}</b>. Verificá manualmente.
+                                          </div>
+                                        </div>
+                                      );
+                                    }
+                                    if (detectedSuc === editingFactura.sucursal) {
+                                      return (
+                                        <div className="mt-2 bg-emerald-50 border border-emerald-200 rounded-md px-3 py-2 text-sm">
+                                          <div className="font-semibold text-emerald-700">✓ Razón social OK</div>
+                                          <div className="text-xs text-emerald-600 mt-0.5">
+                                            Factura a nombre de <b>{receptor}</b> coincide con <b>{SUC_NAMES[editingFactura.sucursal]}</b>.
+                                          </div>
+                                        </div>
+                                      );
+                                    }
+                                    if (detectedSuc && detectedSuc !== editingFactura.sucursal) {
+                                      return (
+                                        <div className="mt-2 bg-red-50 border-2 border-red-400 rounded-md px-3 py-2 text-sm">
+                                          <div className="font-bold text-red-900">⚠️ MISMATCH DE RAZÓN SOCIAL — REVISÁ ANTES DE APROBAR</div>
+                                          <div className="text-xs text-red-700 mt-1">
+                                            La factura está a nombre de <b>{receptor}</b> (sociedad <b>{SUC_TO_SOCIEDAD[detectedSuc]}</b>, sucursal <b>{SUC_NAMES[detectedSuc]}</b>),
+                                            pero está cargada en sucursal <b>{SUC_NAMES[editingFactura.sucursal]}</b>.
+                                          </div>
+                                          <button
+                                            type="button"
+                                            onClick={() => updateFacturaEditField("sucursal", detectedSuc)}
+                                            className="mt-1 text-xs text-red-900 font-semibold underline hover:text-red-700"
+                                          >
+                                            → Cambiar a {SUC_NAMES[detectedSuc]}
+                                          </button>
+                                        </div>
+                                      );
+                                    }
+                                    return (
+                                      <div className="mt-2 bg-amber-50 border border-amber-200 rounded-md px-3 py-2 text-sm">
+                                        <div className="font-semibold text-amber-900">⚠️ Razón social no reconocida: "{receptor}"</div>
+                                        <div className="text-xs text-amber-700 mt-0.5">
+                                          Esperado para <b>{SUC_NAMES[editingFactura.sucursal]}</b>: <b>{expected}</b>.
+                                          Si la factura es correcta, podés ajustar la razón social manualmente abajo.
+                                        </div>
+                                      </div>
+                                    );
+                                  })()}
                                 </div>
                               )}
                               {/* Detalle expandido — editable solo si pendiente */}

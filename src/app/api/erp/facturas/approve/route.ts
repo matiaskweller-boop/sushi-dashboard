@@ -1,9 +1,78 @@
 import { NextRequest, NextResponse } from "next/server";
 import { requirePermissionApi, userHasPermission } from "@/lib/admin-permissions";
 import { getFactura, updateFactura, FacturaQueue } from "@/lib/facturas-queue";
-import { appendToSheet, readSheetRaw, applyBackgroundColor, parseA1Range } from "@/lib/google";
+import { readSheetRaw, applyBackgroundColor, parseA1Range, getSheets } from "@/lib/google";
+import { getAllMasterProveedores, MasterProveedor } from "@/lib/master-proveedores";
 
 export const runtime = "nodejs";
+
+/**
+ * Encuentra la última fila con datos REALES en una columna específica de un tab.
+ * Útil para appendear después de la última factura sin contar filas con fórmulas vacías.
+ */
+async function findLastDataRow(
+  spreadsheetId: string,
+  tabName: string,
+  column: string,
+  startSearchRow = 2,
+): Promise<number> {
+  const sheets = getSheets();
+  const res = await sheets.spreadsheets.values.get({
+    spreadsheetId,
+    range: `'${tabName}'!${column}${startSearchRow}:${column}`,
+  });
+  const rows = res.data.values || [];
+  // Buscar la última celda con texto que no sea vacío ni "0"
+  for (let i = rows.length - 1; i >= 0; i--) {
+    const v = (rows[i]?.[0] || "").toString().trim();
+    if (v && v !== "0" && v !== "$0,00" && v !== "$0") {
+      return startSearchRow + i; // 1-indexed
+    }
+  }
+  return startSearchRow - 1; // solo header, primera fila de data sería startSearchRow
+}
+
+/**
+ * Append "inteligente" que encuentra la última fila con dato en col E (PROVEEDOR)
+ * y escribe inmediatamente después usando update (no append-with-INSERT_ROWS).
+ * Esto evita los gaps que aparecen cuando el sheet tiene fórmulas en filas vacías.
+ */
+/**
+ * Resuelve el nombre del tab EGRESOS independientemente del casing.
+ * Belgrano lo tiene como "Egresos" (mixed case), Palermo/Madero como "EGRESOS".
+ */
+async function resolveEgresosTabName(spreadsheetId: string): Promise<string> {
+  const sheets = getSheets();
+  const meta = await sheets.spreadsheets.get({
+    spreadsheetId,
+    fields: "sheets(properties(title))",
+  });
+  const tab = meta.data.sheets?.find((s) => (s.properties?.title || "").toLowerCase() === "egresos");
+  return tab?.properties?.title || "EGRESOS";
+}
+
+async function smartAppendToEgresos(
+  spreadsheetId: string,
+  // eslint-disable-next-line @typescript-eslint/no-unused-vars
+  _hint: string,
+  values: string[][],
+): Promise<string> {
+  const sheets = getSheets();
+  const tabName = await resolveEgresosTabName(spreadsheetId);
+  // Buscar última fila con dato real en col E (PROVEEDOR)
+  const lastDataRow = await findLastDataRow(spreadsheetId, tabName, "E", 2);
+  const startRow = lastDataRow + 1;
+  const endRow = startRow + values.length - 1;
+  // Cols A-V (22 cols, incluyendo nueva V = RAZON SOCIAL PROPIA)
+  const range = `'${tabName}'!A${startRow}:V${endRow}`;
+  await sheets.spreadsheets.values.update({
+    spreadsheetId,
+    range,
+    valueInputOption: "USER_ENTERED",
+    requestBody: { values },
+  });
+  return range;
+}
 
 const MES_NOMBRES = [
   "", "enero", "febrero", "marzo", "abril", "mayo", "junio",
@@ -220,9 +289,52 @@ function buildEgresosRows(
   f: FacturaQueue,
   plazos: Map<string, string>,
   datosss: DatosssLists,
+  masterProveedores: MasterProveedor[],
 ): string[][] {
-  // Plazo del proveedor desde el master (en dias), si lo tenemos
-  const plazoProv = plazos.get((f.proveedor || "").toUpperCase()) || "";
+  // ─── Lookup en DATOS master: matchear proveedor por nombre/razón social ───
+  // Esto nos da el nombre canónico que coincide con el dropdown del sheet de
+  // sucursal, además del rubro/producto asociado y el plazo de pago.
+  const provInput = (f.proveedor || "").toUpperCase().trim();
+  const razonInput = (f.razonSocial || "").toUpperCase().trim();
+  let masterMatch: MasterProveedor | null = null;
+  for (const mp of masterProveedores) {
+    const nf = mp.nombreFantasia.toUpperCase();
+    const ns = mp.nombreSociedad.toUpperCase();
+    if (provInput && (nf === provInput || ns === provInput || nf.includes(provInput) || provInput.includes(nf))) {
+      masterMatch = mp;
+      break;
+    }
+    if (razonInput && (ns === razonInput || nf === razonInput || ns.includes(razonInput) || razonInput.includes(ns))) {
+      masterMatch = mp;
+      break;
+    }
+  }
+  // Si no hay match exacto, fuzzy por palabras
+  if (!masterMatch && provInput) {
+    const inputWords = provInput.split(/\s+/).filter((w) => w.length > 2);
+    let bestScore = 0;
+    for (const mp of masterProveedores) {
+      const nfWords = mp.nombreFantasia.toUpperCase().split(/\s+/);
+      const nsWords = mp.nombreSociedad.toUpperCase().split(/\s+/);
+      const allWords = new Set([...nfWords, ...nsWords]);
+      const matches = inputWords.filter((w) => allWords.has(w)).length;
+      if (matches > bestScore && matches >= 1) {
+        bestScore = matches;
+        masterMatch = mp;
+      }
+    }
+  }
+
+  // Proveedor canónico: el nombre del master si lo encontramos, sino lo que vino
+  const proveedorCanonico = masterMatch ? masterMatch.nombreFantasia : (f.proveedor || "");
+  // Rubro: si la factura no lo trae o no matchea, usar el del master
+  const rubroFromMaster = masterMatch ? masterMatch.rubro : "";
+  const rubroInput = f.rubro || rubroFromMaster || "";
+  // Plazo: si el master lo tiene, preferirlo sobre el plazos viejo
+  const plazoMaster = masterMatch ? parsePlazo(masterMatch.plazoPago) : "";
+
+  // Plazo del proveedor (preferir master DATOS, fallback al viejo plazos cache)
+  const plazoProv = plazoMaster || plazos.get(proveedorCanonico.toUpperCase()) || plazos.get(provInput) || "";
   // Mes de ingreso y pago en español
   const mesIngreso = mesNombreFromIso(f.fechaIngreso || new Date().toISOString().substring(0, 10));
   const mesPago = mesNombreFromIso(f.fechaPago);
@@ -233,8 +345,8 @@ function buildEgresosRows(
   const tc = isUSD && f.tipoCambio > 0 ? f.tipoCambio : 1;
   const convert = (amount: number): number => amount * tc;
 
-  // Match rubro y método de pago contra master
-  const rubroMatched = findBestMatch(f.rubro, datosss.rubros);
+  // Match rubro y método de pago contra master del sheet (DATOSSS)
+  const rubroMatched = findBestMatch(rubroInput, datosss.rubros);
   const metodoPagoMatched = findBestMatch(f.metodoPago || "Sin pagar", datosss.metodosPago) || (f.metodoPago || "Sin pagar");
   const rows: string[][] = [];
   const fechaIng = toSheetDate(f.fechaIngreso) || toSheetDate(new Date().toISOString().substring(0, 10));
@@ -244,11 +356,23 @@ function buildEgresosRows(
   const metodoPago = metodoPagoMatched;
   const tipo = f.tipoComprobante || "";
   const nro = f.nroComprobante || "";
-  const proveedor = f.proveedor || "";
+  const proveedor = proveedorCanonico;
+  // Razón social propia (NUESTRA): Tobet / Pro Vegan / Icono. La toma directo
+  // del campo razonSocialReceptor de la factura (extraído por OCR), y como
+  // fallback usa el mapeo según la sucursal.
+  const SUC_TO_SOCIEDAD_LOCAL: Record<string, string> = {
+    palermo: "Tobet",
+    belgrano: "Pro Vegan",
+    madero: "Icono",
+  };
+  const razonSocialPropia = (f.razonSocialReceptor && f.razonSocialReceptor.trim())
+    || SUC_TO_SOCIEDAD_LOCAL[f.sucursal]
+    || "";
 
   const validItems = (f.items || []).filter((i) => i.descripcion && (i.subtotal > 0 || i.cantidad > 0));
 
-  // Helper para construir una fila completa con las 21 columnas
+  // Helper para construir una fila completa con 22 columnas (A-V).
+  // Col V = RAZON SOCIAL PROPIA (nueva, agregada 2026-05-13)
   const makeRow = (
     rubro: string,
     insumo: string,
@@ -279,6 +403,7 @@ function buildEgresosRows(
       "$1,00",                            // S UM (constante del sheet)
       "",                                 // T INGRESO SUCURSAL (vacio, fórmula del sheet)
       formatArs(precioConIva),            // U precio Un con IVA
+      razonSocialPropia,                  // V RAZON SOCIAL PROPIA (Tobet/Pro Vegan/Icono)
     ];
   };
 
@@ -330,7 +455,10 @@ function buildEgresosRows(
   for (const imp of impuestosToWrite) {
     if (!imp.monto || imp.monto === 0) continue;
     const label = normalizeImpuestoLabel(imp.tipo, imp.alicuota, datosss.rubros);
-    rows.push(makeRow(label, label, convert(imp.monto), "1,00", convert(imp.monto)));
+    // Para impuestos: el Rubro se mantiene como el del proveedor (Equipamiento, Almacen, etc),
+    // el insumo describe el impuesto (IVA 21%, IIBB, etc). Antes ambas columnas tenían
+    // el label del impuesto, lo que pisaba el rubro real.
+    rows.push(makeRow(rubroMatched, label, convert(imp.monto), "1,00", convert(imp.monto)));
   }
 
   // Edge case: si no hay items NI impuestos, usar total
@@ -347,12 +475,21 @@ async function exportToEgresos(f: FacturaQueue): Promise<{ rowCount: number }> {
   if (!sheetId) {
     throw new Error(`Sheet no configurado para ${f.sucursal} ${f.year}`);
   }
-  const [plazos, datosss] = await Promise.all([loadPlazos(), loadDatosss()]);
-  const rows = buildEgresosRows(f, plazos, datosss);
+  // Cargar plazos, datosss del sheet de sucursal + master de DATOS en paralelo
+  const [plazos, datosss, masterProveedores] = await Promise.all([
+    loadPlazos(),
+    loadDatosss(),
+    getAllMasterProveedores().catch(() => [] as MasterProveedor[]),
+  ]);
+  const rows = buildEgresosRows(f, plazos, datosss, masterProveedores);
   if (rows.length === 0) {
     throw new Error("No hay datos para exportar (sin items ni impuestos ni total)");
   }
-  const updatedRange = await appendToSheet(sheetId, "EGRESOS!A:U", rows);
+
+  // Usamos smartAppend en lugar de appendToSheet con INSERT_ROWS porque el
+  // sheet EGRESOS tiene fórmulas/defaults en filas vacías que confunden al
+  // auto-detect del API y generan gaps.
+  const updatedRange = await smartAppendToEgresos(sheetId, "EGRESOS", rows);
 
   // Pintar la PRIMERA fila de la factura en rosa (estilo del sheet existente).
   // Las siguientes filas (más items + impuestos) quedan en blanco.
