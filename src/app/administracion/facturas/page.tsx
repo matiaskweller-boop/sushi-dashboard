@@ -146,15 +146,20 @@ const SUC_COLORS: Record<string, string> = { palermo: "#2E6DA4", belgrano: "#10B
  * Si está dirigida a "Pro Vegan" y el user seleccionó Palermo → mismatch ⚠️.
  */
 const SUC_TO_SOCIEDAD: Record<string, string> = {
-  palermo: "Tobet",
-  belgrano: "Pro Vegan",
-  madero: "Icono",
+  palermo: "Tobet S.R.L.",
+  belgrano: "Pro Vegan Food",
+  madero: "Icono Sushi",
 };
 const SOCIEDAD_TO_SUC: Record<string, string> = {
   tobet: "palermo",
+  "tobet s.r.l.": "palermo",
+  "tobet srl": "palermo",
   "pro vegan": "belgrano",
+  "pro vegan food": "belgrano",
   provegan: "belgrano",
   icono: "madero",
+  "icono sushi": "madero",
+  "icono sushi sas": "madero",
 };
 
 /**

@@ -18,11 +18,20 @@ CAMPOS A EXTRAER:
 - proveedor: nombre comercial del proveedor EMISOR (string corto, en mayúsculas, como aparece en la factura)
 - razonSocial: razón social legal completa del EMISOR (la que figura junto al CUIT del proveedor)
 - cuit: CUIT del EMISOR/proveedor (string con formato 30-12345678-9 o solo dígitos, vacío si no hay)
-- razonSocialReceptor: razón social del CLIENTE/COMPRADOR — somos NOSOTROS (la sociedad del restaurante que recibe la factura). Buscalo en la sección "CLIENTE:", "FACTURADO A:", "Sr./Sra.:", "Comprador:", etc. Las sociedades posibles son:
-  • "Tobet" o "Tobet S.A." → corresponde a sucursal Palermo
-  • "Pro Vegan" o "Pro Vegan SAS" o "Provegan" → corresponde a sucursal Belgrano
-  • "Icono" o "Icono SAS" o "Icono S.A." → corresponde a sucursal Puerto Madero
-  Devolvé el nombre tal cual aparece en la factura. Si no podés identificar la razón social del receptor, dejá vacío.
+- razonSocialReceptor: razón social del CLIENTE/COMPRADOR — somos NOSOTROS (la sociedad del restaurante que recibe la factura). MUY IMPORTANTE: este campo es OBLIGATORIO siempre que aparezca en la factura.
+
+  Búscalo en cualquier sección con uno de estos encabezados:
+    "Señores:", "Señor/Sra.:", "Sr./Sra.:", "CLIENTE:", "Cliente:", "FACTURADO A:",
+    "Razón Social:", "Comprador:", "Nombre y Apellido:", "Destinatario:", "A nombre de:"
+
+  Las sociedades posibles (nuestras 3 empresas) son:
+    • "TOBET S.R.L." / "Tobet" / "TOBET SRL" / "Tobet SRL" → sucursal PALERMO
+    • "Pro Vegan Food" / "Pro Vegan SAS" / "Provegan" / "Pro Vegan" → sucursal BELGRANO
+    • "Icono Sushi" / "Icono Sushi SAS" / "Icono SAS" / "Icono S.A." / "Icono" → sucursal PUERTO MADERO
+
+  Devolvé el nombre TEXTUAL como aparece en la factura (sin re-formatear).
+  Ejemplos correctos: "TOBET S.R.L.", "Pro Vegan Food SAS", "Icono Sushi S.A.S."
+  Si la factura NO tiene sección receptora visible o no podés leerla, dejá vacío.
 
 NOTA: NO intentes matchear el proveedor con ninguna lista. Solo extrae los datos exactos como aparecen en la factura.
 La razón social y el nombre comercial del EMISOR pueden ser distintos (ej "RAFAEL CIOFFI E HIJOS" vs "DELFIN PESCADERIA").

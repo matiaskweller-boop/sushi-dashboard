@@ -495,9 +495,23 @@ async function exportToEgresos(f: FacturaQueue): Promise<{ rowCount: number }> {
   // Usamos smartAppend en lugar de appendToSheet con INSERT_ROWS porque el
   // sheet EGRESOS tiene fórmulas/defaults en filas vacías que confunden al
   // auto-detect del API y generan gaps.
-  // Pasamos razonSocialReceptor (Tobet SRL / Pro Vegan SAS / Icono SAS) para
-  // que smartAppend lo escriba en col X (separada de A:U para no pisar W).
-  const razonSocialPropia = (f.razonSocialReceptor || "").trim();
+  // Pasamos razonSocialReceptor (Tobet S.R.L. / Pro Vegan Food / Icono Sushi)
+  // para que smartAppend lo escriba en col X (separada de A:U para no pisar W).
+  //
+  // Lógica del fallback:
+  // 1. Si el OCR detectó algo, usamos eso textual (asi si el OCR ve TOBET pero
+  //    la factura se cargo a Madero, en el sheet aparece TOBET y el error es
+  //    detectable).
+  // 2. Si OCR no detectó nada, usamos el mapeo de sucursal como default
+  //    razonable. La columna no debería quedar nunca vacía si la sucursal
+  //    está bien seleccionada.
+  const SUC_TO_SOCIEDAD_DEFAULT: Record<string, string> = {
+    palermo: "Tobet S.R.L.",
+    belgrano: "Pro Vegan Food",
+    madero: "Icono Sushi",
+  };
+  const ocrDetected = (f.razonSocialReceptor || "").trim();
+  const razonSocialPropia = ocrDetected || SUC_TO_SOCIEDAD_DEFAULT[f.sucursal] || "";
   const updatedRange = await smartAppendToEgresos(sheetId, "EGRESOS", rows, razonSocialPropia);
 
   // Pintar la PRIMERA fila de la factura en rosa (estilo del sheet existente).
