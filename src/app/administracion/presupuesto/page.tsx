@@ -378,73 +378,103 @@ export default function PresupuestoPage() {
     const doc = new jsPDF({ orientation: "landscape", unit: "mm", format: "a4" });
     const W = 297; // ancho
     const H = 210; // alto
-    const PINK_R = 244, PINK_G = 215, PINK_B = 210; // #F4D7D2 — tono salmón claro
+    const PINK_R = 244, PINK_G = 215, PINK_B = 210; // #F4D7D2
 
     const pinkBg = () => {
       doc.setFillColor(PINK_R, PINK_G, PINK_B);
       doc.rect(0, 0, W, H, "F");
     };
 
-    // Cargar el logo Masunori (PNG con bonsai, fondo rosa que coincide con el del PDF)
-    let logoDataUrl: string | null = null;
-    try {
-      const res = await fetch("/logo-masunori.png");
-      if (res.ok) {
+    // Cargar ambos logos (isologo bonsai + wordmark Masunori cursivo)
+    const loadImage = async (url: string): Promise<{ dataUrl: string; aspectRatio: number } | null> => {
+      try {
+        const res = await fetch(url);
+        if (!res.ok) return null;
         const blob = await res.blob();
-        logoDataUrl = await new Promise<string>((resolve, reject) => {
+        const dataUrl = await new Promise<string>((resolve, reject) => {
           const reader = new FileReader();
           reader.onloadend = () => resolve(reader.result as string);
           reader.onerror = reject;
           reader.readAsDataURL(blob);
         });
+        // Calcular aspect ratio
+        const aspectRatio = await new Promise<number>((resolve) => {
+          const img = new Image();
+          img.onload = () => resolve(img.width / img.height);
+          img.onerror = () => resolve(1);
+          img.src = dataUrl;
+        });
+        return { dataUrl, aspectRatio };
+      } catch {
+        return null;
       }
-    } catch (e) {
-      console.warn("No se pudo cargar logo-masunori.png:", e);
-    }
+    };
 
-    // Dibuja el logo Masunori. Si el PNG cargó, lo embebe; sino, fallback texto.
-    const drawLogo = (cx: number, cy: number, size = 22) => {
-      if (logoDataUrl) {
-        // x, y son la esquina superior izquierda. Centramos en (cx, cy).
-        doc.addImage(logoDataUrl, "PNG", cx - size / 2, cy - size / 2, size, size);
+    const isologo = await loadImage("/masunori-isologo.png");
+    const wordmark = await loadImage("/masunori-wordmark.png");
+
+    // Dibuja el isologo (bonsai). Tiene aspect ratio vertical (alto > ancho).
+    const drawIsologo = (cx: number, cy: number, height = 22) => {
+      if (isologo) {
+        const w = height * isologo.aspectRatio;
+        doc.addImage(isologo.dataUrl, "PNG", cx - w / 2, cy - height / 2, w, height);
       } else {
-        // Fallback: texto MASUNORI
         doc.setFont("helvetica", "bold");
-        doc.setFontSize(size * 0.6);
+        doc.setFontSize(height * 0.6);
         doc.setTextColor(30);
-        doc.text("MASUNORI", cx, cy, { align: "center" });
+        doc.text("✦", cx, cy, { align: "center" });
+      }
+    };
+
+    // Dibuja el wordmark "Masunori" en cursiva. Aspect ratio horizontal.
+    const drawWordmark = (cx: number, cy: number, height = 18) => {
+      if (wordmark) {
+        const w = height * wordmark.aspectRatio;
+        doc.addImage(wordmark.dataUrl, "PNG", cx - w / 2, cy - height / 2, w, height);
+      } else {
+        doc.setFont("helvetica", "italic");
+        doc.setFontSize(height * 1.4);
+        doc.setTextColor(30);
+        doc.text("Masunori", cx, cy + height * 0.3, { align: "center" });
       }
     };
 
     // Direcciones (footer comun)
     const drawAddresses = (x: number, y: number) => {
-      doc.setFontSize(8);
-      doc.setTextColor(40);
+      doc.setFontSize(7.5);
+      doc.setTextColor(70);
       doc.setFont("helvetica", "bold");
       doc.text("Palermo", x, y);
       doc.setFont("helvetica", "normal");
-      doc.text(" | Juan A. Buschiazzo 3043", x + 13, y);
+      doc.text(" | Juan A. Buschiazzo 3043", x + 12, y);
       doc.setFont("helvetica", "bold");
       doc.text("Belgrano", x, y + 4);
       doc.setFont("helvetica", "normal");
-      doc.text(" | Castañeda 1872", x + 14, y + 4);
+      doc.text(" | Castañeda 1872", x + 13, y + 4);
       doc.setFont("helvetica", "bold");
       doc.text("Puerto Madero", x, y + 8);
       doc.setFont("helvetica", "normal");
-      doc.text(" | Juana Manso 1810", x + 22, y + 8);
+      doc.text(" | Juana Manso 1810", x + 21, y + 8);
     };
 
-    // Quote común
+    // Quote común (cursiva, sutil)
     const drawQuote = () => {
       doc.setFont("helvetica", "italic");
-      doc.setFontSize(11);
-      doc.setTextColor(35);
-      const quoteLines = doc.splitTextToSize(`"${frasePDF}"`, 220);
-      let yQ = 15;
+      doc.setFontSize(10);
+      doc.setTextColor(70);
+      const quoteLines = doc.splitTextToSize(`"${frasePDF}"`, 200);
+      let yQ = 16;
       for (const line of quoteLines) {
         doc.text(line, W / 2, yQ, { align: "center" });
-        yQ += 5;
+        yQ += 4.5;
       }
+    };
+
+    // Divider line — refinado
+    const divider = (cx: number, y: number, width: number) => {
+      doc.setDrawColor(140);
+      doc.setLineWidth(0.2);
+      doc.line(cx - width / 2, y, cx + width / 2, y);
     };
 
     // ═══════════════════════════════════════
@@ -452,143 +482,172 @@ export default function PresupuestoPage() {
     // ═══════════════════════════════════════
     pinkBg();
     drawQuote();
-    drawLogo(W - 25, 22, 28);
 
-    // Título central
+    // Isologo bonsai top-right
+    drawIsologo(W - 22, 26, 32);
+
+    // Wordmark "Masunori" en cursiva como título central
+    drawWordmark(W / 2, 50, 18);
+
+    // Tipo de evento (subtítulo elegante con letter-spacing)
     doc.setFont("helvetica", "normal");
-    doc.setFontSize(22);
-    doc.setTextColor(30);
-    const titulo = "PRESUPUESTO " + (
-      tipo === "catering" ? "CATERING" :
-      tipo === "evento_local" ? "EVENTO EN EL LOCAL" :
-      "A MEDIDA"
+    doc.setFontSize(10);
+    doc.setTextColor(80);
+    const subtitulo = "P R E S U P U E S T O   ·   " + (
+      tipo === "catering" ? "C A T E R I N G" :
+      tipo === "evento_local" ? "E V E N T O   E N   E L   L O C A L" :
+      "A   M E D I D A"
     );
-    doc.text(titulo, W / 2, 42, { align: "center" });
+    doc.text(subtitulo, W / 2, 65, { align: "center" });
+
+    // Divider después del header
+    divider(W / 2, 72, 80);
+
+    // Cliente
     if (cliente) {
-      doc.setFontSize(18);
-      doc.text(`Cliente: ${cliente}`, W / 2, 52, { align: "center" });
+      doc.setFont("helvetica", "normal");
+      doc.setFontSize(12);
+      doc.setTextColor(40);
+      doc.text("Cliente   ·   " + cliente, W / 2, 81, { align: "center" });
     }
 
     // ─── Columna izquierda: MENÚ ───
-    const colIzqCX = 75; // centro de la columna izquierda
-    let mY = 72;
-    doc.setFont("helvetica", "bold");
-    doc.setFontSize(14);
+    const colIzqCX = 80;
+    let mY = 100;
+    doc.setFont("helvetica", "normal");
+    doc.setFontSize(12);
     doc.setTextColor(30);
-    doc.text("· M E N Ú ·", colIzqCX, mY, { align: "center" });
-    mY += 12;
+    doc.text("M E N Ú", colIzqCX, mY, { align: "center" });
+    divider(colIzqCX, mY + 3, 24);
+    mY += 14;
 
-    // Headers
-    doc.setFont("helvetica", "bold");
-    doc.setFontSize(11);
-    doc.text("Producto", colIzqCX - 35, mY);
-    doc.text("Unidades", colIzqCX + 35, mY, { align: "right" });
+    // Headers — más sutil
+    doc.setFont("helvetica", "normal");
+    doc.setFontSize(8);
+    doc.setTextColor(110);
+    doc.text("PRODUCTO", colIzqCX - 35, mY);
+    doc.text("UNIDADES", colIzqCX + 35, mY, { align: "right" });
     mY += 7;
 
     // Items
     doc.setFont("helvetica", "normal");
-    doc.setFontSize(10);
+    doc.setFontSize(10.5);
+    doc.setTextColor(35);
     const validItems = items.filter((i) => i.nombre.trim());
     let totalUnidades = 0;
     for (const it of validItems) {
       doc.setFont("helvetica", "normal");
-      doc.text("• " + it.nombre.toUpperCase(), colIzqCX - 35, mY);
+      doc.setFontSize(10.5);
+      doc.setTextColor(30);
+      doc.text("•  " + it.nombre, colIzqCX - 35, mY);
       doc.text(String(it.cantidad), colIzqCX + 35, mY, { align: "right" });
       mY += 5;
       if (it.notas) {
         doc.setFont("helvetica", "italic");
-        doc.setFontSize(9);
-        doc.setTextColor(80);
-        const noteLines = doc.splitTextToSize("(" + it.notas + ")", 65);
+        doc.setFontSize(8.5);
+        doc.setTextColor(95);
+        const noteLines = doc.splitTextToSize("(" + it.notas + ")", 60);
         for (const l of noteLines) {
-          doc.text(l, colIzqCX - 32, mY);
-          mY += 4;
+          doc.text(l, colIzqCX - 31, mY);
+          mY += 3.8;
         }
-        doc.setFontSize(10);
+        doc.setFontSize(10.5);
         doc.setTextColor(30);
       }
-      mY += 1;
+      mY += 2;
       totalUnidades += it.cantidad || 0;
     }
 
     if (validItems.length > 0) {
-      mY += 6;
+      mY += 4;
+      divider(colIzqCX, mY, 50);
+      mY += 5;
       doc.setFont("helvetica", "normal");
-      doc.setFontSize(11);
-      doc.setTextColor(30);
-      doc.text(`TOTAL ${totalUnidades} unidades`, colIzqCX, mY, { align: "center" });
-      mY += 10;
+      doc.setFontSize(10);
+      doc.setTextColor(50);
+      doc.text(`Total · ${totalUnidades} unidades`, colIzqCX, mY, { align: "center" });
+      mY += 14;
     }
 
     // Incluye
     const validExtras = extras.filter((e) => e.nombre.trim());
     if (validExtras.length > 0 || conVajilla) {
       doc.setFont("helvetica", "bold");
-      doc.setFontSize(11);
-      doc.text("Incluye:", colIzqCX, mY, { align: "center" });
+      doc.setFontSize(10);
+      doc.setTextColor(30);
+      doc.text("Incluye", colIzqCX, mY, { align: "center" });
       mY += 6;
       doc.setFont("helvetica", "normal");
-      doc.setFontSize(10);
+      doc.setFontSize(9.5);
+      doc.setTextColor(50);
       for (const ex of validExtras) {
         doc.text(ex.nombre, colIzqCX, mY, { align: "center" });
-        mY += 5;
+        mY += 4.5;
       }
       if (conVajilla) {
         const vajText = notasVajilla ? `Vajilla — ${notasVajilla}` : "Vajilla";
         doc.text(vajText, colIzqCX, mY, { align: "center" });
-        mY += 5;
+        mY += 4.5;
       }
     }
 
     // ─── Columna derecha: VALOR ───
-    const colDerCX = 200;
-    let vY = 72;
-    doc.setFont("helvetica", "bold");
-    doc.setFontSize(14);
+    const colDerCX = 210;
+    let vY = 100;
+    doc.setFont("helvetica", "normal");
+    doc.setFontSize(12);
     doc.setTextColor(30);
     doc.text("V A L O R", colDerCX, vY, { align: "center" });
-    vY += 16;
+    divider(colDerCX, vY + 3, 24);
+    vY += 18;
 
     const precioFinal = descuentoPct > 0 ? totalPrecio * (1 - descuentoPct / 100) : totalPrecio;
 
     if (descuentoPct > 0) {
       doc.setFont("helvetica", "normal");
-      doc.setFontSize(13);
-      doc.text(`${fmt(totalPrecio)} PESOS - ${descuentoPct}% off`, colDerCX, vY, { align: "center" });
-      vY += 14;
-      doc.setFont("helvetica", "bold");
-      doc.setFontSize(24);
-      doc.text(fmt(precioFinal), colDerCX, vY, { align: "center" });
-      vY += 8;
-      doc.setFont("helvetica", "normal");
       doc.setFontSize(11);
+      doc.setTextColor(95);
+      doc.text(`${fmt(totalPrecio)}   ·   ${descuentoPct}% off`, colDerCX, vY, { align: "center" });
+      vY += 12;
+      doc.setFont("helvetica", "bold");
+      doc.setFontSize(26);
+      doc.setTextColor(20);
+      doc.text(fmt(precioFinal), colDerCX, vY, { align: "center" });
+      vY += 7;
+      doc.setFont("helvetica", "italic");
+      doc.setFontSize(10);
+      doc.setTextColor(60);
       doc.text("sin IVA en efectivo", colDerCX, vY, { align: "center" });
-      vY += 14;
+      vY += 16;
     } else {
       doc.setFont("helvetica", "bold");
-      doc.setFontSize(24);
+      doc.setFontSize(28);
+      doc.setTextColor(20);
       doc.text(fmt(totalPrecio), colDerCX, vY + 4, { align: "center" });
-      vY += 14;
-      doc.setFont("helvetica", "normal");
-      doc.setFontSize(11);
+      vY += 15;
+      doc.setFont("helvetica", "italic");
+      doc.setFontSize(10);
+      doc.setTextColor(60);
       doc.text("sin IVA en efectivo", colDerCX, vY, { align: "center" });
-      vY += 14;
+      vY += 16;
     }
 
     if (mostrarSena && senaPct > 0) {
       const sena = precioFinal * (senaPct / 100);
       doc.setFont("helvetica", "normal");
-      doc.setFontSize(11);
-      doc.text("Para concretar la reserva", colDerCX, vY, { align: "center" });
-      vY += 6;
-      doc.setFont("helvetica", "bold");
-      doc.setFontSize(12);
-      doc.text(fmt(sena), colDerCX, vY, { align: "center" });
-      vY += 5;
-      doc.setFont("helvetica", "normal");
       doc.setFontSize(9);
       doc.setTextColor(80);
-      doc.text(`${senaPct}% de la seña — pago efectivo`, colDerCX, vY, { align: "center" });
+      doc.text("Para concretar la reserva", colDerCX, vY, { align: "center" });
+      vY += 7;
+      doc.setFont("helvetica", "bold");
+      doc.setFontSize(14);
+      doc.setTextColor(30);
+      doc.text(fmt(sena), colDerCX, vY, { align: "center" });
+      vY += 5;
+      doc.setFont("helvetica", "italic");
+      doc.setFontSize(8.5);
+      doc.setTextColor(90);
+      doc.text(`${senaPct}% de la seña · pago efectivo`, colDerCX, vY, { align: "center" });
     }
 
     // Info adicional bottom-left: tipo + fechas
@@ -612,23 +671,30 @@ export default function PresupuestoPage() {
     pinkBg();
     drawQuote();
 
-    let cY = 38;
+    // Isologo también en página 2, top-right (consistente)
+    drawIsologo(W - 22, 26, 32);
+
+    let cY = 50;
 
     const drawSection = (titulo: string, contenido: string) => {
       doc.setFont("helvetica", "bold");
-      doc.setFontSize(12);
+      doc.setFontSize(11);
       doc.setTextColor(30);
-      doc.text(titulo, W / 2, cY, { align: "center" });
-      cY += 6;
+      // Title con letter-spacing simulado
+      const spaced = titulo.split("").join(" ");
+      doc.text(spaced, W / 2, cY, { align: "center" });
+      cY += 3;
+      divider(W / 2, cY, 30);
+      cY += 5;
       doc.setFont("helvetica", "normal");
-      doc.setFontSize(10);
-      doc.setTextColor(40);
-      const lines = doc.splitTextToSize(contenido, 230);
+      doc.setFontSize(9.5);
+      doc.setTextColor(55);
+      const lines = doc.splitTextToSize(contenido, 220);
       for (const l of lines) {
         doc.text(l, W / 2, cY, { align: "center" });
-        cY += 5;
+        cY += 4.5;
       }
-      cY += 6;
+      cY += 8;
     };
 
     drawSection("IMPORTANTE SABER", importanteSaber);
@@ -639,14 +705,14 @@ export default function PresupuestoPage() {
       drawSection("NOTAS ADICIONALES", notasGenerales);
     }
 
-    // Bonsai grande centrado
-    drawLogo(W / 2, 162, 48);
+    // Wordmark Masunori centrado en cursiva (más elegante que el bonsai)
+    drawWordmark(W / 2, 170, 14);
 
     // Footer
-    doc.setFont("helvetica", "normal");
-    doc.setFontSize(10);
-    doc.setTextColor(40);
-    doc.text("masunori   ·   eventos corporativos   ·   @masunorisushi", W / 2, 192, { align: "center" });
+    doc.setFont("helvetica", "italic");
+    doc.setFontSize(9);
+    doc.setTextColor(70);
+    doc.text("eventos corporativos   ·   @masunorisushi", W / 2, 182, { align: "center" });
 
     drawAddresses(W - 75, H - 18);
 
