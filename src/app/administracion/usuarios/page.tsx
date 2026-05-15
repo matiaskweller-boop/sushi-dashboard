@@ -31,6 +31,7 @@ const PERM_LABELS: Record<string, string> = {
   facturas: "📸 Subir facturas",
   facturas_aprobar: "✅ Aprobar facturas (admin)",
   efectivo: "💵 Efectivo y más (socios)",
+  presupuesto: "📝 Presupuestos (catering / eventos)",
   consumo: "📊 Consumo",
   stock: "📦 Stock",
   menu: "🍣 Menú",

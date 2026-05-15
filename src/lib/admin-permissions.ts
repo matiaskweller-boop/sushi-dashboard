@@ -23,6 +23,7 @@ export const ALL_PERMISSIONS = [
   "menu",
   "competencia",
   "efectivo",          // Efectivo y mas — retiros + consumos de socios
+  "presupuesto",       // Modulo de presupuestos (catering, eventos)
 ] as const;
 
 export type Permission = typeof ALL_PERMISSIONS[number];

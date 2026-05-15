@@ -70,6 +70,14 @@ const MODULES: ModuleCard[] = [
     group: "ERP",
   },
   {
+    icon: "📝",
+    title: "Presupuestos",
+    desc: "Cotizá catering, eventos en local o a medida — exporta PDF",
+    href: "/administracion/presupuesto",
+    status: "activo",
+    group: "ERP",
+  },
+  {
     icon: "🔔",
     title: "Alertas",
     desc: "Vencimientos, facturas sin pagar, deudas vencidas",
