@@ -24,6 +24,8 @@ export async function GET(request: NextRequest) {
       totalPlatos: data.platos.length,
       ingredientes: data.ingredientes,
       totalIngredientes: data.ingredientes.length,
+      salsas: data.salsas,
+      totalSalsas: data.salsas.length,
     });
   } catch (e) {
     console.error("costeo error:", e);

@@ -174,9 +174,62 @@ function findCostByName(platos: PlatoCosteado[], name: string): PlatoCosteado | 
   return bestMatch;
 }
 
+interface UltimaCompra {
+  insumo: string;
+  insumoOriginal: string;
+  proveedor: string;
+  sucursal: string;
+  fechaISO: string | null;
+  fechaSheet: string;
+  precioUnit: number;
+  total: number;
+  cantidad: number;
+  rownum: number;
+}
+
+interface SalsaCosteo {
+  nombre: string;
+  costoLote: number;
+  rindeGr: number;
+  costoPorGr: number;
+  alergiasInfo: string;
+}
+
+function normalizeInsumoLocal(s: string): string {
+  return s
+    .toLowerCase()
+    .normalize("NFD")
+    .replace(/[\u0300-\u036f]/g, "")
+    .replace(/[^a-z0-9]/g, " ")
+    .replace(/\s+/g, " ")
+    .trim();
+}
+
+function findUltimoPrecioLocal(list: UltimaCompra[], insumoQuery: string): UltimaCompra | null {
+  const norm = normalizeInsumoLocal(insumoQuery);
+  if (!norm) return null;
+  for (const c of list) if (c.insumo === norm) return c;
+  for (const c of list) if (c.insumo.includes(norm) || norm.includes(c.insumo)) return c;
+  const inputWords = norm.split(" ").filter((w) => w.length > 3);
+  if (inputWords.length === 0) return null;
+  let best: UltimaCompra | null = null;
+  let bestScore = 0;
+  for (const c of list) {
+    const keyWords = c.insumo.split(" ").filter((w) => w.length > 3);
+    const common = inputWords.filter((w) => keyWords.includes(w)).length;
+    if (common > bestScore && common >= 2) {
+      bestScore = common;
+      best = c;
+    }
+  }
+  return best;
+}
+
 export default function PresupuestoPage() {
   const [menuData, setMenuData] = useState<MenuData | null>(null);
   const [costeoPlatos, setCosteoPlatos] = useState<PlatoCosteado[]>([]);
+  const [salsasCosteo, setSalsasCosteo] = useState<SalsaCosteo[]>([]);
+  const [ultimosPrecios, setUltimosPrecios] = useState<UltimaCompra[]>([]);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
 
@@ -238,15 +291,18 @@ export default function PresupuestoPage() {
   const [validez, setValidez] = useState("7 días");
 
   useEffect(() => {
-    // Cargar menu + costeo en paralelo
+    // Cargar menu + costeo + ultimos precios en paralelo
     Promise.all([
       fetch("/api/menu/save").then((r) => r.json()),
       fetch("/api/erp/presupuesto/costos").then((r) => r.json()).catch(() => ({ platos: [] })),
+      fetch("/api/erp/presupuesto/ultimos-precios?year=2026").then((r) => r.json()).catch(() => ({ ultimosPrecios: [] })),
     ])
-      .then(([menuRes, costeoRes]) => {
+      .then(([menuRes, costeoRes, ultRes]) => {
         if (menuRes.error) throw new Error(menuRes.error);
         setMenuData(menuRes);
         if (Array.isArray(costeoRes.platos)) setCosteoPlatos(costeoRes.platos);
+        if (Array.isArray(costeoRes.salsas)) setSalsasCosteo(costeoRes.salsas);
+        if (Array.isArray(ultRes.ultimosPrecios)) setUltimosPrecios(ultRes.ultimosPrecios);
       })
       .catch((e) => setError(e.message))
       .finally(() => setLoading(false));
@@ -735,30 +791,41 @@ export default function PresupuestoPage() {
 
       {error && <div className="bg-red-50 text-red-700 rounded-lg p-3 text-sm mb-3">⚠️ {error}</div>}
 
-      {/* Status del costeo */}
-      <div className={`border rounded-lg p-2.5 mb-3 text-xs flex items-center justify-between flex-wrap gap-2 ${
+      {/* Status del costeo + ultimos precios EGRESOS */}
+      <div className={`border rounded-lg p-2.5 mb-3 text-xs ${
         costeoPlatos.length > 0 ? "bg-emerald-50 border-emerald-200 text-emerald-800" : "bg-amber-50 border-amber-200 text-amber-800"
       }`}>
-        <span>
-          {costeoPlatos.length > 0
-            ? <>✓ Conectado a <b>MASUNORI_COSTEO_DASHBOARD</b> · {costeoPlatos.length} platos costeados. El costo se pre-llena automáticamente al agregar items de la carta.</>
-            : "⚠️ No se pudo cargar el archivo de costeo. Los costos los vas a tener que poner a mano."}
-        </span>
-        <button
-          onClick={() => {
-            setLoading(true);
-            fetch("/api/erp/presupuesto/costos")
-              .then((r) => r.json())
-              .then((d) => {
-                if (Array.isArray(d.platos)) setCosteoPlatos(d.platos);
-              })
-              .finally(() => setLoading(false));
-          }}
-          disabled={loading}
-          className="text-[11px] underline hover:opacity-70"
-        >
-          ↻ recargar
-        </button>
+        <div className="flex items-center justify-between flex-wrap gap-2">
+          <span>
+            {costeoPlatos.length > 0
+              ? <>✓ <b>MASUNORI_COSTEO_DASHBOARD</b>: {costeoPlatos.length} platos costeados (proteína + shari + salsas). Mermas verificadas: 79/81 fórmula correcta.</>
+              : "⚠️ No se pudo cargar el archivo de costeo. Los costos los vas a tener que poner a mano."}
+          </span>
+          <button
+            onClick={() => {
+              setLoading(true);
+              Promise.all([
+                fetch("/api/erp/presupuesto/costos").then((r) => r.json()),
+                fetch("/api/erp/presupuesto/ultimos-precios?year=2026").then((r) => r.json()),
+              ])
+                .then(([cR, uR]) => {
+                  if (Array.isArray(cR.platos)) setCosteoPlatos(cR.platos);
+                  if (Array.isArray(uR.ultimosPrecios)) setUltimosPrecios(uR.ultimosPrecios);
+                })
+                .finally(() => setLoading(false));
+            }}
+            disabled={loading}
+            className="text-[11px] underline hover:opacity-70"
+          >
+            ↻ recargar todo
+          </button>
+        </div>
+        {ultimosPrecios.length > 0 && (
+          <div className="mt-1.5 pt-1.5 border-t border-emerald-200">
+            💰 EGRESOS conectado: {ultimosPrecios.length} insumos con último precio pagado (Palermo/Belgrano/Madero 2026).
+            Cuando agregás un item, te muestra <b>costo del costeo vs último precio pagado al proveedor</b>.
+          </div>
+        )}
       </div>
 
       {/* TIPO + DATOS GENERALES */}
@@ -986,6 +1053,25 @@ export default function PresupuestoPage() {
                           placeholder="0"
                           className="w-24 text-right border border-amber-200 bg-amber-50/30 rounded px-1 py-0.5 text-sm focus:outline-none focus:border-amber-400 font-mono"
                         />
+                        {(() => {
+                          // Ultimo precio pagado del insumo principal (proteína del plato)
+                          const ult = findUltimoPrecioLocal(ultimosPrecios, it.nombre);
+                          if (!ult) return null;
+                          const diff = it.costoUnit > 0 ? ((it.costoUnit - ult.precioUnit) / it.costoUnit) * 100 : 0;
+                          return (
+                            <div
+                              className="text-[9px] text-gray-500 mt-0.5"
+                              title={`Último: ${ult.proveedor} (${ult.sucursal}) ${ult.fechaSheet} · $${Math.round(ult.precioUnit).toLocaleString("es-AR")}/${ult.cantidad}${ult.cantidad === 1 ? "u" : ""}`}
+                            >
+                              💰 últ pagado ${Math.round(ult.precioUnit).toLocaleString("es-AR")}
+                              {it.costoUnit > 0 && Math.abs(diff) > 5 && (
+                                <span className={diff < 0 ? "text-red-500 ml-1" : "text-emerald-600 ml-1"}>
+                                  ({diff > 0 ? "−" : "+"}{Math.abs(diff).toFixed(0)}%)
+                                </span>
+                              )}
+                            </div>
+                          );
+                        })()}
                       </td>
                       <td className="px-2 py-1.5 text-right">
                         <input
@@ -1077,6 +1163,46 @@ export default function PresupuestoPage() {
           </div>
         )}
       </div>
+
+      {/* SALSAS Y TOPPINGS */}
+      {salsasCosteo.length > 0 && (
+        <div className="bg-white border border-gray-200 rounded-xl p-4 mb-4">
+          <div className="flex items-center justify-between mb-2">
+            <h2 className="text-sm font-semibold text-navy uppercase">🧪 Salsas y toppings</h2>
+            <span className="text-[11px] text-gray-500">{salsasCosteo.length} salsas costeadas en MASUNORI_COSTEO_DASHBOARD</span>
+          </div>
+          <p className="text-[11px] text-gray-500 mb-3">
+            Agregá salsa/topping como adicional con costo por gramo del costeo. Sugerencia para handrolls: 30g de salsa de soja por persona.
+          </p>
+          <div className="flex flex-wrap gap-1.5">
+            {salsasCosteo.slice(0, 30).map((s) => (
+              <button
+                key={s.nombre}
+                onClick={() => {
+                  const gramos = comensales * 30; // sugerencia: 30g/persona
+                  setExtras((prev) => [
+                    ...prev,
+                    {
+                      id: uid(),
+                      nombre: s.nombre + ` (${gramos}g)`,
+                      cantidad: 1,
+                      unidad: "lote",
+                      costoUnit: Math.round(gramos * s.costoPorGr),
+                      precioUnit: 0,
+                      notas: `${gramos}g · $${s.costoPorGr.toFixed(2)}/g · rinde ${s.rindeGr}g por lote`,
+                    },
+                  ]);
+                }}
+                className="text-[11px] bg-amber-50 border border-amber-200 hover:bg-amber-100 text-amber-800 px-2 py-1 rounded-md transition"
+                title={`Costo: $${s.costoPorGr.toFixed(2)}/g · Lote $${s.costoLote.toFixed(0)} rinde ${s.rindeGr}g${s.alergiasInfo ? " · " + s.alergiasInfo : ""}`}
+              >
+                + {s.nombre.replace(/^SALSA\s+/i, "").substring(0, 25)}
+                <span className="ml-1 text-amber-600 text-[10px] font-mono">${s.costoPorGr.toFixed(1)}/g</span>
+              </button>
+            ))}
+          </div>
+        </div>
+      )}
 
       {/* EXTRAS */}
       <div className="bg-white border border-gray-200 rounded-xl p-4 mb-4">

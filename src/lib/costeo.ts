@@ -36,9 +36,18 @@ export interface Ingrediente {
   ultimaCompra: string; // col H
 }
 
+export interface Salsa {
+  nombre: string;        // ej "SALSA AJÍ AMARILLO"
+  costoLote: number;     // costo total del lote
+  rindeGr: number;       // gramos que rinde el lote
+  costoPorGr: number;    // $ por gramo
+  alergiasInfo: string;  // ej "Sin TACC · Kosher"
+}
+
 interface CosteoData {
   platos: PlatoCosteado[];
   ingredientes: Ingrediente[];
+  salsas: Salsa[];
 }
 
 let _cache: { data: CosteoData; expiresAt: number } | null = null;
@@ -133,7 +142,39 @@ export async function loadCosteo(force = false): Promise<CosteoData> {
     }
   }
 
-  const data: CosteoData = { platos, ingredientes };
+  // ─── SALSAS ───
+  // Estructura: filas tipo "COSTO LOTE · SALSA X" tienen los totales agregados.
+  // Headers row 4 (idx 3): A=SALSA, B=INGREDIENTE, C=RUBRO, D=CANTIDAD(gr/ml),
+  // E=PRECIO NETO $/kg, F=COSTO LÍNEA, G=% LOTE, H=COSTO LOTE TOTAL,
+  // I=RINDE(gr), J=COSTO $/gr, K=ALERGIAS/INFO
+  const salsas: Salsa[] = [];
+  const salsasSheet = wb.Sheets["SALSAS"];
+  if (salsasSheet) {
+    const rows = XLSX.utils.sheet_to_json<unknown[]>(salsasSheet, { header: 1, defval: "" });
+    for (let i = 4; i < rows.length; i++) {
+      const row = rows[i] as unknown[];
+      const colA = str(row[0]);
+      // Solo filas que son resumen de salsa
+      if (!colA.startsWith("COSTO LOTE")) continue;
+      // El nombre está después de "COSTO LOTE · "
+      const match = colA.match(/COSTO\s+LOTE\s*[·\-:]+\s*(.+)/i);
+      const nombre = match ? match[1].trim() : colA.replace(/COSTO\s+LOTE\s*/i, "").trim();
+      const rindeGr = num(row[8]);   // col I
+      const costoLote = num(row[5]) || num(row[7]); // col F (costo línea de resumen) o H
+      const costoPorGr = num(row[9]); // col J
+      const alergiasInfo = str(row[10]);  // col K
+      if (!nombre || rindeGr <= 0) continue;
+      salsas.push({
+        nombre,
+        costoLote,
+        rindeGr,
+        costoPorGr,
+        alergiasInfo,
+      });
+    }
+  }
+
+  const data: CosteoData = { platos, ingredientes, salsas };
   _cache = { data, expiresAt: Date.now() + CACHE_TTL };
   return data;
 }
