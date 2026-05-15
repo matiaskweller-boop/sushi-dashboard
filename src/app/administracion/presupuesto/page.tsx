@@ -65,6 +65,74 @@ interface PlatoCosteado {
 }
 
 /**
+ * Mapeo de secciones plurales (como aparecen en la carta) a su forma singular
+ * para construir descripciones tipo "Ceviche de Wasabi", "Handroll de Shiromi".
+ */
+const SECTION_SINGULAR: Record<string, string> = {
+  ceviches: "Ceviche",
+  handrolls: "Handroll",
+  "hand rolls": "Handroll",
+  niguiris: "Niguiri",
+  nigiris: "Nigiri",
+  sashimis: "Sashimi",
+  rolls: "Roll",
+  makis: "Maki",
+  tatakis: "Tataki",
+  tiraditos: "Tiradito",
+  gunkans: "Gunkan",
+  tartares: "Tartar",
+  tartars: "Tartar",
+  carpaccios: "Carpaccio",
+  woks: "Wok",
+  sopas: "Sopa",
+  ensaladas: "Ensalada",
+  entradas: "Entrada",
+  postres: "Postre",
+  tragos: "Trago",
+  cervezas: "Cerveza",
+  vinos: "Vino",
+  bebidas: "Bebida",
+  champagnes: "Champagne",
+  espumantes: "Espumante",
+  cocteles: "Coctel",
+  cócteles: "Coctel",
+  jugos: "Jugo",
+  cafes: "Café",
+  cafés: "Café",
+};
+
+/**
+ * Construye un nombre descriptivo combinando sección + item.
+ * Ejemplo: ("Ceviches", "Wasabi") → "Ceviche de Wasabi"
+ *          ("Handrolls", "Shiromi") → "Handroll de Shiromi"
+ * Si la sección no tiene singular conocido y no termina en s, usa "{section} - {name}".
+ * Si el item.name ya contiene la palabra de la sección, devuelve solo el name.
+ */
+function buildItemDisplayName(section: string | undefined, name: string): string {
+  if (!section) return name;
+  const sectionLower = section.toLowerCase().trim();
+  // Si el item.name ya empieza con el singular o la palabra clave, no duplicar
+  const nameLower = name.toLowerCase();
+  // 1. Match exacto en mapeo
+  const singular = SECTION_SINGULAR[sectionLower];
+  if (singular) {
+    // Evitar duplicar si el nombre ya contiene el tipo
+    if (nameLower.includes(singular.toLowerCase())) return name;
+    return `${singular} de ${name}`;
+  }
+  // 2. Singularizar genericamente
+  let s = section;
+  if (sectionLower.endsWith("es") && sectionLower.length > 3) s = section.slice(0, -2);
+  else if (sectionLower.endsWith("s") && sectionLower.length > 2) s = section.slice(0, -1);
+  if (s !== section) {
+    if (nameLower.includes(s.toLowerCase())) return name;
+    return `${s} de ${name}`;
+  }
+  // 3. No singularizable: separar con " - "
+  return `${section} - ${name}`;
+}
+
+/**
  * Normaliza para matching (igual que la lib).
  */
 function normalizeName(s: string): string {
@@ -203,12 +271,14 @@ export default function PresupuestoPage() {
   }, [flatMenuItems, searchPicker]);
 
   const addMenuItem = (it: MenuItem) => {
-    // Buscar costo en MASUNORI_COSTEO_DASHBOARD por nombre
-    const costMatch = findCostByName(costeoPlatos, it.name);
+    // Construir nombre descriptivo: "Ceviche de Wasabi" en lugar de solo "Wasabi"
+    const displayName = buildItemDisplayName(it.sectionTitle, it.name);
+    // Buscar costo: probar primero con el nombre completo, después con name solo
+    const costMatch = findCostByName(costeoPlatos, displayName) || findCostByName(costeoPlatos, it.name);
     const newItem: PresupuestoItem = {
       id: uid(),
       menuItemId: it.id,
-      nombre: it.name,
+      nombre: displayName,
       cantidad: comensales || 1,
       unidad: "unidad",
       costoUnit: costMatch ? Math.round(costMatch.costoTotal) : 0,
@@ -601,7 +671,8 @@ export default function PresupuestoPage() {
           {pickerOpen && filteredMenuItems.length > 0 && (
             <div className="absolute z-30 w-full mt-1 bg-white border border-gray-200 rounded-lg shadow-lg max-h-80 overflow-y-auto">
               {filteredMenuItems.map((it) => {
-                const cm = findCostByName(costeoPlatos, it.name);
+                const displayName = buildItemDisplayName(it.sectionTitle, it.name);
+                const cm = findCostByName(costeoPlatos, displayName) || findCostByName(costeoPlatos, it.name);
                 return (
                   <button
                     key={it.id}
@@ -611,7 +682,7 @@ export default function PresupuestoPage() {
                     <div className="flex items-center justify-between gap-2">
                       <div className="flex-1 min-w-0">
                         <div className="font-medium text-navy truncate">
-                          {it.name}
+                          {displayName}
                           {cm && (
                             <span className="ml-1.5 text-[9px] bg-emerald-100 text-emerald-700 px-1 py-0.5 rounded font-normal" title={`Costo: ${fmt(cm.costoTotal)}`}>
                               ✓ costeado
