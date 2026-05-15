@@ -385,52 +385,35 @@ export default function PresupuestoPage() {
       doc.rect(0, 0, W, H, "F");
     };
 
-    // Dibuja el bonsai vectorial estilo Masunori (logo)
-    const drawBonsai = (cx: number, cy: number, size = 22) => {
-      doc.setFillColor(20, 20, 20);
-      doc.setDrawColor(20, 20, 20);
-      const baseX = cx;
-      const baseY = cy + size * 0.4;
+    // Cargar el logo Masunori (PNG con bonsai, fondo rosa que coincide con el del PDF)
+    let logoDataUrl: string | null = null;
+    try {
+      const res = await fetch("/logo-masunori.png");
+      if (res.ok) {
+        const blob = await res.blob();
+        logoDataUrl = await new Promise<string>((resolve, reject) => {
+          const reader = new FileReader();
+          reader.onloadend = () => resolve(reader.result as string);
+          reader.onerror = reject;
+          reader.readAsDataURL(blob);
+        });
+      }
+    } catch (e) {
+      console.warn("No se pudo cargar logo-masunori.png:", e);
+    }
 
-      // Raíces (líneas cortas spread al pie)
-      doc.setLineWidth(size * 0.018);
-      doc.line(baseX, baseY, baseX - size * 0.16, baseY + size * 0.02);
-      doc.line(baseX, baseY, baseX + size * 0.18, baseY + size * 0.025);
-      doc.line(baseX, baseY, baseX - size * 0.08, baseY + size * 0.01);
-      doc.line(baseX, baseY, baseX + size * 0.1, baseY + size * 0.005);
-
-      // Tronco (curva S aproximada con 3 tramos)
-      doc.setLineWidth(size * 0.055);
-      doc.line(baseX, baseY, baseX + size * 0.06, baseY - size * 0.18);
-      doc.line(baseX + size * 0.06, baseY - size * 0.18, baseX - size * 0.04, baseY - size * 0.3);
-      doc.line(baseX - size * 0.04, baseY - size * 0.3, baseX + size * 0.03, baseY - size * 0.42);
-
-      const topX = baseX + size * 0.03;
-      const topY = baseY - size * 0.42;
-
-      // Ramas finas
-      doc.setLineWidth(size * 0.018);
-      doc.line(topX, topY, topX - size * 0.4, topY - size * 0.12); // izquierda
-      doc.line(topX, topY, topX + size * 0.35, topY - size * 0.08); // derecha
-      doc.line(topX, topY, topX + size * 0.12, topY - size * 0.42); // arriba der
-      doc.line(topX, topY, topX - size * 0.18, topY - size * 0.32); // arriba izq
-      doc.line(topX, topY, topX + size * 0.45, topY - size * 0.18); // larga der
-
-      // Clusters de follaje
-      const cluster = (lx: number, ly: number) => {
-        const r = size * 0.045;
-        doc.circle(lx, ly, r, "F");
-        doc.circle(lx - r * 0.9, ly - r * 0.3, r * 0.75, "F");
-        doc.circle(lx + r * 0.9, ly - r * 0.4, r * 0.85, "F");
-        doc.circle(lx + r * 0.3, ly - r * 1.1, r * 0.8, "F");
-        doc.circle(lx - r * 0.5, ly + r * 0.5, r * 0.7, "F");
-        doc.circle(lx + r * 1.1, ly + r * 0.3, r * 0.65, "F");
-      };
-      cluster(topX - size * 0.4, topY - size * 0.12);
-      cluster(topX + size * 0.35, topY - size * 0.08);
-      cluster(topX + size * 0.12, topY - size * 0.42);
-      cluster(topX - size * 0.18, topY - size * 0.32);
-      cluster(topX + size * 0.45, topY - size * 0.18);
+    // Dibuja el logo Masunori. Si el PNG cargó, lo embebe; sino, fallback texto.
+    const drawLogo = (cx: number, cy: number, size = 22) => {
+      if (logoDataUrl) {
+        // x, y son la esquina superior izquierda. Centramos en (cx, cy).
+        doc.addImage(logoDataUrl, "PNG", cx - size / 2, cy - size / 2, size, size);
+      } else {
+        // Fallback: texto MASUNORI
+        doc.setFont("helvetica", "bold");
+        doc.setFontSize(size * 0.6);
+        doc.setTextColor(30);
+        doc.text("MASUNORI", cx, cy, { align: "center" });
+      }
     };
 
     // Direcciones (footer comun)
@@ -469,7 +452,7 @@ export default function PresupuestoPage() {
     // ═══════════════════════════════════════
     pinkBg();
     drawQuote();
-    drawBonsai(W - 25, 20, 22);
+    drawLogo(W - 25, 22, 28);
 
     // Título central
     doc.setFont("helvetica", "normal");
@@ -657,7 +640,7 @@ export default function PresupuestoPage() {
     }
 
     // Bonsai grande centrado
-    drawBonsai(W / 2, 165, 30);
+    drawLogo(W / 2, 162, 48);
 
     // Footer
     doc.setFont("helvetica", "normal");
