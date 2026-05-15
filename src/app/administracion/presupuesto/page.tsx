@@ -201,8 +201,33 @@ export default function PresupuestoPage() {
   const [precioVajilla, setPrecioVajilla] = useState(0);
   const [notasVajilla, setNotasVajilla] = useState("");
 
-  // Markup default
-  const [markupPct, setMarkupPct] = useState(40); // % default para sugerir precio sobre costo
+  // Food cost objetivo: % que el costo representa sobre el precio de venta.
+  // Ej. food cost = 15% → costo es 15% del precio → precio = costo / 0.15
+  // Default 15% (es lo típico de Masunori según la planilla COSTEO).
+  const [foodCostPct, setFoodCostPct] = useState(15);
+
+  // Diseño del PDF — campos opcionales editables
+  const [frasePDF, setFrasePDF] = useState(
+    "Cada pieza es una declaración de excelencia. Gracias por permitirnos ser parte de este momento único."
+  );
+  const [descuentoPct, setDescuentoPct] = useState(0);
+  const [mostrarSena, setMostrarSena] = useState(true);
+  const [senaPct, setSenaPct] = useState(50);
+  const [importanteSaber, setImportanteSaber] = useState(
+    "- Si se modifica la cantidad de invitados, informar con al menos 48 horas de anticipación.\n" +
+    "- Cancelaciones con 5 días o más: devolución del 50% de la seña. Con menos de 5 días, la seña cubre costos operativos y reserva de fecha."
+  );
+  const [comoFunciona, setComoFunciona] = useState(
+    "- El evento tiene una duración de 3 horas.\n" +
+    "- El personal se presenta una hora antes para preparar los emplatados y las decoraciones. También se deja lista la barra de servicios asignada.\n" +
+    "- A veinte minutos de la bajada de platos de las mesas, se comienza el servicio de handrolls."
+  );
+  const [formasPago, setFormasPago] = useState(
+    "Efectivo (ARS/USD) · Transferencia bancaria · Tarjetas de crédito o débito.\n" +
+    "Los valores no incluyen IVA.\n" +
+    "La propina no está contemplada en el presupuesto. Sugerimos un 10% del total, únicamente en efectivo."
+  );
+  const [pdfOptOpen, setPdfOptOpen] = useState(false);
 
   // Item picker
   const [searchPicker, setSearchPicker] = useState("");
@@ -326,171 +351,321 @@ export default function PresupuestoPage() {
   const totalPrecio = subtotalPrecioItems + subtotalPrecioExtras + precioVaj;
   const ganancia = totalPrecio - totalCosto;
   const margenPct = totalPrecio > 0 ? (ganancia / totalPrecio) * 100 : 0;
-  const markupAplicado = totalCosto > 0 ? (ganancia / totalCosto) * 100 : 0;
+  const foodCostAplicado = totalPrecio > 0 ? (totalCosto / totalPrecio) * 100 : 0;
 
-  // Auto-sugerencia: aplica markup a todos los items
-  const applyMarkupAll = () => {
+  // Auto-sugerencia: aplica food cost objetivo a todos los items.
+  // Si food cost = 15%, entonces precio = costo / 0.15 (= costo × 6.67).
+  const applyFoodCostAll = () => {
+    if (foodCostPct <= 0 || foodCostPct >= 100) return;
+    const factor = 100 / foodCostPct;
     setItems((prev) => prev.map((it) => ({
       ...it,
-      precioUnit: Math.round(it.costoUnit * (1 + markupPct / 100)),
+      precioUnit: it.costoUnit > 0 ? Math.round(it.costoUnit * factor) : it.precioUnit,
     })));
     setExtras((prev) => prev.map((it) => ({
       ...it,
-      precioUnit: Math.round(it.costoUnit * (1 + markupPct / 100)),
+      precioUnit: it.costoUnit > 0 ? Math.round(it.costoUnit * factor) : it.precioUnit,
     })));
     if (conVajilla && costoVajilla > 0) {
-      setPrecioVajilla(Math.round(costoVajilla * (1 + markupPct / 100)));
+      setPrecioVajilla(Math.round(costoVajilla * factor));
     }
   };
 
   const generatePDF = async () => {
     const { jsPDF } = await import("jspdf");
-    // eslint-disable-next-line @typescript-eslint/no-explicit-any
-    const autoTableMod: any = await import("jspdf-autotable");
-    const autoTable = autoTableMod.default || autoTableMod.autoTable || autoTableMod;
 
-    const doc = new jsPDF({ orientation: "portrait", unit: "mm", format: "a4" });
+    // ─── LANDSCAPE A4 con fondo rosa estilo Masunori ───
+    const doc = new jsPDF({ orientation: "landscape", unit: "mm", format: "a4" });
+    const W = 297; // ancho
+    const H = 210; // alto
+    const PINK_R = 244, PINK_G = 215, PINK_B = 210; // #F4D7D2 — tono salmón claro
 
-    // Header
-    doc.setFontSize(20);
-    doc.setTextColor(46, 109, 164);
-    doc.text("MASUNORI", 20, 25);
+    const pinkBg = () => {
+      doc.setFillColor(PINK_R, PINK_G, PINK_B);
+      doc.rect(0, 0, W, H, "F");
+    };
+
+    // Dibuja el bonsai vectorial estilo Masunori (logo)
+    const drawBonsai = (cx: number, cy: number, size = 22) => {
+      doc.setFillColor(20, 20, 20);
+      doc.setDrawColor(20, 20, 20);
+      const baseX = cx;
+      const baseY = cy + size * 0.4;
+
+      // Raíces (líneas cortas spread al pie)
+      doc.setLineWidth(size * 0.018);
+      doc.line(baseX, baseY, baseX - size * 0.16, baseY + size * 0.02);
+      doc.line(baseX, baseY, baseX + size * 0.18, baseY + size * 0.025);
+      doc.line(baseX, baseY, baseX - size * 0.08, baseY + size * 0.01);
+      doc.line(baseX, baseY, baseX + size * 0.1, baseY + size * 0.005);
+
+      // Tronco (curva S aproximada con 3 tramos)
+      doc.setLineWidth(size * 0.055);
+      doc.line(baseX, baseY, baseX + size * 0.06, baseY - size * 0.18);
+      doc.line(baseX + size * 0.06, baseY - size * 0.18, baseX - size * 0.04, baseY - size * 0.3);
+      doc.line(baseX - size * 0.04, baseY - size * 0.3, baseX + size * 0.03, baseY - size * 0.42);
+
+      const topX = baseX + size * 0.03;
+      const topY = baseY - size * 0.42;
+
+      // Ramas finas
+      doc.setLineWidth(size * 0.018);
+      doc.line(topX, topY, topX - size * 0.4, topY - size * 0.12); // izquierda
+      doc.line(topX, topY, topX + size * 0.35, topY - size * 0.08); // derecha
+      doc.line(topX, topY, topX + size * 0.12, topY - size * 0.42); // arriba der
+      doc.line(topX, topY, topX - size * 0.18, topY - size * 0.32); // arriba izq
+      doc.line(topX, topY, topX + size * 0.45, topY - size * 0.18); // larga der
+
+      // Clusters de follaje
+      const cluster = (lx: number, ly: number) => {
+        const r = size * 0.045;
+        doc.circle(lx, ly, r, "F");
+        doc.circle(lx - r * 0.9, ly - r * 0.3, r * 0.75, "F");
+        doc.circle(lx + r * 0.9, ly - r * 0.4, r * 0.85, "F");
+        doc.circle(lx + r * 0.3, ly - r * 1.1, r * 0.8, "F");
+        doc.circle(lx - r * 0.5, ly + r * 0.5, r * 0.7, "F");
+        doc.circle(lx + r * 1.1, ly + r * 0.3, r * 0.65, "F");
+      };
+      cluster(topX - size * 0.4, topY - size * 0.12);
+      cluster(topX + size * 0.35, topY - size * 0.08);
+      cluster(topX + size * 0.12, topY - size * 0.42);
+      cluster(topX - size * 0.18, topY - size * 0.32);
+      cluster(topX + size * 0.45, topY - size * 0.18);
+    };
+
+    // Direcciones (footer comun)
+    const drawAddresses = (x: number, y: number) => {
+      doc.setFontSize(8);
+      doc.setTextColor(40);
+      doc.setFont("helvetica", "bold");
+      doc.text("Palermo", x, y);
+      doc.setFont("helvetica", "normal");
+      doc.text(" | Juan A. Buschiazzo 3043", x + 13, y);
+      doc.setFont("helvetica", "bold");
+      doc.text("Belgrano", x, y + 4);
+      doc.setFont("helvetica", "normal");
+      doc.text(" | Castañeda 1872", x + 14, y + 4);
+      doc.setFont("helvetica", "bold");
+      doc.text("Puerto Madero", x, y + 8);
+      doc.setFont("helvetica", "normal");
+      doc.text(" | Juana Manso 1810", x + 22, y + 8);
+    };
+
+    // Quote común
+    const drawQuote = () => {
+      doc.setFont("helvetica", "italic");
+      doc.setFontSize(11);
+      doc.setTextColor(35);
+      const quoteLines = doc.splitTextToSize(`"${frasePDF}"`, 220);
+      let yQ = 15;
+      for (const line of quoteLines) {
+        doc.text(line, W / 2, yQ, { align: "center" });
+        yQ += 5;
+      }
+    };
+
+    // ═══════════════════════════════════════
+    // PÁGINA 1
+    // ═══════════════════════════════════════
+    pinkBg();
+    drawQuote();
+    drawBonsai(W - 25, 20, 22);
+
+    // Título central
+    doc.setFont("helvetica", "normal");
+    doc.setFontSize(22);
+    doc.setTextColor(30);
+    const titulo = "PRESUPUESTO " + (
+      tipo === "catering" ? "CATERING" :
+      tipo === "evento_local" ? "EVENTO EN EL LOCAL" :
+      "A MEDIDA"
+    );
+    doc.text(titulo, W / 2, 42, { align: "center" });
+    if (cliente) {
+      doc.setFontSize(18);
+      doc.text(`Cliente: ${cliente}`, W / 2, 52, { align: "center" });
+    }
+
+    // ─── Columna izquierda: MENÚ ───
+    const colIzqCX = 75; // centro de la columna izquierda
+    let mY = 72;
+    doc.setFont("helvetica", "bold");
+    doc.setFontSize(14);
+    doc.setTextColor(30);
+    doc.text("· M E N Ú ·", colIzqCX, mY, { align: "center" });
+    mY += 12;
+
+    // Headers
+    doc.setFont("helvetica", "bold");
     doc.setFontSize(11);
-    doc.setTextColor(100);
-    doc.text("Presupuesto", 20, 32);
+    doc.text("Producto", colIzqCX - 35, mY);
+    doc.text("Unidades", colIzqCX + 35, mY, { align: "right" });
+    mY += 7;
 
-    doc.setTextColor(60);
-    doc.setFontSize(9);
-    doc.text(`Tipo: ${TIPO_LABELS[tipo].replace(/[🍱🏠✨]\s?/g, "")}`, 130, 25);
-    doc.text(`Fecha emisión: ${new Date().toLocaleDateString("es-AR")}`, 130, 30);
-    doc.text(`Validez: ${validez}`, 130, 35);
-    if (fechaEvento) doc.text(`Fecha del evento: ${new Date(fechaEvento + "T00:00:00").toLocaleDateString("es-AR")}`, 130, 40);
-
-    // Cliente
-    let y = 50;
-    doc.setFontSize(11);
-    doc.setTextColor(46, 109, 164);
-    doc.text("Cliente", 20, y);
-    y += 5;
+    // Items
+    doc.setFont("helvetica", "normal");
     doc.setFontSize(10);
-    doc.setTextColor(40);
-    if (cliente) { doc.text(`Nombre: ${cliente}`, 20, y); y += 5; }
-    if (contactoCliente) { doc.text(`Contacto: ${contactoCliente}`, 20, y); y += 5; }
-    if (direccion) { doc.text(`Dirección: ${direccion}`, 20, y); y += 5; }
-    if (comensales) { doc.text(`Comensales: ${comensales}`, 20, y); y += 5; }
-
-    y += 5;
-
-    // Items table
-    const itemsTableData = items
-      .filter((it) => it.nombre.trim())
-      .map((it) => [
-        it.nombre,
-        `${it.cantidad} ${it.unidad || ""}`,
-        fmt(it.precioUnit),
-        fmt(it.precioUnit * it.cantidad),
-      ]);
-
-    if (itemsTableData.length > 0) {
-      autoTable(doc, {
-        startY: y,
-        head: [["Descripción", "Cantidad", "Precio unitario", "Subtotal"]],
-        body: itemsTableData,
-        theme: "striped",
-        styles: { fontSize: 9 },
-        headStyles: { fillColor: [46, 109, 164], textColor: 255 },
-        columnStyles: {
-          0: { cellWidth: 80 },
-          1: { halign: "center", cellWidth: 30 },
-          2: { halign: "right", cellWidth: 35 },
-          3: { halign: "right", cellWidth: 35, fontStyle: "bold" },
-        },
-      });
-      // eslint-disable-next-line @typescript-eslint/no-explicit-any
-      y = (doc as any).lastAutoTable.finalY + 5;
+    const validItems = items.filter((i) => i.nombre.trim());
+    let totalUnidades = 0;
+    for (const it of validItems) {
+      doc.setFont("helvetica", "normal");
+      doc.text("• " + it.nombre.toUpperCase(), colIzqCX - 35, mY);
+      doc.text(String(it.cantidad), colIzqCX + 35, mY, { align: "right" });
+      mY += 5;
+      if (it.notas) {
+        doc.setFont("helvetica", "italic");
+        doc.setFontSize(9);
+        doc.setTextColor(80);
+        const noteLines = doc.splitTextToSize("(" + it.notas + ")", 65);
+        for (const l of noteLines) {
+          doc.text(l, colIzqCX - 32, mY);
+          mY += 4;
+        }
+        doc.setFontSize(10);
+        doc.setTextColor(30);
+      }
+      mY += 1;
+      totalUnidades += it.cantidad || 0;
     }
 
-    // Vajilla
-    if (conVajilla && precioVaj > 0) {
-      autoTable(doc, {
-        startY: y,
-        body: [["Vajilla / Servicio de mesa" + (notasVajilla ? ` (${notasVajilla})` : ""), "", "", fmt(precioVaj)]],
-        theme: "plain",
-        styles: { fontSize: 9 },
-        columnStyles: {
-          0: { cellWidth: 110 },
-          3: { halign: "right", cellWidth: 35, fontStyle: "bold" },
-        },
-      });
-      // eslint-disable-next-line @typescript-eslint/no-explicit-any
-      y = (doc as any).lastAutoTable.finalY + 2;
+    if (validItems.length > 0) {
+      mY += 6;
+      doc.setFont("helvetica", "normal");
+      doc.setFontSize(11);
+      doc.setTextColor(30);
+      doc.text(`TOTAL ${totalUnidades} unidades`, colIzqCX, mY, { align: "center" });
+      mY += 10;
     }
 
-    // Extras
-    const extrasTableData = extras
-      .filter((it) => it.nombre.trim())
-      .map((it) => [
-        it.nombre,
-        `${it.cantidad} ${it.unidad || ""}`,
-        fmt(it.precioUnit),
-        fmt(it.precioUnit * it.cantidad),
-      ]);
-
-    if (extrasTableData.length > 0) {
+    // Incluye
+    const validExtras = extras.filter((e) => e.nombre.trim());
+    if (validExtras.length > 0 || conVajilla) {
+      doc.setFont("helvetica", "bold");
+      doc.setFontSize(11);
+      doc.text("Incluye:", colIzqCX, mY, { align: "center" });
+      mY += 6;
+      doc.setFont("helvetica", "normal");
       doc.setFontSize(10);
-      doc.setTextColor(46, 109, 164);
-      doc.text("Adicionales", 20, y + 3);
-      y += 5;
-      autoTable(doc, {
-        startY: y,
-        head: [["Descripción", "Cantidad", "Precio unitario", "Subtotal"]],
-        body: extrasTableData,
-        theme: "striped",
-        styles: { fontSize: 9 },
-        headStyles: { fillColor: [100, 116, 139], textColor: 255 },
-        columnStyles: {
-          0: { cellWidth: 80 },
-          1: { halign: "center", cellWidth: 30 },
-          2: { halign: "right", cellWidth: 35 },
-          3: { halign: "right", cellWidth: 35, fontStyle: "bold" },
-        },
-      });
-      // eslint-disable-next-line @typescript-eslint/no-explicit-any
-      y = (doc as any).lastAutoTable.finalY + 5;
+      for (const ex of validExtras) {
+        doc.text(ex.nombre, colIzqCX, mY, { align: "center" });
+        mY += 5;
+      }
+      if (conVajilla) {
+        const vajText = notasVajilla ? `Vajilla — ${notasVajilla}` : "Vajilla";
+        doc.text(vajText, colIzqCX, mY, { align: "center" });
+        mY += 5;
+      }
     }
 
-    // Total
-    autoTable(doc, {
-      startY: y,
-      body: [["TOTAL", fmt(totalPrecio)]],
-      theme: "grid",
-      styles: { fontSize: 13, fontStyle: "bold", textColor: 255, fillColor: [46, 109, 164] },
-      columnStyles: {
-        0: { cellWidth: 145 },
-        1: { halign: "right", cellWidth: 35 },
-      },
-    });
-    // eslint-disable-next-line @typescript-eslint/no-explicit-any
-    y = (doc as any).lastAutoTable.finalY + 8;
+    // ─── Columna derecha: VALOR ───
+    const colDerCX = 200;
+    let vY = 72;
+    doc.setFont("helvetica", "bold");
+    doc.setFontSize(14);
+    doc.setTextColor(30);
+    doc.text("V A L O R", colDerCX, vY, { align: "center" });
+    vY += 16;
 
-    // Notas
-    if (notasGenerales) {
-      doc.setFontSize(10);
-      doc.setTextColor(46, 109, 164);
-      doc.text("Notas / Condiciones", 20, y);
-      y += 5;
+    const precioFinal = descuentoPct > 0 ? totalPrecio * (1 - descuentoPct / 100) : totalPrecio;
+
+    if (descuentoPct > 0) {
+      doc.setFont("helvetica", "normal");
+      doc.setFontSize(13);
+      doc.text(`${fmt(totalPrecio)} PESOS - ${descuentoPct}% off`, colDerCX, vY, { align: "center" });
+      vY += 14;
+      doc.setFont("helvetica", "bold");
+      doc.setFontSize(24);
+      doc.text(fmt(precioFinal), colDerCX, vY, { align: "center" });
+      vY += 8;
+      doc.setFont("helvetica", "normal");
+      doc.setFontSize(11);
+      doc.text("sin IVA en efectivo", colDerCX, vY, { align: "center" });
+      vY += 14;
+    } else {
+      doc.setFont("helvetica", "bold");
+      doc.setFontSize(24);
+      doc.text(fmt(totalPrecio), colDerCX, vY + 4, { align: "center" });
+      vY += 14;
+      doc.setFont("helvetica", "normal");
+      doc.setFontSize(11);
+      doc.text("sin IVA en efectivo", colDerCX, vY, { align: "center" });
+      vY += 14;
+    }
+
+    if (mostrarSena && senaPct > 0) {
+      const sena = precioFinal * (senaPct / 100);
+      doc.setFont("helvetica", "normal");
+      doc.setFontSize(11);
+      doc.text("Para concretar la reserva", colDerCX, vY, { align: "center" });
+      vY += 6;
+      doc.setFont("helvetica", "bold");
+      doc.setFontSize(12);
+      doc.text(fmt(sena), colDerCX, vY, { align: "center" });
+      vY += 5;
+      doc.setFont("helvetica", "normal");
       doc.setFontSize(9);
-      doc.setTextColor(60);
-      const lines = doc.splitTextToSize(notasGenerales, 170);
-      doc.text(lines, 20, y);
-      y += lines.length * 4 + 5;
+      doc.setTextColor(80);
+      doc.text(`${senaPct}% de la seña — pago efectivo`, colDerCX, vY, { align: "center" });
     }
+
+    // Info adicional bottom-left: tipo + fechas
+    doc.setFont("helvetica", "normal");
+    doc.setFontSize(9);
+    doc.setTextColor(60);
+    const metaY = H - 25;
+    if (fechaEvento) {
+      doc.text(`Fecha del evento: ${new Date(fechaEvento + "T00:00:00").toLocaleDateString("es-AR")}`, 20, metaY);
+    }
+    if (comensales) doc.text(`Comensales: ${comensales}`, 20, metaY + 4);
+    if (contactoCliente) doc.text(`Contacto: ${contactoCliente}`, 20, metaY + 8);
+    doc.text(`Validez: ${validez} · Emitido: ${new Date().toLocaleDateString("es-AR")}`, 20, metaY + 12);
+
+    drawAddresses(W - 75, H - 18);
+
+    // ═══════════════════════════════════════
+    // PÁGINA 2 — Condiciones
+    // ═══════════════════════════════════════
+    doc.addPage();
+    pinkBg();
+    drawQuote();
+
+    let cY = 38;
+
+    const drawSection = (titulo: string, contenido: string) => {
+      doc.setFont("helvetica", "bold");
+      doc.setFontSize(12);
+      doc.setTextColor(30);
+      doc.text(titulo, W / 2, cY, { align: "center" });
+      cY += 6;
+      doc.setFont("helvetica", "normal");
+      doc.setFontSize(10);
+      doc.setTextColor(40);
+      const lines = doc.splitTextToSize(contenido, 230);
+      for (const l of lines) {
+        doc.text(l, W / 2, cY, { align: "center" });
+        cY += 5;
+      }
+      cY += 6;
+    };
+
+    drawSection("IMPORTANTE SABER", importanteSaber);
+    drawSection("CÓMO FUNCIONA", comoFunciona);
+    drawSection("FORMAS DE PAGO", formasPago);
+
+    if (notasGenerales) {
+      drawSection("NOTAS ADICIONALES", notasGenerales);
+    }
+
+    // Bonsai grande centrado
+    drawBonsai(W / 2, 165, 30);
 
     // Footer
-    doc.setFontSize(8);
-    doc.setTextColor(150);
-    doc.text("Masunori · presupuesto sujeto a confirmación", 20, 285);
-    doc.text(new Date().toLocaleString("es-AR"), 165, 285);
+    doc.setFont("helvetica", "normal");
+    doc.setFontSize(10);
+    doc.setTextColor(40);
+    doc.text("masunori   ·   eventos corporativos   ·   @masunorisushi", W / 2, 192, { align: "center" });
+
+    drawAddresses(W - 75, H - 18);
 
     const filename = `Presupuesto-${(cliente || "cliente").replace(/[^a-zA-Z0-9]/g, "_")}-${new Date().toISOString().substring(0, 10)}.pdf`;
     doc.save(filename);
@@ -620,27 +795,31 @@ export default function PresupuestoPage() {
         </div>
       </div>
 
-      {/* MARKUP CONTROL */}
+      {/* FOOD COST CONTROL */}
       <div className="bg-blue-50 border border-blue-200 rounded-xl p-3 mb-4 flex items-center gap-3 flex-wrap">
-        <span className="text-xs text-blue-900 font-medium">Markup sugerido sobre costo:</span>
-        <input
-          type="number"
-          value={markupPct}
-          onChange={(e) => setMarkupPct(parseInt(e.target.value) || 0)}
-          min="0"
-          max="500"
-          className="w-20 border border-blue-200 rounded-lg px-2 py-1 text-sm bg-white"
-        />
-        <span className="text-xs text-blue-900">%</span>
-        <button
-          onClick={applyMarkupAll}
-          className="ml-auto text-xs bg-blue-accent text-white px-3 py-1.5 rounded-lg hover:bg-blue-accent/90"
-        >
-          Aplicar {markupPct}% a todos los items
-        </button>
-        <span className="text-[11px] text-blue-700">
-          (precio sugerido = costo × (1 + {markupPct}/100))
+        <div className="flex items-center gap-2">
+          <span className="text-xs text-blue-900 font-medium">¿Con qué food cost % querés operar?</span>
+          <input
+            type="number"
+            value={foodCostPct}
+            onChange={(e) => setFoodCostPct(parseFloat(e.target.value) || 0)}
+            min="1"
+            max="99"
+            step="0.5"
+            className="w-20 border border-blue-200 rounded-lg px-2 py-1 text-sm bg-white font-mono"
+          />
+          <span className="text-xs text-blue-900">%</span>
+        </div>
+        <span className="text-[11px] text-blue-700 italic">
+          ej {foodCostPct}% significa: costo = {foodCostPct}% del precio · precio = costo ÷ {(foodCostPct / 100).toFixed(2)} (× {foodCostPct > 0 ? (100 / foodCostPct).toFixed(2) : "?"})
         </span>
+        <button
+          onClick={applyFoodCostAll}
+          disabled={foodCostPct <= 0 || foodCostPct >= 100}
+          className="ml-auto text-xs bg-blue-accent text-white px-3 py-1.5 rounded-lg hover:bg-blue-accent/90 disabled:opacity-50"
+        >
+          Aplicar {foodCostPct}% food cost a todos los items
+        </button>
       </div>
 
       {/* ITEMS — picker + tabla */}
@@ -721,7 +900,7 @@ export default function PresupuestoPage() {
                   <th className="px-2 py-2 text-right w-28">Costo unit.</th>
                   <th className="px-2 py-2 text-right w-28">Precio unit.</th>
                   <th className="px-2 py-2 text-right w-28">Subt. precio</th>
-                  <th className="px-2 py-2 text-right w-20">Margen</th>
+                  <th className="px-2 py-2 text-right w-20">F.cost</th>
                   <th className="px-2 py-2 w-8"></th>
                 </tr>
               </thead>
@@ -729,7 +908,7 @@ export default function PresupuestoPage() {
                 {items.map((it) => {
                   const subtPrecio = it.precioUnit * it.cantidad;
                   const subtCosto = it.costoUnit * it.cantidad;
-                  const marg = subtPrecio > 0 ? ((subtPrecio - subtCosto) / subtPrecio) * 100 : 0;
+                  const fcost = subtPrecio > 0 ? (subtCosto / subtPrecio) * 100 : 0;
                   return (
                     <tr key={it.id} className="border-b border-gray-100">
                       <td className="px-2 py-1.5">
@@ -769,8 +948,12 @@ export default function PresupuestoPage() {
                         />
                       </td>
                       <td className="px-2 py-1.5 text-right font-mono font-semibold text-navy">{fmt(subtPrecio)}</td>
-                      <td className={`px-2 py-1.5 text-right text-xs font-medium ${marg >= 30 ? "text-emerald-600" : marg >= 15 ? "text-amber-600" : "text-red-600"}`}>
-                        {marg.toFixed(0)}%
+                      <td className={`px-2 py-1.5 text-right text-xs font-medium ${
+                        fcost === 0 ? "text-gray-300" :
+                        fcost <= 20 ? "text-emerald-600" :
+                        fcost <= 35 ? "text-amber-600" : "text-red-600"
+                      }`} title={subtPrecio > 0 ? `Costo es ${fcost.toFixed(1)}% del precio. Margen ${(100 - fcost).toFixed(1)}%` : ""}>
+                        {fcost > 0 ? `${fcost.toFixed(0)}%` : "—"}
                       </td>
                       <td className="px-2 py-1.5 text-right">
                         <button
@@ -941,6 +1124,93 @@ export default function PresupuestoPage() {
         />
       </div>
 
+      {/* DISEÑO DEL PDF (colapsable) */}
+      <div className="bg-white border border-gray-200 rounded-xl mb-4">
+        <button
+          onClick={() => setPdfOptOpen(!pdfOptOpen)}
+          className="w-full flex items-center justify-between px-4 py-3 text-left text-sm font-semibold text-navy uppercase hover:bg-gray-50 rounded-xl"
+        >
+          <span>📄 Diseño del PDF (descuento, seña, textos)</span>
+          <span className="text-gray-400">{pdfOptOpen ? "▲" : "▼"}</span>
+        </button>
+        {pdfOptOpen && (
+          <div className="px-4 pb-4 space-y-3 border-t border-gray-100 pt-3">
+            <div className="grid grid-cols-1 md:grid-cols-3 gap-3">
+              <div>
+                <label className="text-[11px] text-gray-500 uppercase block mb-1">Descuento %</label>
+                <input
+                  type="number"
+                  value={descuentoPct}
+                  onChange={(e) => setDescuentoPct(parseFloat(e.target.value) || 0)}
+                  min="0"
+                  max="90"
+                  className="w-full border border-gray-200 rounded-lg px-3 py-2 text-sm font-mono"
+                />
+                <div className="text-[10px] text-gray-400 mt-0.5">aparece en PDF como &quot;30% off&quot;</div>
+              </div>
+              <div>
+                <label className="text-[11px] text-gray-500 uppercase block mb-1">Seña %</label>
+                <div className="flex gap-2 items-center">
+                  <input
+                    type="number"
+                    value={senaPct}
+                    onChange={(e) => setSenaPct(parseFloat(e.target.value) || 0)}
+                    min="0"
+                    max="100"
+                    disabled={!mostrarSena}
+                    className="w-full border border-gray-200 rounded-lg px-3 py-2 text-sm font-mono disabled:opacity-50"
+                  />
+                </div>
+                <label className="flex items-center gap-1.5 text-[11px] text-gray-500 mt-1 cursor-pointer">
+                  <input
+                    type="checkbox"
+                    checked={mostrarSena}
+                    onChange={(e) => setMostrarSena(e.target.checked)}
+                  />
+                  Mostrar seña en el PDF
+                </label>
+              </div>
+              <div>
+                <label className="text-[11px] text-gray-500 uppercase block mb-1">Frase / Quote (top del PDF)</label>
+                <textarea
+                  value={frasePDF}
+                  onChange={(e) => setFrasePDF(e.target.value)}
+                  rows={2}
+                  className="w-full border border-gray-200 rounded-lg px-3 py-2 text-sm resize-y"
+                />
+              </div>
+            </div>
+            <div>
+              <label className="text-[11px] text-gray-500 uppercase block mb-1">IMPORTANTE SABER</label>
+              <textarea
+                value={importanteSaber}
+                onChange={(e) => setImportanteSaber(e.target.value)}
+                rows={3}
+                className="w-full border border-gray-200 rounded-lg px-3 py-2 text-sm resize-y"
+              />
+            </div>
+            <div>
+              <label className="text-[11px] text-gray-500 uppercase block mb-1">CÓMO FUNCIONA</label>
+              <textarea
+                value={comoFunciona}
+                onChange={(e) => setComoFunciona(e.target.value)}
+                rows={3}
+                className="w-full border border-gray-200 rounded-lg px-3 py-2 text-sm resize-y"
+              />
+            </div>
+            <div>
+              <label className="text-[11px] text-gray-500 uppercase block mb-1">FORMAS DE PAGO</label>
+              <textarea
+                value={formasPago}
+                onChange={(e) => setFormasPago(e.target.value)}
+                rows={3}
+                className="w-full border border-gray-200 rounded-lg px-3 py-2 text-sm resize-y"
+              />
+            </div>
+          </div>
+        )}
+      </div>
+
       {/* TOTALES + ACCIONES */}
       <div className="bg-gradient-to-r from-blue-50 to-emerald-50 border-2 border-blue-accent rounded-xl p-4 mb-4">
         <div className="grid grid-cols-2 md:grid-cols-4 gap-3 mb-3">
@@ -957,11 +1227,15 @@ export default function PresupuestoPage() {
             <div className="text-xl font-bold text-blue-accent font-mono">{fmt(ganancia)}</div>
           </div>
           <div>
-            <div className="text-[10px] text-navy uppercase font-semibold">Margen</div>
-            <div className={`text-xl font-bold font-mono ${margenPct >= 30 ? "text-emerald-700" : margenPct >= 15 ? "text-amber-700" : "text-red-700"}`}>
-              {margenPct.toFixed(1)}%
+            <div className="text-[10px] text-navy uppercase font-semibold">Food cost real</div>
+            <div className={`text-xl font-bold font-mono ${
+              foodCostAplicado === 0 ? "text-gray-300" :
+              foodCostAplicado <= 20 ? "text-emerald-700" :
+              foodCostAplicado <= 35 ? "text-amber-700" : "text-red-700"
+            }`}>
+              {foodCostAplicado > 0 ? `${foodCostAplicado.toFixed(1)}%` : "—"}
             </div>
-            <div className="text-[10px] text-gray-500">markup: {markupAplicado.toFixed(0)}%</div>
+            <div className="text-[10px] text-gray-500">margen: {margenPct.toFixed(1)}%</div>
           </div>
         </div>
 
