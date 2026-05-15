@@ -145,33 +145,155 @@ function normalizeName(s: string): string {
     .trim();
 }
 
-function findCostByName(platos: PlatoCosteado[], name: string): PlatoCosteado | null {
+// Stopwords genéricos
+const STOPWORDS = new Set([
+  "arma", "tu", "de", "del", "la", "el", "con", "y", "o", "a", "al",
+  "los", "las", "un", "una", "para", "por",
+]);
+// Tipos de plato — la palabra que indica QUÉ tipo es (handroll, niguiri, etc)
+const TIPOS_PLATO = new Set([
+  "handroll", "handrolls", "niguiri", "niguiris", "nigiri", "nigiris",
+  "sashimi", "sashimis", "ceviche", "ceviches", "roll", "rolls",
+  "maki", "makis", "tataki", "tatakis", "tiradito", "tiraditos",
+  "gunkan", "gunkans", "tartar", "tartares", "tartars", "carpaccio",
+  "carpaccios", "wok", "woks", "sopa", "sopas", "ensalada", "ensaladas",
+  "chirashi", "combos", "combo", "platos", "plato", "calient", "caliente",
+  "menu", "ejecutivo", "omakase",
+]);
+// Categorías que NO conviene matchear por proteína (no son comida)
+const CATEGORIES_NO_PROTEIN = new Set([
+  "tragos", "trago", "bebidas", "bebida", "vinos", "vino", "cervezas",
+  "cerveza", "espumantes", "espumante", "champagnes", "champagne",
+  "infusiones", "infusion", "infusión", "cafes", "cafés", "cafe", "café",
+  "mocktails", "mocktail", "sin alcohol", "alcohol", "jugos", "jugo",
+  "postres", "postre", "cocteles", "coctel",
+]);
+
+function extractInfo(displayName: string) {
+  const norm = normalizeName(displayName);
+  const words = norm.split(" ").filter((w) => w.length > 2);
+  if (words.length === 0) return { tipo: null, proteina: null, words: [] };
+
+  // El tipo es la primera palabra significativa que sea un tipo de plato conocido
+  let tipo: string | null = null;
+  for (const w of words) {
+    if (TIPOS_PLATO.has(w)) {
+      tipo = w;
+      break;
+    }
+  }
+  // La proteína es la última palabra que NO sea stopword ni tipo de plato
+  const restantes = words.filter((w) => !STOPWORDS.has(w) && !TIPOS_PLATO.has(w));
+  const proteina = restantes.length > 0 ? restantes[restantes.length - 1] : null;
+
+  return { tipo, proteina, words };
+}
+
+// Secciones del menú para las que NO conviene auto-costear (son combos
+// múltiples, menús especiales, bebidas, postres, etc.). El usuario las carga manual.
+const SECCIONES_NO_AUTO_COST = [
+  "combos", "combo", "omakase", "menu ejecutivo", "menus",
+  "tragos", "bebidas", "vinos", "cervezas", "espumantes", "champagnes",
+  "infusiones", "cafes", "mocktails", "sin alcohol", "jugos", "postres", "cocteles",
+];
+
+function shouldAutoCost(section?: string): boolean {
+  if (!section) return true;
+  const sl = section.toLowerCase().trim();
+  for (const s of SECCIONES_NO_AUTO_COST) {
+    if (sl.includes(s)) return false;
+  }
+  return true;
+}
+
+/**
+ * Match estricto: el item del menú matchea un plato del COSTEO sólo si
+ * tanto el TIPO de plato (handroll/niguiri/etc) como la proteína coinciden.
+ * Si solo uno tiene tipo, NO matchea (evita falsos positivos como
+ * "Trucha" matcheando con "Gunkan de Trucha").
+ */
+function findCostByName(platos: PlatoCosteado[], name: string, section?: string): PlatoCosteado | null {
   if (!name || platos.length === 0) return null;
+  // Skip secciones que no conviene auto-costear (combos, bebidas, etc)
+  if (!shouldAutoCost(section)) return null;
+
   const norm = normalizeName(name);
   if (!norm) return null;
-  // 1. Exact
+
+  // 1. Match exacto
   for (const p of platos) {
     if (normalizeName(p.plato) === norm) return p;
   }
-  // 2. Contains
+
+  const { tipo, proteina } = extractInfo(name);
+  if (!proteina) return null;
+
+  // 2. Match estricto: ambos lados deben coincidir en tipo (si tienen) y proteína
   for (const p of platos) {
     const platoNorm = normalizeName(p.plato);
-    if (platoNorm.includes(norm) || norm.includes(platoNorm)) return p;
+    const platoWords = platoNorm.split(" ");
+    const tieneProteina = platoWords.includes(proteina);
+    if (!tieneProteina) continue;
+    // Tipo del plato
+    const platoTipo = platoWords.find((w) => TIPOS_PLATO.has(w)) || null;
+    // Regla estricta:
+    //   - si AMBOS tienen tipo: deben coincidir
+    //   - si uno tiene y el otro no: no match (asimetría no permitida)
+    //   - si NINGUNO tiene tipo: match por proteína (raro pero posible)
+    if (tipo && platoTipo) {
+      if (tipo !== platoTipo) continue;
+    } else if ((tipo && !platoTipo) || (!tipo && platoTipo)) {
+      continue;
+    }
+    return p;
   }
-  // 3. Word overlap (>=2 palabras > 3 chars)
-  const inputWords = norm.split(" ").filter((w) => w.length > 3);
-  if (inputWords.length === 0) return null;
-  let bestScore = 0;
-  let bestMatch: PlatoCosteado | null = null;
-  for (const p of platos) {
-    const platoWords = normalizeName(p.plato).split(" ").filter((w) => w.length > 3);
-    const common = inputWords.filter((w) => platoWords.includes(w)).length;
-    if (common > bestScore && common >= 2) {
-      bestScore = common;
-      bestMatch = p;
+
+  return null;
+}
+
+/**
+ * Lookup por proteína en INGREDIENTES — solo si la categoría aplica (no bebidas, etc).
+ * Match exacto por palabra completa (no substring).
+ */
+function findProteinCost(
+  ingredientes: Ingrediente[] | undefined,
+  name: string,
+  section?: string,
+  gramosProteina = 30
+): { proteinaPrecio: number; costoEstimado: number; matched: string } | null {
+  if (!ingredientes || ingredientes.length === 0) return null;
+  // Si la sección no es de comida, abortar
+  if (section) {
+    const sectionLower = section.toLowerCase();
+    const cats = Array.from(CATEGORIES_NO_PROTEIN);
+    for (const cat of cats) {
+      if (sectionLower.includes(cat)) return null;
     }
   }
-  return bestMatch;
+
+  const { proteina } = extractInfo(name);
+  if (!proteina || proteina.length < 4) return null; // proteína muy corta = ambiguo
+  // No matchear con palabras súper genéricas
+  if (["clasico", "veggie", "kosher", "style", "rojo", "blanca", "rosa", "verde"].includes(proteina)) return null;
+
+  // Buscar en INGREDIENTES match por PALABRA COMPLETA
+  for (const ing of ingredientes) {
+    const ingNorm = normalizeName(ing.insumo);
+    const ingWords = ingNorm.split(" ");
+    if (ingWords.includes(proteina)) {
+      const proteinaPrecio = ing.precioNeto;
+      const costoEstimado = (proteinaPrecio * gramosProteina) / 1000;
+      return { proteinaPrecio, costoEstimado, matched: ing.insumo };
+    }
+  }
+  return null;
+}
+
+interface Ingrediente {
+  rubro: string;
+  insumo: string;
+  unidad: string;
+  precioNeto: number;
 }
 
 interface UltimaCompra {
@@ -229,6 +351,7 @@ export default function PresupuestoPage() {
   const [menuData, setMenuData] = useState<MenuData | null>(null);
   const [costeoPlatos, setCosteoPlatos] = useState<PlatoCosteado[]>([]);
   const [salsasCosteo, setSalsasCosteo] = useState<SalsaCosteo[]>([]);
+  const [ingredientes, setIngredientes] = useState<Ingrediente[]>([]);
   const [ultimosPrecios, setUltimosPrecios] = useState<UltimaCompra[]>([]);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
@@ -302,6 +425,7 @@ export default function PresupuestoPage() {
         setMenuData(menuRes);
         if (Array.isArray(costeoRes.platos)) setCosteoPlatos(costeoRes.platos);
         if (Array.isArray(costeoRes.salsas)) setSalsasCosteo(costeoRes.salsas);
+        if (Array.isArray(costeoRes.ingredientes)) setIngredientes(costeoRes.ingredientes);
         if (Array.isArray(ultRes.ultimosPrecios)) setUltimosPrecios(ultRes.ultimosPrecios);
       })
       .catch((e) => setError(e.message))
@@ -354,17 +478,31 @@ export default function PresupuestoPage() {
   const addMenuItem = (it: MenuItem) => {
     // Construir nombre descriptivo: "Ceviche de Wasabi" en lugar de solo "Wasabi"
     const displayName = buildItemDisplayName(it.sectionTitle, it.name);
-    // Buscar costo: probar primero con el nombre completo, después con name solo
-    const costMatch = findCostByName(costeoPlatos, displayName) || findCostByName(costeoPlatos, it.name);
+    // 1. Match exacto en PLATOS Y PRECIOS
+    const costMatch = findCostByName(costeoPlatos, displayName, it.sectionTitle) || findCostByName(costeoPlatos, it.name, it.sectionTitle);
+    // 2. Si no hay match exacto (ej. "Arma tu Handroll - Shiromi"), buscar la proteína en INGREDIENTES
+    let costoEstimado = 0;
+    let notaCosto = it.description || "";
+    if (costMatch) {
+      costoEstimado = Math.round(costMatch.costoTotal);
+    } else {
+      const proteinMatch = findProteinCost(ingredientes, displayName, it.sectionTitle, 30);
+      if (proteinMatch) {
+        // Estimación: 30g proteína + ~$200 de base (shari + nori + mayo aprox)
+        const baseCost = 200;
+        costoEstimado = Math.round(proteinMatch.costoEstimado + baseCost);
+        notaCosto = `${notaCosto}${notaCosto ? " · " : ""}Costo estimado: 30g ${proteinMatch.matched} + base`;
+      }
+    }
     const newItem: PresupuestoItem = {
       id: uid(),
       menuItemId: it.id,
       nombre: displayName,
       cantidad: comensales || 1,
       unidad: "unidad",
-      costoUnit: costMatch ? Math.round(costMatch.costoTotal) : 0,
-      precioUnit: it.price || 0, // sugerimos el precio del menu
-      notas: it.description || "",
+      costoUnit: costoEstimado,
+      precioUnit: it.price || 0,
+      notas: notaCosto,
     };
     setItems((prev) => [...prev, newItem]);
     setSearchPicker("");
@@ -967,7 +1105,9 @@ export default function PresupuestoPage() {
             <div className="absolute z-30 w-full mt-1 bg-white border border-gray-200 rounded-lg shadow-lg max-h-80 overflow-y-auto">
               {filteredMenuItems.map((it) => {
                 const displayName = buildItemDisplayName(it.sectionTitle, it.name);
-                const cm = findCostByName(costeoPlatos, displayName) || findCostByName(costeoPlatos, it.name);
+                const cm = findCostByName(costeoPlatos, displayName, it.sectionTitle) || findCostByName(costeoPlatos, it.name, it.sectionTitle);
+                const pm = !cm ? findProteinCost(ingredientes, displayName, it.sectionTitle, 30) : null;
+                const costoFinal = cm ? cm.costoTotal : (pm ? pm.costoEstimado + 200 : 0);
                 return (
                   <button
                     key={it.id}
@@ -979,8 +1119,18 @@ export default function PresupuestoPage() {
                         <div className="font-medium text-navy truncate">
                           {displayName}
                           {cm && (
-                            <span className="ml-1.5 text-[9px] bg-emerald-100 text-emerald-700 px-1 py-0.5 rounded font-normal" title={`Costo: ${fmt(cm.costoTotal)}`}>
+                            <span className="ml-1.5 text-[9px] bg-emerald-100 text-emerald-700 px-1 py-0.5 rounded font-normal" title={`Plato exacto: ${cm.plato}`}>
                               ✓ costeado
+                            </span>
+                          )}
+                          {!cm && pm && (
+                            <span className="ml-1.5 text-[9px] bg-amber-100 text-amber-700 px-1 py-0.5 rounded font-normal" title={`Estimado por proteína: ${pm.matched} (30g) + base $200`}>
+                              ≈ por proteína
+                            </span>
+                          )}
+                          {!cm && !pm && (
+                            <span className="ml-1.5 text-[9px] bg-red-100 text-red-700 px-1 py-0.5 rounded font-normal">
+                              sin costo
                             </span>
                           )}
                         </div>
@@ -991,7 +1141,7 @@ export default function PresupuestoPage() {
                       </div>
                       <div className="text-right">
                         <div className="text-xs font-mono text-gray-500">{fmt(it.price)}</div>
-                        {cm && <div className="text-[10px] text-amber-600 font-mono">costo {fmt(cm.costoTotal)}</div>}
+                        {costoFinal > 0 && <div className="text-[10px] text-amber-600 font-mono">costo {fmt(costoFinal)}</div>}
                       </div>
                     </div>
                   </button>
